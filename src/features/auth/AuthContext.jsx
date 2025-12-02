@@ -1,70 +1,48 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [accessToken, setAccessToken] = useState(null);
+  const [refreshToken, setRefreshToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check if user is already logged in on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem("user");
+    const storedAccess = localStorage.getItem("access_token");
+    const storedRefresh = localStorage.getItem("refresh_token");
 
-    if (storedToken && storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser({
-        ...parsedUser,
-        profilePhoto: parsedUser.profilePhoto || null, // ensure profile field exists
-      });
-      setToken(storedToken);
+    if (storedUser && storedAccess && storedRefresh) {
+      setUser(JSON.parse(storedUser));
+      setAccessToken(storedAccess);
+      setRefreshToken(storedRefresh);
     }
     setLoading(false);
   }, []);
 
-  const login = (userData, authToken) => {
-    const enrichedUser = {
-      ...userData,
-      profilePhoto: userData.profilePhoto || null,
-    };
+  const setUserSession = (userData, access, refresh) => {
+    setUser(userData);
+    setAccessToken(access);
+    setRefreshToken(refresh);
 
-    setUser(enrichedUser);
-    setToken(authToken);
-    localStorage.setItem("token", authToken);
-    localStorage.setItem("user", JSON.stringify(enrichedUser));
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("access_token", access);
+    localStorage.setItem("refresh_token", refresh);
   };
 
   const logout = () => {
+    localStorage.clear();
     setUser(null);
-    setToken(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    setAccessToken(null);
+    setRefreshToken(null);
+    window.location.href = "/login";
   };
 
-  const hasRole = (allowedRoles) => {
-    if (!user) return false;
-    return allowedRoles.includes(user.role);
-  };
-
-  const value = {
-    user,
-    token,
-    login,
-    logout,
-    hasRole,
-    loading,
-    isAuthenticated: !!user,
-    setUser, // allow updating user photo
-  };
+  const value = { user, accessToken, refreshToken, loading, isAuthenticated: !!user,
+    setUserSession, logout };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);

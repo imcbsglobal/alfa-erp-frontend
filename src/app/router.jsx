@@ -20,6 +20,7 @@ function RoleDashboard() {
     return <UserDashboard />;
   }
   // Both SUPER_ADMIN and ADMIN see the same dashboard
+  // return <div>heiii</div>
   return <SuperAdminDashboard />;
 }
 
@@ -63,7 +64,7 @@ export default function AppRouter() {
       </Route>
 
       {/* Common Dashboard */}
-      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "USER"]} />}>
+      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "USER",""]} />}>
         <Route element={<MainLayout />}>
           <Route path="/dashboard" element={<RoleDashboard />} />
         </Route>

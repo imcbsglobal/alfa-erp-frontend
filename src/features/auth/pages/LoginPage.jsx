@@ -1,114 +1,65 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../AuthContext';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login as apiLogin } from "../../../services/auth";
+import { useAuth } from "../AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const { setUserSession } = useAuth();
+
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = "Invalid email format";
     }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
+    if (!formData.password.trim()) {
+      newErrors.password = "Password is required";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
+    setErrors({});
 
-    // Default super admin account
-    const defaultSuperAdmin = { 
-      email: "super@admin.com", 
-      password: "super123", 
-      role: "SUPER_ADMIN",
-      name: "Super Admin",
-      department: "Management"
-    };
+    try {
+      const response = await apiLogin(formData.email, formData.password);
 
-    setTimeout(() => {
-      // Get users from localStorage
-      const appUsers = JSON.parse(localStorage.getItem('appUsers') || '[]');
-      
-      let authenticatedUser = null;
+      setUserSession(response.user, response.access, response.refresh);
 
-      // Check if user is super admin
-      if (formData.email === defaultSuperAdmin.email && formData.password === defaultSuperAdmin.password) {
-        authenticatedUser = defaultSuperAdmin;
-      } else {
-        // Find user in localStorage
-        const foundUser = appUsers.find(
-          u => u.email === formData.email && u.password === formData.password
-        );
-
-        if (!foundUser) {
-          setErrors({ general: "Invalid email or password" });
-          setLoading(false);
-          return;
-        }
-
-        // Check if account is active
-        if (foundUser.status === 'INACTIVE') {
-          setErrors({ general: "Your account has been deactivated. Please contact your administrator." });
-          setLoading(false);
-          return;
-        }
-
-        authenticatedUser = foundUser;
-      }
-
-      // Login successful - store user
-      login(authenticatedUser, "fake-token");
-
-      // Navigate based on role
-      if (authenticatedUser.role === 'SUPER_ADMIN') {
+      if (response.user.roles.includes("Super Admin")) {
         navigate("/super-admin/dashboard");
-      } else if (authenticatedUser.role === 'ADMIN') {
+      } else if (response.user.roles.includes("Admin")) {
         navigate("/admin/dashboard");
-      } else if (authenticatedUser.role === 'USER') {
-        navigate("/user/dashboard");
       } else {
         navigate("/dashboard");
       }
 
+    } catch (err) {
+      console.error('Login failed:', err);
+      setErrors({ general: err.message || "Invalid email or password" });
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -176,11 +127,11 @@ export default function LoginPage() {
             </div>
 
             {errors.general && (
-              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-                <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-                {errors.general}
+                <span>{errors.general}</span>
               </div>
             )}
 
@@ -308,12 +259,6 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
-
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-xs font-semibold text-gray-600 mb-2">Demo Credentials:</p>
-              <p className="text-xs text-gray-600">Super Admin: super@admin.com / super123</p>
-            </div>
           </div>
         </div>
       </div>
