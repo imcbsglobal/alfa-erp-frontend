@@ -1,8 +1,11 @@
-// MainLayout.jsx
+// MainLayout.jsx - Fixed Layout Version
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+import ToastProvider from "../components/ToastProvider";
+import toast, { Toaster } from "react-hot-toast";
+
 import { 
   HomeIcon, 
   UsersIcon, 
@@ -39,7 +42,6 @@ export default function MainLayout() {
       const profileButton = document.querySelector('[data-profile-button]');
       const masterButton = document.querySelector('[data-master-button]');
       
-      // Don't close if clicking on the toggle buttons themselves
       if (userMgmtButton && userMgmtButton.contains(e.target)) {
         return;
       }
@@ -47,12 +49,10 @@ export default function MainLayout() {
         return;
       }
       
-      // Close user management menu if clicking outside sidebar
       if (sidebar && !sidebar.contains(e.target)) {
         setShowUserManagementMenu(false);
       }
       
-      // Close profile menu if clicking outside profile area
       if (profileMenu && !profileMenu.contains(e.target)) {
         setShowProfileMenu(false);
       }
@@ -60,10 +60,9 @@ export default function MainLayout() {
         return;
       }
 
-      // And close Master menu when clicking outside:
       if (sidebar && !sidebar.contains(e.target)) {
         setShowUserManagementMenu(false);
-        setShowMasterMenu(false); // Add this line
+        setShowMasterMenu(false);
       }
     };
 
@@ -71,7 +70,7 @@ export default function MainLayout() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Load permissions on mount and when location changes (to catch updates)
+  // Load permissions on mount and when location changes
   useEffect(() => {
     const loadPermissions = () => {
       if (user?.email) {
@@ -87,7 +86,6 @@ export default function MainLayout() {
 
     loadPermissions();
 
-    // Add storage event listener to detect permission changes
     const handleStorageChange = (e) => {
       if (e.key === "userPermissions") {
         loadPermissions();
@@ -95,23 +93,18 @@ export default function MainLayout() {
     };
 
     window.addEventListener("storage", handleStorageChange);
-    
-    // Also listen for custom event (for same-tab updates)
     window.addEventListener("permissionsUpdated", loadPermissions);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("permissionsUpdated", loadPermissions);
     };
-  }, [user, location.pathname]); // Re-run when location changes
+  }, [user, location.pathname]);
 
-  // Check if user has admin privileges OR has User Management permission
   const hasUserManagementAccess = () => {
-    // Super Admin and Admin always have access
-    if (user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") {
+    if (user?.role === "SUPERADMIN" || user?.role === "ADMIN") {
       return true;
     }
-    // Regular users have access if they have the permission
     return userPermissions["user-management"]?.view === true;
   };
 
@@ -160,11 +153,10 @@ export default function MainLayout() {
     }
   ];
 
-  // Add Master submenu array after userManagementSubmenu:
   const masterSubmenu = [
     {
       label: "Job Title",
-      icon: BriefcaseIcon, // You'll need to create or import this icon
+      icon: BriefcaseIcon,
       path: "/master/job-title"
     }
   ];
@@ -183,15 +175,17 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      <ToastProvider />
+      {/* Fixed Sidebar */}
       <aside
         className={`${
           sidebarOpen ? "w-64" : "w-20"
-        } bg-white border-r border-gray-200 transition-all duration-300 flex flex-col relative`}
+        } bg-white border-r border-gray-200 transition-all duration-300 flex flex-col fixed left-0 top-0 h-full z-[9999]`}
+        style={{ overflow: "visible" }}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 flex-shrink-0">
           {sidebarOpen ? (
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white font-bold shadow-sm">
@@ -209,8 +203,8 @@ export default function MainLayout() {
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-visible">
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 py-4 px-3 space-y-1" style={{ overflowY: 'auto', overflowX: 'visible' }}>
           {/* Dashboard Menu Item */}
           {menuItems.map((item) => (
             <button
@@ -219,7 +213,7 @@ export default function MainLayout() {
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
                 isActive(item.path)
                   ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
-                  : "text-gray-700 hover:bg-gray-100"
+                  : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
               } ${!sidebarOpen && "justify-center"}`}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -227,9 +221,9 @@ export default function MainLayout() {
             </button>
           ))}
 
-          {/* User Management Dropdown - Show if user has role-based or permission-based access */}
+          {/* User Management Dropdown */}
           {permissionsLoaded && hasUserManagementAccess() && (
-            <div className="relative">
+            <div className="relative" style={{ overflow: 'visible' }}>
               <button
                 type="button"
                 data-user-mgmt-button
@@ -237,19 +231,19 @@ export default function MainLayout() {
                   e.preventDefault();
                   e.stopPropagation();
                   setShowUserManagementMenu(!showUserManagementMenu);
-                  setShowMasterMenu(false);        // <-- ADD THIS
+                  setShowMasterMenu(false);
                   setShowProfileMenu(false);
                 }}
                 onMouseEnter={() => {
                   if (!sidebarOpen) {
                     setShowUserManagementMenu(true);
-                    setShowMasterMenu(false);      // <-- ADD THIS
+                    setShowMasterMenu(false);
                   }
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
                   isUserManagementActive()
                     ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
-                    : "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
                 } ${!sidebarOpen && "justify-center"}`}
               >
                 <UsersIcon className="w-5 h-5 flex-shrink-0" />
@@ -267,8 +261,7 @@ export default function MainLayout() {
 
               {/* Submenu - Expanded Sidebar */}
               {sidebarOpen && showUserManagementMenu && (
-                <div className="mt-1 space-y-1 pl-4">
-                  {console.log("✅ Submenu is rendering! showUserManagementMenu:", showUserManagementMenu)}
+                <div className="mt-1 space-y-1 pl-4" style={{ position: 'relative', zIndex: 60 }}>
                   {userManagementSubmenu.map((item) => (
                     <button
                       key={item.path}
@@ -276,7 +269,6 @@ export default function MainLayout() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log("Submenu item clicked, navigating to:", item.path);
                         navigate(item.path);
                         setShowUserManagementMenu(false);
                       }}
@@ -295,7 +287,7 @@ export default function MainLayout() {
 
               {/* Submenu - Collapsed Sidebar (Flyout) */}
               {!sidebarOpen && showUserManagementMenu && (
-                <div className="absolute -top-1 left-full ml-2 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg py-2 min-w-[200px] z-50">
+                <div className="absolute -top-1 left-full ml-2 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg py-2 min-w-[200px] z-[9999]">
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       User Management
@@ -310,8 +302,8 @@ export default function MainLayout() {
                       }}
                       className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm transition-all ${
                         isActive(item.path)
-                          ? "bg-teal-50 text-teal-700 font-semibold"
-                          : "text-gray-700 hover:bg-gray-50"
+                          ? "bg-teal-100 text-teal-700 font-semibold border-l-4 border-teal-500"
+                          : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
                       }`}
                     >
                       <item.icon className="w-4 h-4 flex-shrink-0" />
@@ -323,106 +315,106 @@ export default function MainLayout() {
             </div>
           )}
 
-          {/* Master Dropdown - Show for admins and users with master permissions */}
-            {permissionsLoaded && (user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") && (
-              <div className="relative">
-                <button
-                  type="button"
-                  data-master-button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowMasterMenu(!showMasterMenu);
-                    setShowUserManagementMenu(false);   // ENSURE ONLY ONE OPEN
-                    setShowProfileMenu(false);
-                  }}
-                  onMouseEnter={() => {
-                    if (!sidebarOpen) {
-                      setShowMasterMenu(true);
-                      setShowUserManagementMenu(false); // CLOSE OTHER MENU
-                    }
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
-                    isMasterMenuActive()
-                      ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
-                      : "text-gray-700 hover:bg-gray-100"
-                  } ${!sidebarOpen && "justify-center"}`}
-                >
-                  {/* Briefcase Icon - You can use any icon */}
-                  <TuneOutlinedIcon className="w-5 h-5 flex-shrink-0" />
-                  {sidebarOpen && (
-                    <>
-                      <span className="font-medium flex-1 text-left">Master</span>
-                      <ChevronDownIcon 
-                        className={`w-4 h-4 transition-transform duration-200 ${
-                          showMasterMenu ? "rotate-180" : ""
-                        }`} 
-                      />
-                    </>
-                  )}
-                </button>
-
-                {/* Submenu - Expanded Sidebar */}
-                {sidebarOpen && showMasterMenu && (
-                  <div className="mt-1 space-y-1 pl-4">
-                    {masterSubmenu.map((item) => (
-                      <button
-                        key={item.path}
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          navigate(item.path);
-                          setShowMasterMenu(false);
-                        }}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-sm transition-all ${
-                          location.pathname.includes(item.path)
-                            ? "bg-teal-50 text-teal-700 font-medium shadow-sm" 
-                            : "text-gray-600 hover:bg-gray-50"
-                        }`}
-                      >
-                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
+          {/* Master Dropdown */}
+          {permissionsLoaded && (user?.role === "SUPERADMIN" || user?.role === "ADMIN") && (
+            <div className="relative" style={{ overflow: 'visible' }}>
+              <button
+                type="button"
+                data-master-button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowMasterMenu(!showMasterMenu);
+                  setShowUserManagementMenu(false);
+                  setShowProfileMenu(false);
+                }}
+                onMouseEnter={() => {
+                  if (!sidebarOpen) {
+                    setShowMasterMenu(true);
+                    setShowUserManagementMenu(false);
+                  }
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
+                  isMasterMenuActive()
+                    ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
+                    : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
+                } ${!sidebarOpen && "justify-center"}`}
+              >
+                <TuneOutlinedIcon className="w-5 h-5 flex-shrink-0" />
+                {sidebarOpen && (
+                  <>
+                    <span className="font-medium flex-1 text-left">Master</span>
+                    <ChevronDownIcon 
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        showMasterMenu ? "rotate-180" : ""
+                      }`} 
+                    />
+                  </>
                 )}
+              </button>
 
-                {/* Submenu - Collapsed Sidebar (Flyout) */}
-                {!sidebarOpen && showMasterMenu && (
-                  <div className="absolute -top-1 left-full ml-2 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg py-2 min-w-[200px] z-50">
-                    <div className="px-3 py-2 border-b border-gray-100">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Master
-                      </p>
-                    </div>
-                    {masterSubmenu.map((item) => (
-                      <button
-                        key={item.path}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigate(item.path);
-                          setShowMasterMenu(false);
-                        }}
-                        className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm transition-all ${
-                          location.pathname.includes(item.path)
-                            ? "bg-teal-50 text-teal-700 font-medium" 
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
+              {/* Submenu - Expanded Sidebar */}
+              {sidebarOpen && showMasterMenu && (
+                <div className="mt-1 space-y-1 pl-4" style={{ position: 'relative', zIndex: 60 }}>
+                  {masterSubmenu.map((item) => (
+                    <button
+                      key={item.path}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate(item.path);
+                        setShowMasterMenu(false);
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-sm transition-all ${
+                        location.pathname.includes(item.path)
+                          ? "bg-teal-50 text-teal-700 font-medium shadow-sm" 
+                          : "text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Submenu - Collapsed Sidebar (Flyout) */}
+              {!sidebarOpen && showMasterMenu && (
+                <div className="absolute -top-1 left-full ml-2 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg py-2 min-w-[200px] z-[9999]">
+                  <div className="px-3 py-2 border-b border-gray-100">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Master
+                    </p>
                   </div>
-                )}
-              </div>
-            )}
-          </nav>
+                  {masterSubmenu.map((item) => (
+                    <button
+                      key={item.path}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(item.path);
+                        setShowMasterMenu(false);
+                      }}
+                      className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm transition-all ${
+                        isActive(item.path)
+                          ? "bg-teal-100 text-teal-700 font-semibold border-l-4 border-teal-500"
+                          : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </nav>
+
         {/* Sidebar Toggle Button */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -437,10 +429,18 @@ export default function MainLayout() {
         </button>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-x-hidden bg-gray-50">
-        {/* Header with Profile */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
+      {/* Main Content Area with proper margin */}
+      <main 
+        className={`flex-1 overflow-x-hidden bg-gray-50 transition-all duration-300 ${
+          sidebarOpen ? "ml-64" : "ml-20"
+        }`}
+      >
+        {/* Fixed Header */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm fixed top-0 right-0 z-40 transition-all duration-300"
+          style={{
+            left: sidebarOpen ? '16rem' : '5rem'
+          }}
+        >
           <div>
             <h1 className="text-xl font-bold text-gray-800">
               {getPageTitle()}
@@ -450,7 +450,7 @@ export default function MainLayout() {
             </p>
           </div>
 
-          {/* Profile Section - Top Right */}
+          {/* Profile Section */}
           <div className="relative" data-profile-menu>
             <button
               data-profile-button
@@ -532,11 +532,13 @@ export default function MainLayout() {
           </div>
         </header>
 
-        {/* Page Content */}
-        <div className="p-6">
+        {/* Scrollable Page Content */}
+        <div className="pt-16 p-6 h-full overflow-y-auto">
           <Outlet />
         </div>
       </main>
+      
+      <Toaster position="top-right" reverseOrder={false} />
     </div>
   );
 }

@@ -19,7 +19,7 @@ function RoleDashboard() {
   if (user?.role === "USER") {
     return <UserDashboard />;
   }
-  // Both SUPER_ADMIN and ADMIN see the same dashboard
+  // Both SUPERADMIN and ADMIN see the same dashboard
   // return <div>heiii</div>
   return <SuperAdminDashboard />;
 }
@@ -27,46 +27,38 @@ function RoleDashboard() {
 export default function AppRouter() {
   return (
     <Routes>
+      {/* Public Routes */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Super Admin Routes */}
-      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN"]} />}>
+      {/* Logged-in Routes */}
+      <Route element={<ProtectedRoute allowedRoles={["SUPERADMIN", "ADMIN", "USER"]} />}>
+        <Route element={<MainLayout />}>
+          <Route path="/dashboard" element={<RoleDashboard />} />
+
+          {/* Common admin/user routes */}
+          <Route path="/user-management" element={<UserListPage />} />
+          <Route path="/user-control" element={<UserControlPage />} />
+          <Route path="/add-user" element={<AddUserPage />} />
+          <Route path="/users/:id/edit" element={<AddUserPage />} />
+
+          {/* Master */}
+          <Route path="/master/job-title" element={<JobTitleListPage />} />
+          <Route path="/master/job-title/add" element={<AddJobTitlePage />} />
+        </Route>
+      </Route>
+
+      {/* Superadmin exclusive */}
+      <Route element={<ProtectedRoute allowedRoles={["SUPERADMIN"]} />}>
         <Route element={<MainLayout />}>
           <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
         </Route>
       </Route>
 
-      {/* Admin Routes */}
-      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN"]} />}>
+      {/* Admin exclusive (if different dashboard required) */}
+      <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
         <Route element={<MainLayout />}>
           <Route path="/admin/dashboard" element={<SuperAdminDashboard />} />
-          <Route path="/user-management" element={<UserListPage />} />
-          <Route path="/user-control" element={<UserControlPage />} />
-          <Route path="/add-user" element={<AddUserPage />} />
-          {/* Master Routes */}
-          <Route path="/master/job-title" element={<JobTitleListPage />} />
-          <Route path="/master/job-title/add" element={<AddJobTitlePage />} />
-        </Route>
-      </Route>
-
-      {/* User Routes */}
-      <Route element={<ProtectedRoute allowedRoles={["USER"]} />}>
-        <Route element={<MainLayout />}>
-          <Route path="/user/dashboard" element={<UserDashboard />} />
-          <Route path="/user-management" element={<UserListPage />} />
-          <Route path="/user-control" element={<UserControlPage />} />
-          <Route path="/add-user" element={<AddUserPage />} />
-          {/* Master Routes for users with permissions */}
-          <Route path="/master/job-title" element={<JobTitleListPage />} />
-          <Route path="/master/job-title/add" element={<AddJobTitlePage />} />
-        </Route>
-      </Route>
-
-      {/* Common Dashboard */}
-      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "USER",""]} />}>
-        <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<RoleDashboard />} />
         </Route>
       </Route>
     </Routes>

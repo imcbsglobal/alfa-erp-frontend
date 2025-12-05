@@ -44,11 +44,11 @@ export default function LoginPage() {
     try {
       const response = await apiLogin(formData.email, formData.password);
 
-      setUserSession(response.user, response.access, response.refresh);
+      setUserSession(response.data.user, response.data.access, response.data.refresh);
 
-      if (response.user.roles.includes("Super Admin")) {
+      if (response.data.user.role =="SuperAdmin") {
         navigate("/super-admin/dashboard");
-      } else if (response.user.roles.includes("Admin")) {
+      } else if (response.data.user.roles =="Admin") {
         navigate("/admin/dashboard");
       } else {
         navigate("/dashboard");
