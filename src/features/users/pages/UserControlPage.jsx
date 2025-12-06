@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
+import api, { getUsers } from "../../../services/auth";
 
 export default function UserControlPage() {
   const [users, setUsers] = useState([]);
@@ -8,73 +9,55 @@ export default function UserControlPage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Available menu items that can be assigned to users
-  const availableMenus = [
-    { id: 'dashboard', name: 'Dashboard', icon: '📊', category: 'Core' },
-    { id: 'delivery', name: 'Delivery Management', icon: '🚚', category: 'Operations' },
-    { id: 'payments', name: 'Payment Management', icon: '💰', category: 'Finance' },
-    { id: 'purchase-orders', name: 'Purchase Orders', icon: '📦', category: 'Operations' },
-    { id: 'inventory', name: 'Inventory', icon: '📋', category: 'Operations' },
-    { id: 'customers', name: 'Customer Management', icon: '👥', category: 'CRM' },
-    { id: 'suppliers', name: 'Supplier Management', icon: '🏭', category: 'Operations' },
-    { id: 'reports', name: 'Reports & Analytics', icon: '📈', category: 'Analytics' },
-    { id: 'settings', name: 'Settings', icon: '⚙️', category: 'System' },
-    { id: 'user-management', name: 'User Management', icon: '👤', category: 'Admin' },
-  ];
+  const [availableMenus, setAvailableMenus] = useState([]);
+
+const fetchAllMenus = async () => {
+  try {
+    const res = await api.get("/access/admin/menus/");
+    setAvailableMenus(res.data.data.menus);
+    console.log("Menus fetched:", res.data.data.menus);
+  } catch (err) {
+    console.error("Error fetching menus", err);
+  }
+};
+
+  useEffect(() => {
+    fetchUsers();
+    fetchAllMenus();
+  }, []);
 
   const [userPermissions, setUserPermissions] = useState({});
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  useEffect(() => {
     if (selectedUser) {
-      fetchUserPermissions(selectedUser.email); // Changed to email
+      fetchUserPermissions(selectedUser.id); // Changed to email
     }
   }, [selectedUser]);
 
-  const fetchUsers = () => {
+  const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Get users from localStorage
-      const appUsers = JSON.parse(localStorage.getItem('appUsers') || '[]');
-      
-      // Filter for ADMIN and USER roles only
-      const filteredUsers = appUsers.filter(u => u.role === 'ADMIN' || u.role === 'USER');
-      
-      setUsers(filteredUsers);
+      const response = await getUsers();
+      console.log("Users response:", response);
+
+      const userList = response.data.results || response.data || response; // safe handling
+      setUsers(userList);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchUserPermissions = (userEmail) => {
-    try {
-      // Get permissions from localStorage using email as key
-      const allPermissions = JSON.parse(localStorage.getItem('userPermissions') || '{}');
-      const permissions = allPermissions[userEmail] || {};
-      
-      // Convert old format to new format if needed
-      const formattedPermissions = {};
-      Object.keys(permissions).forEach(key => {
-        if (typeof permissions[key] === 'boolean') {
-          // Old format: just boolean
-          formattedPermissions[key] = { view: permissions[key] };
-        } else if (typeof permissions[key] === 'object') {
-          // New format: already has view property
-          formattedPermissions[key] = permissions[key];
-        }
-      });
-      
-      setUserPermissions(formattedPermissions);
-    } catch (error) {
-      console.error('Error fetching permissions:', error);
-      setUserPermissions({});
-    }
-  };
+  const fetchUserPermissions = async (userId) => {
+  try {
+    const res = await api.get(`/access/admin/users/${userId}/menus/`);
+    setUserPermissions(res.data);
+  } catch (error) {
+    console.error("Error fetching permissions", error);
+  }
+};
+
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);
@@ -105,43 +88,30 @@ export default function UserControlPage() {
     }));
   };
 
-  const handleSavePermissions = () => {
-    if (!selectedUser) return;
+  const handleSavePermissions = async () => {
+  if (!selectedUser) return;
+  setSaveLoading(true);
 
-    setSaveLoading(true);
-    setSuccessMessage('');
+  try {
+    const enabledMenus = Object.keys(userPermissions).filter((key) => userPermissions[key]?.view);
 
-    setTimeout(() => {
-      try {
-        // Get all existing permissions
-        const allPermissions = JSON.parse(localStorage.getItem('userPermissions') || '{}');
-        
-        // Update permissions for selected user using email as key
-        allPermissions[selectedUser.email] = userPermissions;
-        
-        // Save back to localStorage
-        localStorage.setItem('userPermissions', JSON.stringify(allPermissions));
-        
-        // ⭐ CRITICAL: Dispatch event to notify MainLayout to reload permissions
-        window.dispatchEvent(new Event('permissionsUpdated'));
-        
-        console.log('✅ Permissions saved for:', selectedUser.email);
-        console.log('✅ Event dispatched: permissionsUpdated');
-        console.log('Saved permissions:', userPermissions);
-        
-        setSuccessMessage(`Permissions updated successfully for ${selectedUser.name}!`);
-        setSaveLoading(false);
-      } catch (error) {
-        console.error('Error saving permissions:', error);
-        setSaveLoading(false);
-      }
-    }, 500);
-  };
+    await api.post("/access/admin/assign-menus/", {
+      user_id: selectedUser.id,
+      menus: enabledMenus,
+    });
 
-  const filteredUsers = users.filter(u =>
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    setSuccessMessage("Permissions updated successfully");
+  } catch (err) {
+    console.error("Save error:", err);
+  } finally {
+    setSaveLoading(false);
+  }
+};
+
+  const filteredUsers = Array.isArray(users) ? users.filter(u =>
+    (u.name || u.full_name || u.first_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (u.email || "").toLowerCase().includes(searchTerm.toLowerCase())
+  ) : [];
 
   const categories = [...new Set(availableMenus.map(m => m.category))];
 

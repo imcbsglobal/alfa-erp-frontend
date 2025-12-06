@@ -11,7 +11,6 @@ export default function AddJobTitlePage() {
 
   const [formData, setFormData] = useState({
     title: "",
-    description: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -50,14 +49,12 @@ export default function AddJobTitlePage() {
     try {
       await createJobTitle({
         title: formData.title,
-        description: formData.description,
       });
 
       toast.success("Job title created successfully");
 
       setFormData({
         title: "",
-        description: "",
       });
 
       // Optional: go back to list
@@ -169,27 +166,11 @@ export default function AddJobTitlePage() {
               )}
             </div>
 
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Description (Optional)
-              </label>
-              <textarea
-                name="description"
-                rows={4}
-                value={formData.description}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none transition resize-none"
-                placeholder="Brief description of the job title..."
-              />
-            </div>
-
             {/* Buttons */}
             <div className="flex gap-4 pt-4">
               <button
                 type="button"
                 onClick={() => {
-                  setFormData({ title: "", description: "" });
                   setErrors({});
                 }}
                 className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"

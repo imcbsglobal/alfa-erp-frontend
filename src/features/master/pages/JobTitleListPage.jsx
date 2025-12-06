@@ -78,8 +78,7 @@ export default function JobTitleListPage() {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (job) =>
-          job.title?.toLowerCase().includes(q) ||
-          job.description?.toLowerCase().includes(q)
+          job.title?.toLowerCase().includes(q) 
       );
     }
 
@@ -131,7 +130,6 @@ export default function JobTitleListPage() {
     try {
       await updateJobTitle(editingJob.id, {
         title: updatedFields.title,
-        description: updatedFields.description,
       });
       toast.success("Job title updated");
       await loadJobTitles();
@@ -318,7 +316,6 @@ export default function JobTitleListPage() {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by title or description..."
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
                 />
                 <svg
@@ -468,9 +465,6 @@ export default function JobTitleListPage() {
                         Job Title
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-bold text-white">
-                        Description
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">
                         Created
                       </th>
                       {canManageJobTitles && (
@@ -496,11 +490,6 @@ export default function JobTitleListPage() {
                                 {job.title}
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">
-                            {job.description || "-"}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -567,12 +556,10 @@ export default function JobTitleListPage() {
 
 function EditJobTitleSlideOver({ job, onClose, onSave }) {
   const [title, setTitle] = useState(job.title || "");
-  const [description, setDescription] = useState(job.description || "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setTitle(job.title || "");
-    setDescription(job.description || "");
   }, [job]);
 
   const handleSubmit = async (e) => {
@@ -583,7 +570,7 @@ function EditJobTitleSlideOver({ job, onClose, onSave }) {
     }
     setSaving(true);
     try {
-      await onSave({ title, description });
+      await onSave({ title});
     } finally {
       setSaving(false);
     }
@@ -633,18 +620,6 @@ function EditJobTitleSlideOver({ job, onClose, onSave }) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none resize-none"
             />
           </div>
         </form>
