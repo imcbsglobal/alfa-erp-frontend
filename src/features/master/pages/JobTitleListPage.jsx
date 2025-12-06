@@ -17,59 +17,63 @@ export default function JobTitleListPage() {
   const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState("title");
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [filterTitle, setFilterTitle] = useState("ALL");
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const [editingJob, setEditingJob] = useState(null); // job object or null
-  const [deleteTarget, setDeleteTarget] = useState(null); // job object or null
+  const [editingJob, setEditingJob] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Only SUPERADMIN / ADMIN can manage
   const canManageJobTitles =
     currentUser?.role === "SUPERADMIN" || currentUser?.role === "ADMIN";
 
-  // Load job titles from API
   useEffect(() => {
     loadJobTitles();
   }, []);
 
   const loadJobTitles = async () => {
-  setLoading(true);
-  try {
-    const response = await getJobTitles();
+    setLoading(true);
+    try {
+      const response = await getJobTitles();
 
-    console.log("JOB TITLE API RAW RESPONSE:", response);
+      console.log("JOB TITLE API RAW RESPONSE:", response);
 
-    let jobArray = [];
+      let jobArray = [];
 
-    // Extract valid array from backend response
-    if (Array.isArray(response?.data?.data)) {
-      jobArray = response.data.data;
-    } else if (Array.isArray(response?.data?.results)) {
-      jobArray = response.data.results;
-    } else {
-      console.warn("API returned non-array structure. Using empty array.", response);
+      if (Array.isArray(response?.data?.data)) {
+        jobArray = response.data.data;
+      } else if (Array.isArray(response?.data?.results)) {
+        jobArray = response.data.results;
+      } else {
+        console.warn("API returned non-array structure. Using empty array.", response);
+      }
+
+      setJobTitles(jobArray);
+      localStorage.setItem("jobTitles", JSON.stringify(jobArray));
+    } catch (err) {
+      console.error("Failed to load job titles:", err);
+      toast.error("Failed to load job titles");
+      setJobTitles([]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setJobTitles(jobArray);
+  // Get unique job titles for filter dropdown
+  const uniqueJobTitles = useMemo(() => {
+    const titles = new Set();
+    jobTitles.forEach(job => {
+      if (job.title) titles.add(job.title);
+    });
+    return Array.from(titles).sort();
+  }, [jobTitles]);
 
-    // Store for AddUserPage dropdown
-    localStorage.setItem("jobTitles", JSON.stringify(jobArray));
-  } catch (err) {
-    console.error("Failed to load job titles:", err);
-    toast.error("Failed to load job titles");
-    setJobTitles([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  // Filter + sort in memory
+  // Filter + search - works across ALL pages
   const processedJobTitles = useMemo(() => {
     let filtered = [...jobTitles];
 
+    // Apply search filter
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(
@@ -79,46 +83,30 @@ export default function JobTitleListPage() {
       );
     }
 
-    filtered.sort((a, b) => {
-      const valA =
-        sortField === "created"
-          ? a.created_at || a.createdAt || ""
-          : a.title || "";
-      const valB =
-        sortField === "created"
-          ? b.created_at || b.createdAt || ""
-          : b.title || "";
-
-      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
+    // Apply title filter
+    if (filterTitle !== "ALL") {
+      filtered = filtered.filter((job) => job.title === filterTitle);
+    }
 
     return filtered;
-  }, [jobTitles, searchTerm, sortField, sortDirection]);
+  }, [jobTitles, searchTerm, filterTitle]);
 
-  // Pagination
+  // Pagination calculations
   const totalItems = processedJobTitles.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * itemsPerPage;
-  const currentPageItems = processedJobTitles.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
+  const endIndex = startIndex + itemsPerPage;
+  const currentPageItems = processedJobTitles.slice(startIndex, endIndex);
 
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filterTitle]);
 
-  const handleSortChange = (field) => {
-    if (sortField === field) {
-      // toggle direction
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleNavigateToAdd = () => {
@@ -176,6 +164,110 @@ export default function JobTitleListPage() {
     }
   };
 
+  // Pagination component with numbered pages
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+
+    return (
+      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Info */}
+          <div className="text-sm text-gray-600">
+            Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} job titles
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-2">
+            {/* Previous Button */}
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                currentPage === 1
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            {/* First Page */}
+            {startPage > 1 && (
+              <>
+                <button
+                  onClick={() => handlePageChange(1)}
+                  className="px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all"
+                >
+                  1
+                </button>
+                {startPage > 2 && <span className="text-gray-400">...</span>}
+              </>
+            )}
+
+            {/* Page Numbers */}
+            {pageNumbers.map((number) => (
+              <button
+                key={number}
+                onClick={() => handlePageChange(number)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  currentPage === number
+                    ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
+                    : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
+                }`}
+              >
+                {number}
+              </button>
+            ))}
+
+            {/* Last Page */}
+            {endPage < totalPages && (
+              <>
+                {endPage < totalPages - 1 && <span className="text-gray-400">...</span>}
+                <button
+                  onClick={() => handlePageChange(totalPages)}
+                  className="px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all"
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
+
+            {/* Next Button */}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                currentPage === totalPages
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -213,87 +305,95 @@ export default function JobTitleListPage() {
           )}
         </div>
 
-        {/* Search + Sort */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6 flex flex-col md:flex-row gap-4 md:items-end md:justify-between">
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Search Job Titles
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by title or description..."
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
-              />
-              <svg
-                className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        {/* Search + Filter */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Search */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Search Job Titles
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by title or description..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
                 />
-              </svg>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Sort by
-              </label>
-              <select
-                value={sortField}
-                onChange={(e) => setSortField(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              >
-                <option value="title">Title</option>
-                <option value="created">Created Date</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Direction
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
-                }
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm flex items-center gap-1"
-              >
-                {sortDirection === "asc" ? "Asc" : "Desc"}
                 <svg
-                  className="w-4 h-4"
+                  className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  {sortDirection === "asc" ? (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 15l7-8 7 8"
-                    />
-                  ) : (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 8-7-8"
-                    />
-                  )}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
-              </button>
+              </div>
+            </div>
+
+            {/* Filter by Title */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Filter by Title
+              </label>
+              <select
+                value={filterTitle}
+                onChange={(e) => setFilterTitle(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              >
+                <option value="ALL">All Titles</option>
+                {uniqueJobTitles.map((title) => (
+                  <option key={title} value={title}>
+                    {title}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {/* Active Filters Display */}
+          {(searchTerm || filterTitle !== "ALL") && (
+            <div className="mt-4 flex flex-wrap gap-2 items-center">
+              <span className="text-sm font-medium text-gray-600">Active Filters:</span>
+              {searchTerm && (
+                <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium flex items-center gap-2">
+                  Search: "{searchTerm}"
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="hover:text-teal-900"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {filterTitle !== "ALL" && (
+                <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium flex items-center gap-2">
+                  Title: {filterTitle}
+                  <button
+                    onClick={() => setFilterTitle("ALL")}
+                    className="hover:text-cyan-900"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setFilterTitle("ALL");
+                }}
+                className="px-3 py-1 text-sm text-red-600 hover:text-red-800 font-medium"
+              >
+                Clear All
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -342,11 +442,11 @@ export default function JobTitleListPage() {
                 No job titles found
               </h3>
               <p className="text-gray-500 mb-6">
-                {searchTerm
-                  ? "Try adjusting your search"
+                {searchTerm || filterTitle !== "ALL"
+                  ? "Try adjusting your filters"
                   : "Get started by adding your first job title"}
               </p>
-              {canManageJobTitles && (
+              {canManageJobTitles && !searchTerm && filterTitle === "ALL" && (
                 <button
                   onClick={handleNavigateToAdd}
                   className="px-6 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition font-semibold"
@@ -361,6 +461,9 @@ export default function JobTitleListPage() {
                 <table className="w-full">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-white">
+                        #
+                      </th>
                       <th className="px-6 py-4 text-left text-sm font-bold text-white">
                         Job Title
                       </th>
@@ -378,8 +481,11 @@ export default function JobTitleListPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentPageItems.map((job) => (
+                    {currentPageItems.map((job, index) => (
                       <tr key={job.id} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {startIndex + index + 1}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
@@ -393,7 +499,7 @@ export default function JobTitleListPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-gray-900 max-w-xs truncate">
                             {job.description || "-"}
                           </div>
                         </td>
@@ -429,56 +535,10 @@ export default function JobTitleListPage() {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-wrap gap-4">
-                  <div className="text-sm text-gray-600">
-                    Showing {startIndex + 1} to{" "}
-                    {Math.min(startIndex + itemsPerPage, totalItems)} of{" "}
-                    {totalItems} job titles
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() =>
-                        setCurrentPage((p) => Math.max(1, p - 1))
-                      }
-                      disabled={safePage === 1}
-                      className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                        safePage === 1
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "bg-white border border-gray-300 text-gray-700 hover:bg-teal-50 hover:border-teal-500 hover:text-teal-700"
-                      }`}
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm text-gray-600">
-                      Page {safePage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() =>
-                        setCurrentPage((p) => Math.min(totalPages, p + 1))
-                      }
-                      disabled={safePage === totalPages}
-                      className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                        safePage === totalPages
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "bg-white border border-gray-300 text-gray-700 hover:bg-teal-50 hover:border-teal-500 hover:text-teal-700"
-                      }`}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
+              {renderPagination()}
             </>
           )}
         </div>
-
-        {/* Footer info */}
-        {!loading && totalItems > 0 && (
-          <div className="mt-6 text-center text-sm text-gray-600">
-            Total {totalItems} job titles
-          </div>
-        )}
       </div>
 
       {/* Slide-over Edit Panel */}
@@ -531,15 +591,11 @@ function EditJobTitleSlideOver({ job, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-40 flex">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-40"
         onClick={onClose}
       />
-
-      {/* Panel */}
       <div className="relative ml-auto h-full w-full max-w-md bg-white shadow-xl flex flex-col">
-        {/* Header */}
         <div className="px-6 py-4 border-b flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-800">
             Edit Job Title
@@ -564,7 +620,6 @@ function EditJobTitleSlideOver({ job, onClose, onSave }) {
           </button>
         </div>
 
-        {/* Body */}
         <form
           onSubmit={handleSubmit}
           className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
@@ -594,7 +649,6 @@ function EditJobTitleSlideOver({ job, onClose, onSave }) {
           </div>
         </form>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t flex gap-3">
           <button
             type="button"
@@ -622,13 +676,10 @@ function EditJobTitleSlideOver({ job, onClose, onSave }) {
 function DeleteConfirmModal({ title, message, onCancel, onConfirm }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-40"
         onClick={onCancel}
       />
-
-      {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">
           {title || "Are you sure?"}

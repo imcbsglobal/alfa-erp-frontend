@@ -1,4 +1,4 @@
-// MainLayout.jsx - Fixed Layout Version
+// MainLayout.jsx - Fixed Z-Index Version
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
@@ -175,14 +175,21 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden">
+    <div className="h-screen bg-gray-50 flex overflow-hidden" style={{ position: 'relative', isolation: 'isolate' }}>
       <ToastProvider />
       {/* Fixed Sidebar */}
       <aside
         className={`${
           sidebarOpen ? "w-64" : "w-20"
-        } bg-white border-r border-gray-200 transition-all duration-300 flex flex-col fixed left-0 top-0 h-full z-[9999]`}
-        style={{ overflow: "visible" }}
+        } bg-white border-r border-gray-200 transition-all duration-300 flex flex-col`}
+        style={{ 
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          height: '100vh',
+          zIndex: 1000,
+          overflow: 'visible'
+        }}
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 flex-shrink-0">
@@ -204,7 +211,7 @@ export default function MainLayout() {
         </div>
 
         {/* Navigation - Scrollable */}
-        <nav className="flex-1 py-4 px-3 space-y-1" style={{ overflowY: 'auto', overflowX: 'visible' }}>
+        <nav className="flex-1 py-4 px-3 space-y-1" style={{ overflowY: 'auto', overflowX: 'visible', position: 'relative' }}>
           {/* Dashboard Menu Item */}
           {menuItems.map((item) => (
             <button
@@ -223,10 +230,11 @@ export default function MainLayout() {
 
           {/* User Management Dropdown */}
           {permissionsLoaded && hasUserManagementAccess() && (
-            <div className="relative" style={{ overflow: 'visible' }}>
+            <div style={{ position: 'relative', zIndex: 10 }}>
               <button
                 type="button"
                 data-user-mgmt-button
+                id="user-mgmt-button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -243,7 +251,7 @@ export default function MainLayout() {
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
                   isUserManagementActive()
                     ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
-                    : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
+                    : "text-gray-700 hover:bg-teal-80 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
                 } ${!sidebarOpen && "justify-center"}`}
               >
                 <UsersIcon className="w-5 h-5 flex-shrink-0" />
@@ -261,7 +269,7 @@ export default function MainLayout() {
 
               {/* Submenu - Expanded Sidebar */}
               {sidebarOpen && showUserManagementMenu && (
-                <div className="mt-1 space-y-1 pl-4" style={{ position: 'relative', zIndex: 60 }}>
+                <div className="mt-1 space-y-1 pl-4">
                   {userManagementSubmenu.map((item) => (
                     <button
                       key={item.path}
@@ -275,7 +283,7 @@ export default function MainLayout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-sm transition-all ${
                         isActive(item.path) 
                           ? "bg-teal-50 text-teal-700 font-medium shadow-sm" 
-                          : "text-gray-600 hover:bg-gray-50"
+                          : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
                       }`}
                     >
                       <item.icon className="w-4 h-4 flex-shrink-0" />
@@ -287,7 +295,19 @@ export default function MainLayout() {
 
               {/* Submenu - Collapsed Sidebar (Flyout) */}
               {!sidebarOpen && showUserManagementMenu && (
-                <div className="absolute -top-1 left-full ml-2 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg py-2 min-w-[200px] z-[9999]">
+                <div 
+                  style={{
+                    position: 'fixed',
+                    left: '5rem',
+                    top: (() => {
+                      const button = document.getElementById('user-mgmt-button');
+                      return button ? `${button.getBoundingClientRect().top}px` : 'auto';
+                    })(),
+                    zIndex: 2000,
+                    minWidth: '240px'
+                  }}
+                  className="bg-white border border-gray-200 shadow-2xl rounded-lg py-2 ml-2"
+                >
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       User Management
@@ -302,7 +322,7 @@ export default function MainLayout() {
                       }}
                       className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm transition-all ${
                         isActive(item.path)
-                          ? "bg-teal-100 text-teal-700 font-semibold border-l-4 border-teal-500"
+                          ? "bg-teal-50 text-teal-700 font-medium shadow-sm"
                           : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
                       }`}
                     >
@@ -317,10 +337,11 @@ export default function MainLayout() {
 
           {/* Master Dropdown */}
           {permissionsLoaded && (user?.role === "SUPERADMIN" || user?.role === "ADMIN") && (
-            <div className="relative" style={{ overflow: 'visible' }}>
+            <div style={{ position: 'relative', zIndex: 10 }}>
               <button
                 type="button"
                 data-master-button
+                id="master-button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -337,7 +358,7 @@ export default function MainLayout() {
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
                   isMasterMenuActive()
                     ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
-                    : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
+                    : "text-gray-700 hover:bg-teal-80 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
                 } ${!sidebarOpen && "justify-center"}`}
               >
                 <TuneOutlinedIcon className="w-5 h-5 flex-shrink-0" />
@@ -355,7 +376,7 @@ export default function MainLayout() {
 
               {/* Submenu - Expanded Sidebar */}
               {sidebarOpen && showMasterMenu && (
-                <div className="mt-1 space-y-1 pl-4" style={{ position: 'relative', zIndex: 60 }}>
+                <div className="mt-1 space-y-1 pl-4">
                   {masterSubmenu.map((item) => (
                     <button
                       key={item.path}
@@ -369,7 +390,7 @@ export default function MainLayout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-sm transition-all ${
                         location.pathname.includes(item.path)
                           ? "bg-teal-50 text-teal-700 font-medium shadow-sm" 
-                          : "text-gray-600 hover:bg-gray-50"
+                          : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
                       }`}
                     >
                       <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -383,7 +404,19 @@ export default function MainLayout() {
 
               {/* Submenu - Collapsed Sidebar (Flyout) */}
               {!sidebarOpen && showMasterMenu && (
-                <div className="absolute -top-1 left-full ml-2 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg py-2 min-w-[200px] z-[9999]">
+                <div 
+                  style={{
+                  position: 'fixed',
+                  left: '5rem',
+                  top: (() => {
+                    const button = document.getElementById('master-button');
+                    return button ? `${button.getBoundingClientRect().top}px` : 'auto';
+                  })(),
+                  zIndex: 2000,
+                  minWidth: '240px'
+                  }}
+                  className="bg-white border border-gray-200 shadow-2xl rounded-lg py-2 ml-2"
+                >
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Master
@@ -399,7 +432,7 @@ export default function MainLayout() {
                       }}
                       className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm transition-all ${
                         isActive(item.path)
-                          ? "bg-teal-100 text-teal-700 font-semibold border-l-4 border-teal-500"
+                          ? "bg-teal-50 text-teal-700 font-medium shadow-sm"
                           : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
                       }`}
                     >
@@ -418,7 +451,8 @@ export default function MainLayout() {
         {/* Sidebar Toggle Button */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:border-teal-300 transition-all z-10 group"
+          style={{ zIndex: 1050 }}
+          className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:border-teal-300 transition-all group"
           aria-label="Toggle Sidebar"
         >
           <ChevronLeftIcon 
@@ -431,14 +465,23 @@ export default function MainLayout() {
 
       {/* Main Content Area with proper margin */}
       <main 
-        className={`flex-1 overflow-x-hidden bg-gray-50 transition-all duration-300 ${
-          sidebarOpen ? "ml-64" : "ml-20"
-        }`}
+        className={`flex-1 bg-gray-50 transition-all duration-300`}
+        style={{
+          marginLeft: sidebarOpen ? '16rem' : '5rem',
+          position: 'relative',
+          zIndex: 1
+        }}
       >
         {/* Fixed Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm fixed top-0 right-0 z-40 transition-all duration-300"
+        <header 
+          className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm"
           style={{
-            left: sidebarOpen ? '16rem' : '5rem'
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            left: sidebarOpen ? '16rem' : '5rem',
+            zIndex: 900,
+            transition: 'left 0.3s'
           }}
         >
           <div>
@@ -451,7 +494,7 @@ export default function MainLayout() {
           </div>
 
           {/* Profile Section */}
-          <div className="relative" data-profile-menu>
+          <div className="relative" data-profile-menu style={{ zIndex: 950 }}>
             <button
               data-profile-button
               onClick={() => {
@@ -488,7 +531,7 @@ export default function MainLayout() {
 
             {/* Profile Dropdown Menu */}
             {showProfileMenu && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 shadow-xl rounded-lg py-2 z-50">
+              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 shadow-xl rounded-lg py-2" style={{ zIndex: 1100 }}>
                 {/* User Info Section */}
                 <div className="px-4 py-3 border-b border-gray-100">
                   <div className="flex items-center gap-3">
@@ -533,7 +576,7 @@ export default function MainLayout() {
         </header>
 
         {/* Scrollable Page Content */}
-        <div className="pt-16 p-6 h-full overflow-y-auto">
+        <div className="pt-16 p-6 h-full overflow-y-auto" style={{ position: 'relative', zIndex: 1 }}>
           <Outlet />
         </div>
       </main>

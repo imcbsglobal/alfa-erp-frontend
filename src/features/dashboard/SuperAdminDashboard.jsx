@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
+import { getUsers } from '../../services/auth';
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
@@ -11,24 +12,41 @@ export default function SuperAdminDashboard() {
     activeUsers: 0,
     pendingApprovals: 0
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch stats from API
     fetchStats();
   }, []);
 
   const fetchStats = async () => {
+    setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch('http://localhost:5000/api/admin/stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const response = await getUsers();
+      const users = response.data.results;
+
+      // Calculate stats from actual user data
+      const totalAdmins = users.filter(
+        (u) => u.role === "ADMIN" || u.role === "SUPERADMIN"
+      ).length;
+
+      const totalUsers = users.length;
+
+      const activeUsers = users.filter((u) => u.is_active === true).length;
+
+      // You can calculate pending approvals based on your logic
+      // For now, setting it to 0 as there's no such field in the user data
+      const pendingApprovals = 0;
+
+      setStats({
+        totalAdmins,
+        totalUsers,
+        activeUsers,
+        pendingApprovals
       });
-      const data = await response.json();
-      setStats(data);
     } catch (error) {
       console.error('Error fetching stats:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -80,10 +98,30 @@ export default function SuperAdminDashboard() {
   ];
 
   const statCards = [
-    { title: 'Total Admins', value: stats.totalAdmins, icon: '👨‍💼', color: 'bg-purple-500' },
-    { title: 'Total Users', value: stats.totalUsers, icon: '👥', color: 'bg-blue-500' },
-    { title: 'Active Users', value: stats.activeUsers, icon: '✅', color: 'bg-green-500' },
-    { title: 'Pending Approvals', value: stats.pendingApprovals, icon: '⏳', color: 'bg-orange-500' }
+    { 
+      title: 'Total Users', 
+      value: loading ? '...' : stats.totalUsers, 
+      icon: '👥', 
+      color: 'bg-blue-500' 
+    },
+    { 
+      title: 'Total Admins', 
+      value: loading ? '...' : stats.totalAdmins, 
+      icon: '👨‍💼', 
+      color: 'bg-purple-500' 
+    },
+    { 
+      title: 'Active Users', 
+      value: loading ? '...' : stats.activeUsers, 
+      icon: '✅', 
+      color: 'bg-green-500' 
+    },
+    { 
+      title: 'Pending Approvals', 
+      value: loading ? '...' : stats.pendingApprovals, 
+      icon: '⏳', 
+      color: 'bg-orange-500' 
+    }
   ];
 
   return (
