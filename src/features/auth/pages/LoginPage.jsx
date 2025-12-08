@@ -73,9 +73,6 @@ export default function LoginPage() {
         
         <div className="relative z-10 text-white max-w-md">
           <div className="mb-8">
-            <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-lg flex items-center justify-center text-3xl font-bold mb-6 shadow-xl">
-              AA
-            </div>
             <h1 className="text-5xl font-bold mb-4">Welcome to<br/>Alfa Agencies</h1>
             <p className="text-teal-100 text-lg">Secure Admin Portal</p>
           </div>
@@ -112,11 +109,15 @@ export default function LoginPage() {
       {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="max-w-md w-full">
+          <div className="flex justify-center mb-6">
+              <img 
+                src="/alfa.png" 
+                alt="Alfa Agencies" 
+                className="h-18 w-auto object-contain"
+              />
+            </div>
           {/* Logo for mobile */}
           <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-400 to-cyan-500 mb-4 shadow-lg">
-              <span className="text-white font-bold text-2xl">AA</span>
-            </div>
             <h2 className="text-2xl font-bold text-gray-800">Sign In to Alfa Agencies</h2>
           </div>
 
@@ -261,7 +262,7 @@ export default function LoginPage() {
             </form>
           </div>
         </div>
-      </div>
+      </div> 
     </div>
   );
 }

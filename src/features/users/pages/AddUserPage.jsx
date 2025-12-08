@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import {
   createUser,
   getUser,
@@ -706,7 +706,6 @@ export default function AddUserPage() {
           </form>
         </div>
       </div>
-      <Toaster position="top-right" reverseOrder={false} />
     </div>
   );
 }

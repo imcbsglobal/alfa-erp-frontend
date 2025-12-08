@@ -1,10 +1,8 @@
-// MainLayout.jsx - Fixed Z-Index Version
+// MainLayout.jsx - With Logo Added
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
-import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
-import ToastProvider from "../components/ToastProvider";
-import toast, { Toaster } from "react-hot-toast";
+import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";  
 
 import { 
   HomeIcon, 
@@ -176,7 +174,6 @@ export default function MainLayout() {
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden" style={{ position: 'relative', isolation: 'isolate' }}>
-      <ToastProvider />
       {/* Fixed Sidebar */}
       <aside
         className={`${
@@ -194,18 +191,24 @@ export default function MainLayout() {
         {/* Logo Section */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 flex-shrink-0">
           {sidebarOpen ? (
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white font-bold shadow-sm">
-                AA
-              </div>
-              <div className="flex flex-col">
+            <div className="flex items-center gap-3 w-full">
+              <img 
+                src="/alfa3.png" 
+                alt="Alfa Agencies" 
+                className="h-16 w-auto object-contain"
+              />
+              {/* <div className="flex flex-col">
                 <span className="font-bold text-gray-800 text-base leading-tight">Alfa Agencies</span>
                 <span className="text-xs text-gray-500">Admin Panel</span>
-              </div>
+              </div> */}
             </div>
           ) : (
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white font-bold mx-auto shadow-sm">
-              AA
+            <div className="w-full flex items-center justify-center">
+              <img 
+                src="/alfa3.png" 
+                alt="Alfa Agencies" 
+                className="h-10 w-auto object-contain"
+              />
             </div>
           )}
         </div>
@@ -580,8 +583,6 @@ export default function MainLayout() {
           <Outlet />
         </div>
       </main>
-      
-      <Toaster position="top-right" reverseOrder={false} />
     </div>
   );
 }

@@ -1,5 +1,29 @@
 import { useState, useEffect } from "react";
 import api, { getUsers } from "../../../services/auth";
+import toast from "react-hot-toast";
+import {
+  HomeIcon,
+  UsersIcon,
+  CogIcon,
+  BriefcaseIcon,
+} from "../../../layout/Icons";
+import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+
+const permissionIcons = {
+  dashboard: <HomeIcon className="w-6 h-6" />,
+
+  // User Management Section
+  users: <UsersIcon className="w-6 h-6" />,
+  user_list: <UsersIcon className="w-6 h-6" />,
+  user_control: <CogIcon className="w-6 h-6" />,
+
+  // Master Section
+  master: <TuneOutlinedIcon className="w-6 h-6" />,
+  job_title: <BriefcaseIcon className="w-6 h-6" />,
+
+  // Default fallback for others
+  default: <CogIcon className="w-6 h-6" />,
+};
 
 export default function UserControlPage() {
   const [users, setUsers] = useState([]);
@@ -10,6 +34,21 @@ export default function UserControlPage() {
   const [successMessage, setSuccessMessage] = useState('');
 
   const [availableMenus, setAvailableMenus] = useState([]);
+
+  const menuTree = availableMenus.reduce((acc, menu) => {
+    if (!menu.parent_id) {
+      acc[menu.id] = { ...menu, children: [] };
+    } else {
+      if (!acc[menu.parent_id]) acc[menu.parent_id] = { children: [] };
+      acc[menu.parent_id].children.push(menu);
+    }
+    return acc;
+  }, {});
+
+const [openParents, setOpenParents] = useState({});
+  const toggleParent = (parentId) =>
+    setOpenParents(prev => ({ ...prev, [parentId]: !prev[parentId] }));
+
 
 const fetchAllMenus = async () => {
   try {
@@ -93,16 +132,21 @@ const fetchAllMenus = async () => {
   setSaveLoading(true);
 
   try {
-    const enabledMenus = Object.keys(userPermissions).filter((key) => userPermissions[key]?.view);
+    const enabledMenus = Object.keys(userPermissions).filter(key => userPermissions[key]?.view);
+
+    console.log("Sending payload:", {
+      user_id: selectedUser.id,
+      menu_ids: enabledMenus
+    });
 
     await api.post("/access/admin/assign-menus/", {
       user_id: selectedUser.id,
-      menus: enabledMenus,
+      menu_ids: enabledMenus,     // <-- CHANGE HERE
     });
 
-    setSuccessMessage("Permissions updated successfully");
+    toast.success("Permissions updated successfully");
   } catch (err) {
-    console.error("Save error:", err);
+    toast.error("Failed to update permissions");
   } finally {
     setSaveLoading(false);
   }
@@ -127,16 +171,6 @@ const fetchAllMenus = async () => {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">User Access Control</h1>
           <p className="text-gray-600">Manage menu access and permissions for admins and users at Alfa Agencies</p>
         </div>
-
-        {/* Success Message */}
-        {successMessage && (
-          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-xl flex items-center gap-3">
-            <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <p className="font-semibold">{successMessage}</p>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* User List */}
@@ -285,71 +319,55 @@ const fetchAllMenus = async () => {
                   </div>
                 </div>
 
-                {/* Permissions by Category */}
+                {/* Permissions Tree */}
                 <div className="p-6 space-y-6 max-h-[600px] overflow-y-auto">
-                  {categories.map((category) => {
-                    const menusInCategory = availableMenus.filter(m => m.category === category);
-                    const allEnabled = menusInCategory.every(m => userPermissions[m.id]?.view);
-                    
-                    return (
-                      <div key={category} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-lg bg-teal-100 text-teal-600 flex items-center justify-center text-sm font-bold">
-                              {menusInCategory.length}
-                            </span>
-                            {category}
-                          </h3>
-                          <button
-                            onClick={() => toggleAllInCategory(category)}
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                              allEnabled
-                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                : 'bg-teal-100 text-teal-600 hover:bg-teal-200'
-                            }`}
-                          >
-                            {allEnabled ? 'Disable All' : 'Enable All'}
-                          </button>
+                  {Object.values(menuTree).map((parent) => (
+                    <div key={parent.id} className="border border-gray-200 rounded-lg p-4 mb-4">
+                      
+                      {/* Parent Row */}
+                      <button
+                        onClick={() => toggleParent(parent.id)}
+                        className="flex justify-between items-center w-full font-semibold text-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          {permissionIcons[parent.code] || permissionIcons.default}
+                          {parent.name}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {menusInCategory.map((menu) => (
+                        <svg className={`w-5 h-5 transition-transform ${openParents[parent.id] ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {/* Children */}
+                      {openParents[parent.id] && parent.children?.length > 0 && (
+                        <div className="mt-3 space-y-3 pl-8">
+                          {parent.children.map((child) => (
                             <button
-                              key={menu.id}
-                              onClick={() => togglePermission(menu.id)}
-                              className={`p-4 rounded-lg border-2 transition-all text-left ${
-                                userPermissions[menu.id]?.view
-                                  ? 'border-teal-500 bg-teal-50'
-                                  : 'border-gray-200 bg-white hover:border-gray-300'
+                              key={child.id}
+                              onClick={() => togglePermission(child.id)}
+                              className={`w-full flex justify-between items-center p-3 rounded-lg border-2 ${
+                                userPermissions[child.id]?.view
+                                  ? "border-teal-500 bg-teal-50"
+                                  : "border-gray-200 hover:border-gray-300"
                               }`}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-2xl">{menu.icon}</span>
-                                  <span className={`font-semibold ${
-                                    userPermissions[menu.id]?.view ? 'text-teal-700' : 'text-gray-700'
-                                  }`}>
-                                    {menu.name}
-                                  </span>
-                                </div>
-                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                                  userPermissions[menu.id]?.view
-                                    ? 'border-teal-500 bg-teal-500'
-                                    : 'border-gray-300'
-                                }`}>
-                                  {userPermissions[menu.id]?.view && (
-                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </div>
+                              <div className="flex items-center gap-3">
+                                {permissionIcons[child.code] || permissionIcons.default}
+                                {child.name}
                               </div>
+
+                              {userPermissions[child.id]?.view && (
+                                <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
                             </button>
                           ))}
                         </div>
-                      </div>
-                    );
-                  })}
+                      )}
+                    </div>
+                  ))}
                 </div>
 
                 {/* Save Button */}
