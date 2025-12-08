@@ -240,8 +240,8 @@ export async function changeUserPassword(payload) {
 // UPLOAD AVATAR – PATCH /users/{id}/ with multipart/form-data
 export async function uploadUserAvatar(id, file) {
   const formData = new FormData();
-  formData.append("profile_photo", file);
-
+  formData.append("avatar", file);
+console.log("Uploading avatar for user ID:", id,file);
   try {
     const response = await api.patch(`/auth/users/${id}/`, formData, {
       headers: {

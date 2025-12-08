@@ -518,9 +518,9 @@ export default function UserListPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold overflow-hidden">
-                              {user.profile_photo ? (
+                              {user.avatar ? (
                                 <img
-                                  src={user.profile_photo}
+                                  src={user.avatar}
                                   className="w-full h-full object-cover"
                                   alt=""
                                 />

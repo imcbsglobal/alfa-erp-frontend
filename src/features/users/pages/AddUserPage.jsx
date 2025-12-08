@@ -15,9 +15,7 @@ export default function AddUserPage() {
   const { user: currentUser } = useAuth();
   const { id } = useParams();
   const isEditMode = Boolean(id);
-
   const navigate = useNavigate();
-
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,15 +26,14 @@ export default function AddUserPage() {
     jobTitle: "",
     phone: "",
     status: "ACTIVE",
-    profilePhoto: "",
+    avatar: "",
   });
 
-  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [avatarFile, setavatarFile] = useState(null);
   const [jobTitles, setJobTitles] = useState([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     loadJobTitles();
@@ -81,7 +78,7 @@ export default function AddUserPage() {
           jobTitle: user.job_title || "",
           phone: user.phone || "",
           status: user.is_active ? "ACTIVE" : "INACTIVE",
-          profilePhoto: user.profile_photo || "",
+          avatar: user.avatar || "",
           password: "",
           confirmPassword: "",
         }));
@@ -109,17 +106,16 @@ export default function AddUserPage() {
 
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
-    if (successMessage) setSuccessMessage("");
   };
 
-  const handleProfilePhotoChange = (e) => {
+  const handleavatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setProfilePhotoFile(file);
+    setavatarFile(file);
     const reader = new FileReader();
     reader.onloadend = () => {
-      setFormData((prev) => ({ ...prev, profilePhoto: reader.result }));
+      setFormData((prev) => ({ ...prev, avatar: reader.result }));
     };
     reader.readAsDataURL(file);
   };
@@ -167,12 +163,11 @@ export default function AddUserPage() {
 
       if (!isEditMode) {
         payload.password = formData.password;
-        payload.profile_photo = formData.profilePhoto;
 
         res = await createUser(payload);
 
-        if (profilePhotoFile && res?.data?.id) {
-          await uploadUserAvatar(res.data.id, profilePhotoFile);
+        if (avatarFile && res?.data?.id) {
+          await uploadUserAvatar(res.data.id, avatarFile);
         }
 
         toast.success("User created successfully!");
@@ -182,8 +177,8 @@ export default function AddUserPage() {
 
         await updateUser(id, payload);
 
-        if (profilePhotoFile) {
-          await uploadUserAvatar(id, profilePhotoFile);
+        if (avatarFile) {
+          await uploadUserAvatar(id, avatarFile);
         }
 
         toast.success("User updated successfully!");
@@ -226,7 +221,7 @@ export default function AddUserPage() {
           </div>
           <button
             onClick={handleBackClick}
-            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg"
+            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
           >
             <svg
               className="w-5 h-5"
@@ -244,27 +239,6 @@ export default function AddUserPage() {
             Back
           </button>
         </div>
-
-        {/* Success Message */}
-        {successMessage && (
-          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-xl flex items-start gap-3">
-            <svg
-              className="w-6 h-6 flex-shrink-0 mt-0.5"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div>
-              <p className="font-semibold">Success!</p>
-              <p className="text-sm">{successMessage}</p>
-            </div>
-          </div>
-        )}
 
         {/* General Error */}
         {errors.general && (
@@ -416,9 +390,9 @@ export default function AddUserPage() {
 
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                  {formData.profilePhoto ? (
+                  {formData.avatar ? (
                     <img
-                      src={formData.profilePhoto}
+                      src={formData.avatar}
                       alt="Profile preview"
                       className="w-full h-full object-cover"
                     />
@@ -435,7 +409,7 @@ export default function AddUserPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={handleProfilePhotoChange}
+                    onChange={handleavatarChange}
                     className="w-full text-sm text-gray-700
                             file:mr-4 file:py-2 file:px-4
                             file:rounded-lg file:border-0
@@ -443,7 +417,7 @@ export default function AddUserPage() {
                             file:bg-teal-50 file:text-teal-700
                             hover:file:bg-teal-100"
                   />
-                  {errors.profilePhoto && (
+                  {errors.avatar && (
                     <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                       <svg
                         className="w-4 h-4"
@@ -456,7 +430,7 @@ export default function AddUserPage() {
                           clipRule="evenodd"
                         />
                       </svg>
-                      {errors.profilePhoto}
+                      {errors.avatar}
                     </p>
                   )}
                   <p className="mt-1 text-xs text-gray-400">
@@ -692,7 +666,7 @@ export default function AddUserPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg disabled:opacity-60"
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg disabled:opacity-60 hover:from-teal-600 hover:to-cyan-700 transition-all font-semibold"
               >
                 {loading
                   ? isEditMode

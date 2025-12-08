@@ -205,7 +205,7 @@ export default function MainLayout() {
           ) : (
             <div className="w-full flex items-center justify-center">
               <img 
-                src="/alfa3.png" 
+                src="/alfa4.png" 
                 alt="Alfa Agencies" 
                 className="h-10 w-auto object-contain"
               />
