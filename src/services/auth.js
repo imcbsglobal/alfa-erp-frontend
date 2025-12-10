@@ -291,3 +291,20 @@ export async function deleteJobTitle(id) {
   const response = await api.delete(`/auth/job-titles/${id}/`);
   return response.data;
 }
+
+// Department Management
+  export const getDepartments = async () => {
+    return api.get("/departments/");
+  };
+
+  export const createDepartment = async (data) => {
+    return api.post("/departments/", data);
+  };
+
+  export const updateDepartment = async (id, data) => {
+    return api.put(`/departments/${id}/`, data);
+  };
+
+  export const deleteDepartment = async (id) => {
+    return api.delete(`/departments/${id}/`);
+  };

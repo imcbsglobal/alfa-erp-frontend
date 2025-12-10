@@ -17,7 +17,12 @@ export default function UserDashboard() {
       myTasks: 5,
       completedTasks: 12,
       pendingApprovals: 2,
-      notifications: 3
+      notifications: 3,
+
+      // NEW invoice-specific numbers
+      assignedInvoices: 4,
+      pickedToday: 2,
+      completedInvoices: 10
     });
   }, []);
 
@@ -42,9 +47,34 @@ export default function UserDashboard() {
                 <p className="text-xs text-gray-500 mt-1">Active tasks</p>
               </div>
               <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
+                <span className="text-blue-600 text-2xl">🗂️</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ================= NEW INVOICE CARDS ================= */}
+          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-teal-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Invoices Assigned</p>
+                <p className="text-3xl font-bold text-gray-800">{stats.assignedInvoices || 0}</p>
+                <p className="text-xs text-gray-500 mt-1">Invoices to pick</p>
+              </div>
+              <div className="w-14 h-14 bg-teal-100 rounded-full flex items-center justify-center">
+                <span className="text-teal-600 text-2xl">📄</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Picked Today</p>
+                <p className="text-3xl font-bold text-gray-800">{stats.pickedToday || 0}</p>
+                <p className="text-xs text-gray-500 mt-1">Completed pickings</p>
+              </div>
+              <div className="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center">
+                <span className="text-orange-600 text-2xl">📦</span>
               </div>
             </div>
           </div>
@@ -53,43 +83,11 @@ export default function UserDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Completed</p>
-                <p className="text-3xl font-bold text-gray-800">{stats.completedTasks}</p>
-                <p className="text-xs text-gray-500 mt-1">This month</p>
+                <p className="text-3xl font-bold text-gray-800">{stats.completedInvoices || 0}</p>
+                <p className="text-xs text-gray-500 mt-1">Invoices done</p>
               </div>
               <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Pending</p>
-                <p className="text-3xl font-bold text-gray-800">{stats.pendingApprovals}</p>
-                <p className="text-xs text-gray-500 mt-1">Awaiting approval</p>
-              </div>
-              <div className="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center">
-                <svg className="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Notifications</p>
-                <p className="text-3xl font-bold text-gray-800">{stats.notifications}</p>
-                <p className="text-xs text-gray-500 mt-1">Unread messages</p>
-              </div>
-              <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center">
-                <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
+                <span className="text-green-600 text-2xl">✔️</span>
               </div>
             </div>
           </div>

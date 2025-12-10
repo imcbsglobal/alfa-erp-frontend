@@ -65,3 +65,12 @@ export async function login(email, password) {
     refresh: response.data.refresh
   };
 }
+
+export const pickInvoice = (id, data) =>
+  api.post(`/invoices/${id}/pick/`, data);
+
+export const stopPicking = (id, data) =>
+  api.post(`/invoices/${id}/stop-picking/`, data);
+
+export const getInvoice = (id) =>
+  api.get(`/invoices/${id}/`);

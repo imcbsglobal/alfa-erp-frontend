@@ -16,6 +16,14 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     fetchStats();
+
+    setStats(prev => ({
+      ...prev,
+      pendingInvoices: 12,
+      pickedInvoices: 8,
+      readyForPacking: 5,
+      completedInvoices: 20
+    }));
   }, []);
 
   const fetchStats = async () => {
@@ -121,6 +129,32 @@ export default function SuperAdminDashboard() {
       value: loading ? '...' : stats.pendingApprovals, 
       icon: '⏳', 
       color: 'bg-orange-500' 
+    },
+
+    // NEW INVOICE RELATED CARDS
+    { 
+      title: 'Pending Invoices', 
+      value: stats.pendingInvoices || 0, 
+      icon: '📄',
+      color: 'bg-yellow-500' 
+    },
+    { 
+      title: 'Picked Invoices', 
+      value: stats.pickedInvoices || 0, 
+      icon: '📦',
+      color: 'bg-teal-500' 
+    },
+    { 
+      title: 'Ready for Packing', 
+      value: stats.readyForPacking || 0, 
+      icon: '🎁',
+      color: 'bg-cyan-500' 
+    },
+    { 
+      title: 'Completed Invoices', 
+      value: stats.completedInvoices || 0, 
+      icon: '✔️',
+      color: 'bg-green-600' 
     }
   ];
 
@@ -168,40 +202,6 @@ export default function SuperAdminDashboard() {
                 <h3 className="text-lg font-bold text-gray-800 mb-2">{action.title}</h3>
                 <p className="text-gray-600 text-sm">{action.description}</p>
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activities */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-6">Recent Activities</h2>
-          <div className="space-y-4">
-            {[
-              { user: 'Admin John', action: 'Created new user', time: '5 minutes ago', type: 'create' },
-              { user: 'Admin Sarah', action: 'Updated user permissions', time: '15 minutes ago', type: 'update' },
-              { user: 'Admin Mike', action: 'Deleted user account', time: '1 hour ago', type: 'delete' },
-              { user: 'Admin Lisa', action: 'Assigned department access', time: '2 hours ago', type: 'assign' }
-            ].map((activity, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    activity.type === 'create' ? 'bg-green-100 text-green-600' :
-                    activity.type === 'update' ? 'bg-blue-100 text-blue-600' :
-                    activity.type === 'delete' ? 'bg-red-100 text-red-600' :
-                    'bg-purple-100 text-purple-600'
-                  }`}>
-                    {activity.type === 'create' && '➕'}
-                    {activity.type === 'update' && '✏️'}
-                    {activity.type === 'delete' && '🗑️'}
-                    {activity.type === 'assign' && '🔐'}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-800">{activity.user}</p>
-                    <p className="text-sm text-gray-600">{activity.action}</p>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-500">{activity.time}</p>
-              </div>
             ))}
           </div>
         </div>

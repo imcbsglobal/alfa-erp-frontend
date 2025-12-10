@@ -11,17 +11,25 @@ import AddUserPage from "../features/users/pages/AddUserPage";
 import UserListPage from "../features/users/pages/UserListPage";
 import JobTitleListPage from "../features/master/pages/JobTitleListPage";
 import AddJobTitlePage from "../features/master/pages/AddJobTitlePage";
+import DepartmentListPage from "../features/master/pages/DepartmentListPage";
+import AddDepartmentPage from "../features/master/pages/AddDepartmentPage";
+import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
+import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
+
 
 // Role-based dashboard component
 function RoleDashboard() {
   const { user } = useAuth();
-  
-  if (user?.role === "USER") {
-    return <UserDashboard />;
+
+  if (user?.role === "SUPERADMIN" || user?.role === "ADMIN") {
+    return <SuperAdminDashboard />;
   }
-  // Both SUPERADMIN and ADMIN see the same dashboard
-  // return <div>heiii</div>
-  return <SuperAdminDashboard />;
+
+  if (user?.role === "STORE") {
+    return <StoreDashboard />;
+  }
+
+  return <UserDashboard />;
 }
 
 export default function AppRouter() {
@@ -42,9 +50,17 @@ export default function AppRouter() {
           <Route path="/add-user" element={<AddUserPage />} />
           <Route path="/users/:id/edit" element={<AddUserPage />} />
 
-          {/* Master */}
+          {/* Master - Job Titles */}
           <Route path="/master/job-title" element={<JobTitleListPage />} />
           <Route path="/master/job-title/add" element={<AddJobTitlePage />} />
+
+          {/* Invoice Routes */}
+          <Route path="/invoice" element={<InvoiceListPage />} />
+          <Route path="/invoice/view/:id" element={<InvoiceViewPage />} />
+
+          {/* Master - Departments */}
+          <Route path="/master/department" element={<DepartmentListPage />} />
+          <Route path="/master/department/add" element={<AddDepartmentPage />} />
         </Route>
       </Route>
 

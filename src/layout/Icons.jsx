@@ -116,3 +116,43 @@ export const Cog6Icon = ({ className }) => (
   </svg>
 );
 
+export const BuildingIcon = ({ className }) => (
+  <svg
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 21V5a1 1 0 011-1h5v17m0 0h6V4h5a1 1 0 011 1v16m-12 0h12M9 9h1m-1 4h1m4-4h1m-1 4h1"
+    />
+  </svg>
+);
+
+// Add to Icons.jsx
+export const InvoiceIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+    />
+  </svg>
+);
+
+export const ListIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+      d="M4 6h16M4 12h16M4 18h16" 
+    />
+  </svg>
+);
+
+export const PlusCircleIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+      d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" 
+    />
+  </svg>
+);

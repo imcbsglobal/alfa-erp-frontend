@@ -111,9 +111,9 @@ export default function LoginPage() {
         <div className="max-w-md w-full">
           <div className="flex justify-center mb-6">
               <img 
-                src="/alfa.png" 
+                src="/alfa3.png" 
                 alt="Alfa Agencies" 
-                className="h-18 w-auto object-contain"
+                className="h-16 w-auto object-contain"
               />
             </div>
           {/* Logo for mobile */}

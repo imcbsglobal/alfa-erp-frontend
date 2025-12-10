@@ -1,62 +1,35 @@
-// src/features/master/pages/AddJobTitlePage.jsx
+// src/features/master/pages/AddDepartmentPage.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
-import { createJobTitle, getDepartments } from "../../../services/auth";
+import { createDepartment } from "../../../services/auth";
 
-export default function AddJobTitlePage() {
+export default function AddDepartmentPage() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
 
   const [formData, setFormData] = useState({
-    title: "",
-    department_id: "",
+    name: "",
   });
 
-  const [departments, setDepartments] = useState([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [loadingDepartments, setLoadingDepartments] = useState(true);
 
-  // Only SUPERADMIN / ADMIN should create job titles
-  const canManageJobTitles =
+  // Only SUPERADMIN / ADMIN should create departments
+  const canManageDepartments =
     currentUser?.role === "SUPERADMIN" || currentUser?.role === "ADMIN";
 
   useEffect(() => {
-    if (!canManageJobTitles) {
-      toast.error("You don't have permission to add job titles");
-      navigate("/master/job-title");
-    } else {
-      loadDepartments();
+    if (!canManageDepartments) {
+      toast.error("You don't have permission to add departments");
+      navigate("/master/department");
     }
-  }, [canManageJobTitles, navigate]);
-
-  const loadDepartments = async () => {
-    setLoadingDepartments(true);
-    try {
-      const response = await getDepartments();
-      
-      let deptArray = [];
-      if (Array.isArray(response?.data?.data)) {
-        deptArray = response.data.data;
-      } else if (Array.isArray(response?.data?.results)) {
-        deptArray = response.data.results;
-      }
-
-      setDepartments(deptArray);
-    } catch (err) {
-      console.error("Failed to load departments:", err);
-      toast.error("Failed to load departments");
-    } finally {
-      setLoadingDepartments(false);
-    }
-  };
+  }, [canManageDepartments, navigate]);
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = "Job title is required";
-    if (!formData.department_id) newErrors.department_id = "Department is required";
+    if (!formData.name.trim()) newErrors.name = "Department name is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -74,41 +47,31 @@ export default function AddJobTitlePage() {
     setLoading(true);
 
     try {
-      await createJobTitle({
-        title: formData.title,
-        department_id: formData.department_id,
+      await createDepartment({
+        name: formData.name,
       });
 
-      toast.success("Job title created successfully");
+      toast.success("Department created successfully");
 
       setFormData({
-        title: "",
-        department_id: "",
+        name: "",
       });
 
       // Optional: go back to list
-      navigate("/master/job-title");
+      navigate("/master/department");
     } catch (error) {
-      console.error("Create job title error:", error);
-      toast.error("Failed to create job title");
+      console.error("Create department error:", error);
+      toast.error("Failed to create department");
       setErrors((prev) => ({
         ...prev,
-        general: "Failed to create job title. Please try again.",
+        general: "Failed to create department. Please try again.",
       }));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReset = () => {
-    setFormData({
-      title: "",
-      department_id: "",
-    });
-    setErrors({});
-  };
-
-  if (!canManageJobTitles) {
+  if (!canManageDepartments) {
     // Prevent flicker while useEffect redirects
     return null;
   }
@@ -119,14 +82,14 @@ export default function AddJobTitlePage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Add Job Title</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Add Department</h1>
             <p className="text-gray-600 mt-1">
-              Create a new job title for Alfa Agencies
+              Create a new department for Alfa Agencies
             </p>
           </div>
 
           <button
-            onClick={() => navigate("/master/job-title")}
+            onClick={() => navigate("/master/department")}
             className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition"
           >
             <svg
@@ -170,22 +133,22 @@ export default function AddJobTitlePage() {
         {/* Form Card */}
         <div className="bg-white rounded-xl shadow-md p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Job Title */}
+            {/* Department Name */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Job Title *
+                Department Name *
               </label>
               <input
                 type="text"
-                name="title"
-                value={formData.title}
+                name="name"
+                value={formData.name}
                 onChange={handleInputChange}
                 className={`w-full px-4 py-3 border ${
-                  errors.title ? "border-red-300" : "border-gray-300"
+                  errors.name ? "border-red-300" : "border-gray-300"
                 } rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none transition`}
-                placeholder="e.g., Sales Executive, HR Manager"
+                placeholder="e.g., Sales, Marketing, HR"
               />
-              {errors.title && (
+              {errors.name && (
                 <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                   <svg
                     className="w-4 h-4"
@@ -198,74 +161,7 @@ export default function AddJobTitlePage() {
                       clipRule="evenodd"
                     />
                   </svg>
-                  {errors.title}
-                </p>
-              )}
-            </div>
-
-            {/* Department */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Department *
-              </label>
-              {loadingDepartments ? (
-                <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center gap-2 text-gray-500">
-                  <svg
-                    className="animate-spin h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Loading departments...
-                </div>
-              ) : departments.length === 0 ? (
-                <div className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-yellow-50 text-yellow-700">
-                  No departments available. Please add departments first.
-                </div>
-              ) : (
-                <select
-                  name="department_id"
-                  value={formData.department_id}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border ${
-                    errors.department_id ? "border-red-300" : "border-gray-300"
-                  } rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none transition`}
-                >
-                  <option value="">Select a department</option>
-                  {departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {errors.department_id && (
-                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.department_id}
+                  {errors.name}
                 </p>
               )}
             </div>
@@ -274,14 +170,17 @@ export default function AddJobTitlePage() {
             <div className="flex gap-4 pt-4">
               <button
                 type="button"
-                onClick={handleReset}
+                onClick={() => {
+                  setFormData({ name: "" });
+                  setErrors({});
+                }}
                 className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
               >
                 Reset Form
               </button>
               <button
                 type="submit"
-                disabled={loading || loadingDepartments || departments.length === 0}
+                disabled={loading}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -322,7 +221,7 @@ export default function AddJobTitlePage() {
                         d="M12 4v16m8-8H4"
                       />
                     </svg>
-                    Create Job Title
+                    Create Department
                   </>
                 )}
               </button>
