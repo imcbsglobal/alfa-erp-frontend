@@ -41,13 +41,26 @@ export default function DepartmentListPage() {
 
       let deptArray = [];
 
-      if (Array.isArray(response?.data?.data)) {
-        deptArray = response.data.data;
-      } else if (Array.isArray(response?.data?.results)) {
-        deptArray = response.data.results;
-      } else {
-        console.warn("API returned non-array structure. Using empty array.", response);
+      const apiData = response?.data;
+
+      if (Array.isArray(apiData?.data?.results)) {
+        // Your actual backend format
+        deptArray = apiData.data.results;
       }
+      else if (Array.isArray(apiData?.results)) {
+        deptArray = apiData.results;
+      }
+      else if (Array.isArray(apiData?.data)) {
+        deptArray = apiData.data;
+      }
+      else if (Array.isArray(apiData)) {
+        deptArray = apiData;
+      }
+      else {
+        console.warn("Unexpected department API response:", apiData);
+      }
+
+      setDepartments(deptArray);
 
       setDepartments(deptArray);
       localStorage.setItem("departments", JSON.stringify(deptArray));

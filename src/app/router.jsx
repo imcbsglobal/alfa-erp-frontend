@@ -15,7 +15,8 @@ import DepartmentListPage from "../features/master/pages/DepartmentListPage";
 import AddDepartmentPage from "../features/master/pages/AddDepartmentPage";
 import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
 import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
-
+import StoreDashboard from "../features/dashboard/StoreDashboard";
+import HistoryPage from "../features/history/pages/HistoryPage";
 
 // Role-based dashboard component
 function RoleDashboard() {
@@ -57,6 +58,9 @@ export default function AppRouter() {
           {/* Invoice Routes */}
           <Route path="/invoice" element={<InvoiceListPage />} />
           <Route path="/invoice/view/:id" element={<InvoiceViewPage />} />
+
+          {/* History Routes */}
+          <Route path="/history" element={<HistoryPage />} />
 
           {/* Master - Departments */}
           <Route path="/master/department" element={<DepartmentListPage />} />

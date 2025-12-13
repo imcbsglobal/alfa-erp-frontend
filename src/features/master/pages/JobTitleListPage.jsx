@@ -44,14 +44,25 @@ export default function JobTitleListPage() {
       console.log("JOB TITLE API RAW RESPONSE:", response);
 
       let jobArray = [];
+        const apiData = response?.data;
 
-      if (Array.isArray(response?.data?.data)) {
-        jobArray = response.data.data;
-      } else if (Array.isArray(response?.data?.results)) {
-        jobArray = response.data.results;
-      } else {
-        console.warn("API returned non-array structure. Using empty array.", response);
-      }
+        if (Array.isArray(apiData?.data?.results)) {
+          jobArray = apiData.data.results;   // <-- Your real data
+        }
+        else if (Array.isArray(apiData?.results)) {
+          jobArray = apiData.results;
+        }
+        else if (Array.isArray(apiData?.data)) {
+          jobArray = apiData.data;
+        }
+        else if (Array.isArray(apiData)) {
+          jobArray = apiData;
+        }
+        else {
+          console.warn("Unexpected job title API format:", apiData);
+        }
+
+        setJobTitles(jobArray);
 
       setJobTitles(jobArray);
       localStorage.setItem("jobTitles", JSON.stringify(jobArray));
@@ -67,13 +78,21 @@ export default function JobTitleListPage() {
   const loadDepartments = async () => {
     try {
       const response = await getDepartments();
-      let deptArray = [];
+      const apiData = response?.data;
+        let deptArray = [];
 
-      if (Array.isArray(response?.data?.data)) {
-        deptArray = response.data.data;
-      } else if (Array.isArray(response?.data?.results)) {
-        deptArray = response.data.results;
-      }
+        if (Array.isArray(apiData?.data?.results)) {
+          deptArray = apiData.data.results;
+        }
+        else if (Array.isArray(apiData?.results)) {
+          deptArray = apiData.results;
+        }
+        else if (Array.isArray(apiData?.data)) {
+          deptArray = apiData.data;
+        }
+
+        setDepartments(deptArray);
+
 
       setDepartments(deptArray);
     } catch (err) {

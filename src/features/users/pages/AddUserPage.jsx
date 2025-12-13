@@ -42,9 +42,14 @@ export default function AddUserPage() {
   const loadJobTitles = async () => {
     try {
       const res = await getJobTitles();
-      setJobTitles(res.data.results);
+
+      const apiData = res?.data?.data;
+      const titles = Array.isArray(apiData?.results) ? apiData.results : [];
+
+      setJobTitles(titles);
     } catch (err) {
       console.error("Failed to load job titles:", err);
+      setJobTitles([]); // prevent crash
     }
   };
 
@@ -68,14 +73,14 @@ export default function AddUserPage() {
       setInitialLoading(true);
       try {
         const res = await getUser(id);
-        const user = res.data;
+        const user = res.data?.data;  // <-- FIX
 
         setFormData((prev) => ({
           ...prev,
-          name: user.name || "",  
+          name: user.name || "",
           email: user.email || "",
           role: user.role || "USER",
-          jobTitle: user.job_title || "",
+          jobTitle: user.job_title || "",      // ID
           phone: user.phone || "",
           status: user.is_active ? "ACTIVE" : "INACTIVE",
           avatar: user.avatar || "",
@@ -166,8 +171,8 @@ export default function AddUserPage() {
 
         res = await createUser(payload);
 
-        if (avatarFile && res?.data?.id) {
-          await uploadUserAvatar(res.data.id, avatarFile);
+        if (avatarFile && res?.data?.data?.id) {
+          await uploadUserAvatar(res.data.data.id, avatarFile);
         }
 
         toast.success("User created successfully!");

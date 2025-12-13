@@ -57,7 +57,8 @@ export default function UserListPage() {
   const loadJobTitles = async () => {
     try {
       const res = await getJobTitles();
-      setJobTitles(res.data.results); 
+      const apiData = res?.data?.data;
+      setJobTitles(Array.isArray(apiData?.results) ? apiData.results : []);
     } catch (err) {
       console.error("Failed to load job titles:", err);
     }
@@ -66,15 +67,22 @@ export default function UserListPage() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const data = await getUsers();
-      console.log("Fetched users:", data.data.results);
-      const sortedUsers = data.data.results.sort((a, b) =>
-        a.name.toLowerCase() > b.name.toLowerCase() ? 1 : -1
+      const response = await getUsers();
+
+      // YOUR REAL DATA STRUCTURE
+      const apiData = response?.data?.data;
+      const userList = Array.isArray(apiData?.results) ? apiData.results : [];
+
+      const sortedUsers = userList.sort((a, b) =>
+        a.name?.toLowerCase() > b.name?.toLowerCase() ? 1 : -1
       );
+
       setUsers(sortedUsers);
       setFilteredUsers(sortedUsers);
+
     } catch (err) {
       console.error("Failed to load users:", err);
+      toast.error("Failed to load users");
     } finally {
       setLoading(false);
     }

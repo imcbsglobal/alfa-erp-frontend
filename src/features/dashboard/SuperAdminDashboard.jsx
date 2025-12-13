@@ -30,9 +30,12 @@ export default function SuperAdminDashboard() {
     setLoading(true);
     try {
       const response = await getUsers();
-      const users = response.data.results;
 
-      // Calculate stats from actual user data
+      const users =
+        response?.data?.data?.results && Array.isArray(response.data.data.results)
+          ? response.data.data.results
+          : [];
+
       const totalAdmins = users.filter(
         (u) => u.role === "ADMIN" || u.role === "SUPERADMIN"
       ).length;
@@ -41,18 +44,15 @@ export default function SuperAdminDashboard() {
 
       const activeUsers = users.filter((u) => u.is_active === true).length;
 
-      // You can calculate pending approvals based on your logic
-      // For now, setting it to 0 as there's no such field in the user data
-      const pendingApprovals = 0;
-
-      setStats({
+      setStats((prev) => ({
+        ...prev,
         totalAdmins,
         totalUsers,
         activeUsers,
-        pendingApprovals
-      });
+        pendingApprovals: 0
+      }));
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error("Error fetching stats:", error);
     } finally {
       setLoading(false);
     }

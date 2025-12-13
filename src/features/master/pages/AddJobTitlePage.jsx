@@ -36,12 +36,16 @@ export default function AddJobTitlePage() {
     setLoadingDepartments(true);
     try {
       const response = await getDepartments();
-      
+
+      const apiData = response?.data;
       let deptArray = [];
-      if (Array.isArray(response?.data?.data)) {
-        deptArray = response.data.data;
-      } else if (Array.isArray(response?.data?.results)) {
-        deptArray = response.data.results;
+
+      if (Array.isArray(apiData?.data?.results)) {
+        deptArray = apiData.data.results;
+      } else if (Array.isArray(apiData?.results)) {
+        deptArray = apiData.results;
+      } else if (Array.isArray(apiData?.data)) {
+        deptArray = apiData.data;
       }
 
       setDepartments(deptArray);

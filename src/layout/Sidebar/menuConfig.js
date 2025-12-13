@@ -19,6 +19,22 @@ export const MENU_CONFIG = [
     type: "single", // single menu item (no submenu)
   },
   {
+    id: "store-dashboard",
+    label: "Store Dashboard",
+    icon: HomeIcon,
+    path: "/dashboard",
+    type: "single",
+    hasAccess: (user) => user?.role === "STORE",
+  },
+  {
+    id: "history",
+    label: "History",
+    icon: ListIcon,
+    type: "single",
+    path: "/history",
+    hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
+  },
+  {
     id: "invoice",
     label: "Invoice",
     icon: InvoiceIcon,
