@@ -15,6 +15,7 @@ import DepartmentListPage from "../features/master/pages/DepartmentListPage";
 import AddDepartmentPage from "../features/master/pages/AddDepartmentPage";
 import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
 import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
+import InvoicePickingPage from "../features/invoice/pages/InvoicePickingPage"; // 🔥 ADD THIS
 import StoreDashboard from "../features/dashboard/StoreDashboard";
 import HistoryPage from "../features/history/pages/HistoryPage";
 
@@ -41,7 +42,7 @@ export default function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
 
       {/* Logged-in Routes */}
-      <Route element={<ProtectedRoute allowedRoles={["SUPERADMIN", "ADMIN", "USER"]} />}>
+      <Route element={<ProtectedRoute allowedRoles={["SUPERADMIN", "ADMIN", "USER", "STORE"]} />}>
         <Route element={<MainLayout />}>
           <Route path="/dashboard" element={<RoleDashboard />} />
 
@@ -58,6 +59,7 @@ export default function AppRouter() {
           {/* Invoice Routes */}
           <Route path="/invoice" element={<InvoiceListPage />} />
           <Route path="/invoice/view/:id" element={<InvoiceViewPage />} />
+          <Route path="/invoice/pick/:id" element={<InvoicePickingPage />} />
 
           {/* History Routes */}
           <Route path="/history" element={<HistoryPage />} />

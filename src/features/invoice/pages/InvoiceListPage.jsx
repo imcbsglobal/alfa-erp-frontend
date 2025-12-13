@@ -1,14 +1,21 @@
-// src/features/invoice/pages/InvoiceListPage.jsx
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import PickInvoiceModal from "../components/PickInvoiceModal";
+import api from "../../../services/api";
 
 export default function InvoiceListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Modal state
+  const [showPickModal, setShowPickModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -17,11 +24,22 @@ export default function InvoiceListPage() {
     dateTo: "",
     customer: "",
     salesPerson: "",
+    status: "", // Default to show all (changed from "Pending")
   });
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+
+  // Show success message if redirected from picking page
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      setTimeout(() => setSuccessMessage(""), 5000);
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   // Load invoices
   useEffect(() => {
@@ -35,9 +53,14 @@ export default function InvoiceListPage() {
     eventSource.onmessage = (event) => {
       try {
         const invoice = JSON.parse(event.data);
-
-        setInvoices((prev) => [invoice, ...prev]);
-        setFilteredInvoices((prev) => [invoice, ...prev]);
+        setInvoices((prev) => {
+          // Update existing or add new
+          const exists = prev.find(inv => inv.id === invoice.id);
+          if (exists) {
+            return prev.map(inv => inv.id === invoice.id ? invoice : inv);
+          }
+          return [invoice, ...prev];
+        });
       } catch (e) {
         console.error("Invalid SSE invoice:", e);
       }
@@ -54,8 +77,8 @@ export default function InvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/sales/invoices/");
-      const data = await res.json();
+      const res = await api.get("/sales/invoices/");
+      const data = res.data;
 
       setInvoices(data.results || []);
       setFilteredInvoices(data.results || []);
@@ -68,11 +91,11 @@ export default function InvoiceListPage() {
 
   // Unique dropdown values
   const getUniqueCustomers = () => {
-    return [...new Set(invoices.map(inv => inv.customer?.name))].sort();
+    return [...new Set(invoices.map(inv => inv.customer?.name))].filter(Boolean).sort();
   };
 
   const getUniqueSalesPeople = () => {
-    return [...new Set(invoices.map(inv => inv.salesman?.name))].sort();
+    return [...new Set(invoices.map(inv => inv.salesman?.name))].filter(Boolean).sort();
   };
 
   // Combined search + filter logic
@@ -114,6 +137,14 @@ export default function InvoiceListPage() {
       filtered = filtered.filter(inv => inv.salesman?.name === filters.salesPerson);
     }
 
+    // Status filter (treat missing status as "Pending")
+    if (filters.status) {
+      filtered = filtered.filter(inv => {
+        const invoiceStatus = inv.status || "Pending"; // Default to Pending if no status
+        return invoiceStatus === filters.status;
+      });
+    }
+
     setFilteredInvoices(filtered);
     setCurrentPage(1);
   }, [invoices, searchTerm, filters]);
@@ -130,12 +161,41 @@ export default function InvoiceListPage() {
       dateTo: "",
       customer: "",
       salesPerson: "",
+      status: "", // Changed from "Pending"
     });
     setSearchTerm("");
   };
 
   const hasActiveFilters = () => {
-    return Object.values(filters).some(v => v !== "") || searchTerm !== "";
+    return filters.invoiceNumber || filters.dateFrom || filters.dateTo || 
+           filters.customer || filters.salesPerson || searchTerm;
+  };
+
+  // Handle Pick Invoice
+  const handlePickClick = (invoice) => {
+    const invoiceStatus = invoice.status || "Pending"; // Default to Pending if no status
+    
+    if (invoiceStatus !== "Pending") {
+      alert("Only pending invoices can be picked");
+      return;
+    }
+    setSelectedInvoice(invoice);
+    setShowPickModal(true);
+  };
+
+  const handlePickInvoice = async (employeeEmail) => {
+    try {
+      const res = await api.post(`/sales/invoices/${selectedInvoice.id}/claim/`, {
+        employee_email: employeeEmail
+      });
+
+      // Success - navigate to picking page
+      setShowPickModal(false);
+      navigate(`/invoice/pick/${selectedInvoice.id}`);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Failed to claim invoice";
+      throw new Error(errorMsg);
+    }
   };
 
   // Pagination
@@ -154,19 +214,36 @@ export default function InvoiceListPage() {
   };
 
   const getStatusBadgeColor = (status) => {
-    switch (status) {
+    const actualStatus = status || "Pending"; // Default to Pending if no status
+    
+    switch (actualStatus) {
       case "Pending":
         return "bg-yellow-100 text-yellow-700 border-yellow-200";
       case "Picked":
         return "bg-blue-100 text-blue-700 border-blue-200";
       case "ReadyForPacking":
         return "bg-purple-100 text-purple-700 border-purple-200";
+      case "Packed":
+        return "bg-green-100 text-green-700 border-green-200";
+      case "Shipped":
+        return "bg-teal-100 text-teal-700 border-teal-200";
       default:
         return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
-  // Pagination UI renderer (unchanged)
+  const getStatusLabel = (status) => {
+    const actualStatus = status || "Pending"; // Default to Pending if no status
+    
+    switch (actualStatus) {
+      case "ReadyForPacking":
+        return "Ready for Packing";
+      default:
+        return actualStatus;
+    }
+  };
+
+  // Pagination UI renderer
   const renderPagination = () => {
     if (totalPages <= 1) return null;
 
@@ -266,13 +343,24 @@ export default function InvoiceListPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
+        
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-green-800 font-semibold">{successMessage}</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
               Invoice Management
             </h1>
-            <p className="text-gray-600">View and manage all invoices</p>
+            <p className="text-gray-600">Pick and manage invoices</p>
           </div>
         </div>
 
@@ -288,12 +376,7 @@ export default function InvoiceListPage() {
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               />
               <span className="absolute left-3 top-2.5 text-gray-400">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </span>
@@ -313,7 +396,7 @@ export default function InvoiceListPage() {
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <div>
               <input
                 type="text"
@@ -365,6 +448,21 @@ export default function InvoiceListPage() {
                 {getUniqueSalesPeople().map((p) => (
                   <option key={p} value={p}>{p}</option>
                 ))}
+              </select>
+            </div>
+
+            <div>
+              <select
+                value={filters.status}
+                onChange={(e) => handleFilterChange("status", e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              >
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Picked">Picked</option>
+                <option value="ReadyForPacking">Ready for Packing</option>
+                <option value="Packed">Packed</option>
+                <option value="Shipped">Shipped</option>
               </select>
             </div>
           </div>
@@ -438,18 +536,38 @@ export default function InvoiceListPage() {
                         </td>
 
                         <td className="px-6 py-4">
-                          <span className="px-3 py-1 rounded-full border text-xs font-bold bg-blue-100 text-blue-700 border-blue-200">
-                            READY
+                          <span className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(invoice.status)}`}>
+                            {getStatusLabel(invoice.status)}
                           </span>
                         </td>
 
                         <td className="px-6 py-4">
-                          <button
-                            onClick={() => handleViewInvoice(invoice.id)}
-                            className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-                          >
-                            View
-                          </button>
+                          <div className="flex gap-2">
+                            {/* Pick Button - Only show for Pending invoices */}
+                            {(invoice.status || "Pending") === "Pending" && (
+                              <button
+                                onClick={() => handlePickClick(invoice)}
+                                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                                Pick
+                              </button>
+                            )}
+                            
+                            {/* View Button - Always show */}
+                            <button
+                              onClick={() => handleViewInvoice(invoice.id)}
+                              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              View
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -462,6 +580,14 @@ export default function InvoiceListPage() {
           )}
         </div>
       </div>
+
+      {/* Pick Invoice Modal */}
+      <PickInvoiceModal
+        isOpen={showPickModal}
+        onClose={() => setShowPickModal(false)}
+        onPick={handlePickInvoice}
+        invoiceNumber={selectedInvoice?.invoice_no}
+      />
     </div>
   );
 }
