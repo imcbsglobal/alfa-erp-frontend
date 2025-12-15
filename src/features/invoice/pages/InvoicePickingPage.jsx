@@ -61,24 +61,27 @@ export default function InvoicePickingPage() {
   };
 
   const handleStopPicking = () => {
-    setShowConfirmDialog(true);
+    setShowCompleteModal(true);
   };
 
-  const confirmComplete = async () => {
+  const confirmComplete = async (email) => {
     setCompleting(true);
     try {
-      await api.post(`/sales/invoices/${id}/complete/`);
-      
-      // Success - navigate back to list
+      await api.post("/sales/picking/complete/", {
+        invoice_no: invoice.invoice_no,
+        user_email: email,
+        notes: "Picked all items"
+      });
+
       navigate("/invoice", {
-        state: { message: "Invoice picking completed successfully!" }
+        state: { message: "Picking completed successfully!" }
       });
     } catch (err) {
-      console.error("Failed to complete picking:", err);
       setError(err.response?.data?.message || "Failed to complete picking");
-      setShowConfirmDialog(false);
     } finally {
       setCompleting(false);
+      setShowCompleteModal(false);
+      setCompleteEmail("");
     }
   };
 

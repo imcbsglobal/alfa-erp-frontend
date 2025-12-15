@@ -185,15 +185,19 @@ export default function InvoiceListPage() {
 
   const handlePickInvoice = async (employeeEmail) => {
     try {
-      const res = await api.post(`/sales/invoices/${selectedInvoice.id}/claim/`, {
-        employee_email: employeeEmail
+      await api.post("/sales/picking/start/", {
+        invoice_no: selectedInvoice.invoice_no,
+        user_email: employeeEmail,
+        notes: "Picking started"
       });
 
-      // Success - navigate to picking page
       setShowPickModal(false);
+
+      // Go to picking screen
       navigate(`/invoice/pick/${selectedInvoice.id}`);
     } catch (err) {
-      const errorMsg = err.response?.data?.message || "Failed to claim invoice";
+      const errorMsg =
+        err.response?.data?.message || "Failed to start picking";
       throw new Error(errorMsg);
     }
   };
