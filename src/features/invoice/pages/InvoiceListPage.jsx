@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PickInvoiceModal from "../components/PickInvoiceModal";
 import api from "../../../services/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 export default function InvoiceListPage() {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ export default function InvoiceListPage() {
 
   // 🔥 SSE Live Updates
   useEffect(() => {
-    const eventSource = new EventSource("http://localhost:8000/api/sales/sse/invoices/");
+    const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
     eventSource.onmessage = (event) => {
       try {
@@ -77,7 +78,7 @@ export default function InvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/invoices/");
+      const res = await api.get("/sales/invoices/?status=Pending");
       const data = res.data;
 
       setInvoices(data.results || []);
@@ -194,7 +195,7 @@ export default function InvoiceListPage() {
       setShowPickModal(false);
 
       // Go to picking screen
-      navigate(`/invoice/pick/${selectedInvoice.id}`);
+      navigate(`/store/invoice/pick/${selectedInvoice.id}`);
     } catch (err) {
       const errorMsg =
         err.response?.data?.message || "Failed to start picking";

@@ -43,11 +43,11 @@ export const MENU_CONFIG = [
       {
         label: "Invoice List",
         icon: ListIcon,
-        path: "/invoice",
+        path: "/invoices",
       },
     ],
     // Check if any submenu path matches current location
-    isActive: (pathname) => pathname.includes("/invoice"),
+    isActive: (pathname) => pathname.includes("/invoices"),
   },
   {
     id: "user-management",

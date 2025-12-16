@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
+import { useAuth } from "../../auth/AuthContext";
 
 export default function InvoicePickingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,117 +22,93 @@ export default function InvoicePickingPage() {
   const loadInvoice = async () => {
     setLoading(true);
     setError("");
+
     try {
       const res = await api.get(`/sales/invoices/${id}/`);
-      
-      // Verify invoice is in "Picked" status (or has no status field, which defaults to Pending)
-      const invoiceStatus = res.data.status || "Pending";
-      
-      if (invoiceStatus !== "Picked" && invoiceStatus !== "Pending") {
-        setError("This invoice is not available for picking");
-        return;
+      const status = res.data.status || "PENDING";
+
+      if (!["PICKING", "PICKED"].includes(status)) {
+        throw new Error("This invoice is not available for picking");
       }
 
       setInvoice(res.data);
-      
-      // Initialize picked items state
+
       const initialState = {};
-      res.data.items?.forEach((item, idx) => {
-        initialState[idx] = false;
+      res.data.items?.forEach(item => {
+        initialState[item.id] = false;
       });
       setPickedItems(initialState);
+
     } catch (err) {
-      console.error("Failed to load invoice:", err);
-      setError(err.response?.data?.message || "Failed to load invoice");
+      setError(err.message || "Failed to load invoice");
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleItem = (index) => {
+  const toggleItem = (itemId) => {
     setPickedItems(prev => ({
       ...prev,
-      [index]: !prev[index]
+      [itemId]: !prev[itemId],
     }));
   };
 
   const getProgress = () => {
     const total = Object.keys(pickedItems).length;
     const picked = Object.values(pickedItems).filter(Boolean).length;
-    return { picked, total, percentage: total ? Math.round((picked / total) * 100) : 0 };
+    return {
+      picked,
+      total,
+      percentage: total ? Math.round((picked / total) * 100) : 0,
+    };
   };
 
-  const handleStopPicking = () => {
-    setShowCompleteModal(true);
-  };
+  const confirmComplete = async () => {
+    if (!user?.email) {
+      setError("User email missing");
+      return;
+    }
 
-  const confirmComplete = async (email) => {
     setCompleting(true);
     try {
       await api.post("/sales/picking/complete/", {
         invoice_no: invoice.invoice_no,
-        user_email: email,
-        notes: "Picked all items"
+        user_email: user.email,
+        notes: "Picked all items",
       });
 
-      navigate("/invoice", {
-        state: { message: "Picking completed successfully!" }
-      });
+      navigate(-1);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to complete picking");
     } finally {
       setCompleting(false);
-      setShowCompleteModal(false);
-      setCompleteEmail("");
+      setShowConfirmDialog(false);
     }
   };
 
   const handleBack = () => {
     if (Object.values(pickedItems).some(Boolean)) {
-      if (window.confirm("You have unsaved progress. Are you sure you want to go back?")) {
-        navigate("/invoice");
-      }
-    } else {
-      navigate("/invoice");
+      if (!window.confirm("You have unsaved progress. Leave anyway?")) return;
     }
+    navigate(-1);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <svg className="animate-spin h-12 w-12 text-teal-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="text-gray-600 text-lg">Loading invoice...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !invoice) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <svg className="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">
-            {error || "Invoice not found"}
-          </h3>
-          <button
-            onClick={() => navigate("/invoice")}
-            className="mt-4 px-6 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600"
-          >
-            Back to Invoice List
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const progress = getProgress();
+
+  const handleStopPicking = () => {
+    setShowConfirmDialog(true);
+  };
+
+  if (loading) return null;
+    if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600">
+        {error}
+      </div>
+    );
+  }
+
+  if (!invoice) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -188,25 +166,25 @@ export default function InvoicePickingPage() {
           </div>
 
           <div className="divide-y divide-gray-200">
-            {invoice.items?.map((item, index) => (
-              <div
-                key={index}
-                className={`p-4 hover:bg-gray-50 transition-all cursor-pointer ${
-                  pickedItems[index] ? "bg-green-50" : ""
-                }`}
-                onClick={() => toggleItem(index)}
-              >
+              {invoice.items?.map((item) => (
+                <div
+                  key={item.id}
+                  className={`p-4 hover:bg-gray-50 transition-all cursor-pointer ${
+                    pickedItems[item.id] ? "bg-green-50" : ""
+                  }`}
+                  onClick={() => toggleItem(item.id)}
+                >
                 <div className="flex items-center gap-4">
                   {/* Checkbox */}
                   <div className="flex-shrink-0">
                     <div
                       className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${
-                        pickedItems[index]
+                        pickedItems[item.id]
                           ? "bg-green-500 border-green-500"
                           : "bg-white border-gray-300"
                       }`}
                     >
-                      {pickedItems[index] && (
+                      {pickedItems[item.id] && (
                         <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
@@ -217,7 +195,7 @@ export default function InvoicePickingPage() {
                   {/* Item Details */}
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-2">
-                      <p className={`font-semibold ${pickedItems[index] ? "text-green-700 line-through" : "text-gray-800"}`}>
+                      <p className={`font-semibold ${pickedItems[item.id] ? "text-green-700 line-through" : "text-gray-800"}`}>
                         {item.name}
                       </p>
                       {item.remarks && (
@@ -240,7 +218,7 @@ export default function InvoicePickingPage() {
 
                   {/* Status Icon */}
                   <div className="flex-shrink-0">
-                    {pickedItems[index] ? (
+                    {pickedItems[item.id] ? (
                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />

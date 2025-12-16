@@ -44,19 +44,39 @@ export default function LoginPage() {
     try {
       const response = await apiLogin(formData.email, formData.password);
 
-      setUserSession(response.data.user, response.data.access, response.data.refresh);
+      // ✅ SAFELY extract data
+      const { user, access, refresh } = response.data || {};
 
-      if (response.data.user.role =="SuperAdmin") {
-        navigate("/super-admin/dashboard");
-      } else if (response.data.user.roles =="Admin") {
-        navigate("/admin/dashboard");
-      } else {
-        navigate("/dashboard");
+      if (!user || !access) {
+        throw new Error("Invalid login response");
+      }
+
+      setUserSession(user, access, refresh);
+
+      // ✅ ROLE-BASED REDIRECT
+      switch (user.role) {
+        case "SUPERADMIN":
+        case "ADMIN":
+          navigate("/dashboard", { replace: true });
+          break;
+
+        case "PICKER":
+          navigate("/invoices", { replace: true });
+          break;
+
+        default:
+          throw new Error(`Unsupported role: ${user.role}`);
       }
 
     } catch (err) {
-      console.error('Login failed:', err);
-      setErrors({ general: err.message || "Invalid email or password" });
+      console.error("Login failed:", err);
+
+      setErrors({
+        general:
+          err.response?.data?.detail ||
+          err.message ||
+          "Invalid email or password",
+      });
     } finally {
       setLoading(false);
     }
