@@ -19,14 +19,6 @@ export const MENU_CONFIG = [
     type: "single", // single menu item (no submenu)
   },
   {
-    id: "store-dashboard",
-    label: "Store Dashboard",
-    icon: HomeIcon,
-    path: "/dashboard",
-    type: "single",
-    hasAccess: (user) => user?.role === "STORE",
-  },
-  {
     id: "history",
     label: "History",
     icon: ListIcon,
@@ -140,7 +132,7 @@ export const MENU_CONFIG = [
 // Page title mapping - add your routes here
 export const PAGE_TITLES = {
   "/dashboard": "Dashboard",
-  "/invoice": "Invoice Management",
+  "/invoices": "Invoice Management",
   "/user-management": "User Management",
   "/add-user": "Add User",
   "/user-control": "User Control",

@@ -2,9 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PickInvoiceModal from "../components/PickInvoiceModal";
 import api from "../../../services/api";
+import { useAuth } from "../../auth/AuthContext";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 export default function InvoiceListPage() {
+      const { user } = useAuth();
+  
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -78,7 +81,7 @@ export default function InvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/invoices/?status=Pending");
+      const res = await api.get("/sales/invoices/?status=PENDING");
       const data = res.data;
 
       setInvoices(data.results || []);
@@ -176,7 +179,7 @@ export default function InvoiceListPage() {
   const handlePickClick = (invoice) => {
     const invoiceStatus = invoice.status || "Pending"; // Default to Pending if no status
     
-    if (invoiceStatus !== "Pending") {
+    if (invoiceStatus !== "PENDING") {
       alert("Only pending invoices can be picked");
       return;
     }
@@ -195,7 +198,7 @@ export default function InvoiceListPage() {
       setShowPickModal(false);
 
       // Go to picking screen
-      navigate(`/store/invoice/pick/${selectedInvoice.id}`);
+      // navigate(`/store/invoice/pick/${selectedInvoice.id}`);
     } catch (err) {
       const errorMsg =
         err.response?.data?.message || "Failed to start picking";
@@ -215,14 +218,18 @@ export default function InvoiceListPage() {
   };
 
   const handleViewInvoice = (id) => {
-    navigate(`/invoice/view/${id}`);
+    if(    user?.role=="PICKER"){
+      navigate(`/ops/picking/invoices/view/${id}`);
+      return;
+    }
+    navigate(`/invoices/view/${id}`);
   };
 
   const getStatusBadgeColor = (status) => {
     const actualStatus = status || "Pending"; // Default to Pending if no status
     
     switch (actualStatus) {
-      case "Pending":
+      case "PENDING":
         return "bg-yellow-100 text-yellow-700 border-yellow-200";
       case "Picked":
         return "bg-blue-100 text-blue-700 border-blue-200";
@@ -463,7 +470,7 @@ export default function InvoiceListPage() {
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               >
                 <option value="">All Status</option>
-                <option value="Pending">Pending</option>
+                <option value="PENDING">Pending</option>
                 <option value="Picked">Picked</option>
                 <option value="ReadyForPacking">Ready for Packing</option>
                 <option value="Packed">Packed</option>
@@ -549,7 +556,7 @@ export default function InvoiceListPage() {
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
                             {/* Pick Button - Only show for Pending invoices */}
-                            {(invoice.status || "Pending") === "Pending" && (
+                            {(invoice.status || "Pending") === "PENDING" && (
                               <button
                                 onClick={() => handlePickClick(invoice)}
                                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"

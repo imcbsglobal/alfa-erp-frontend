@@ -4,12 +4,16 @@ import { useAuth } from "../features/auth/AuthContext";
 export default function ProtectedRoute({ allowedRoles }) {
   const { user, loading } = useAuth();
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
 
-  // if (allowedRoles && !allowedRoles.some(r => user.roles.includes(r))) {
-  //   return <Navigate to="/dashboard" replace />;
-  // }
+
+  if (
+    allowedRoles &&
+    !allowedRoles.includes(user.role)
+  ) {
+    return <Navigate to="/403" replace />;
+  }
 
   return <Outlet />;
 }

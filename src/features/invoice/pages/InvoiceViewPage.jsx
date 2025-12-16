@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
+import { useAuth } from "../../auth/AuthContext";
 
 export default function InvoiceViewPage() {
+      const { user } = useAuth();
+
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,7 +30,11 @@ export default function InvoiceViewPage() {
   };
 
   const handleBack = () => {
-    navigate("/invoice");
+          if(    user?.role=="PICKER"){
+      navigate(`/ops/picking/invoices/`);
+      return;
+    }
+    navigate("/invoices");
   };
 
   // Pagination
