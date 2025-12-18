@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
+import { getActivePickingTask } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 
 export default function InvoicePickingPage({ mode = "LIVE" }) {
@@ -17,6 +18,10 @@ export default function InvoicePickingPage({ mode = "LIVE" }) {
   const isLive = mode === "LIVE";
   const isAssigned = mode === "ASSIGNED";
   const isHistory = mode === "HISTORY";
+
+  useEffect(() => {
+    navigate("/invoices/my", { replace: true });
+  }, []);
 
   useEffect(() => {
     loadInvoice();

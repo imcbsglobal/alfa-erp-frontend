@@ -54,13 +54,10 @@ export default function AppRouter() {
 
           {/* My Invoices */}
           <Route path="/invoices/my" element={<MyInvoiceListPage />} />
-          <Route path="/invoices/my/assigned/:id" element={<InvoicePickingPage mode="ASSIGNED" />} />
-          <Route path="/invoices/my/history/:id" element={<InvoicePickingPage mode="HISTORY" />} />
 
           {/* Ops Invoices */}
           <Route path="/ops/picking/invoices" element={<InvoiceListPage mode="PICKING" />} />
           <Route path="/ops/picking/invoices/view/:id" element={<InvoiceViewPage />} />
-          <Route path="/ops/picking/invoices/pick/:id" element={<InvoicePickingPage />} />
 
           {/* Users */}
           <Route path="/user-management" element={<UserListPage />} />

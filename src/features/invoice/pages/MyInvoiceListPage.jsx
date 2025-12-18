@@ -1,81 +1,62 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
+import { getActivePickingTask } from "../../../services/sales";
 
 export default function MyInvoiceListPage() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedInvoice, setExpandedInvoice] = useState(null);
   const [pickedItems, setPickedItems] = useState({});
+  const [activeInvoice, setActiveInvoice] = useState(null);
+  const [completedInvoices, setCompletedInvoices] = useState([]);
 
-  // Demo data
-  const demoActiveInvoice = {
-    id: 'active1',
-    invoice_no: 'AABB-0015',
-    status: 'PICKING',
-    customer: { 
-      name: 'A Store', 
-      phone: '+1 (555) 123-4567', 
-      address: '123 Oak Street, Suite 400, Downtown, NY 10001' 
-    },
-    created_at: '2024-12-17T05:08:00',
-    items: [
-      { id: 'item1', name: 'Calpol 650 Tablet', sku: 'CAL-650', quantity: 24 },
-      { id: 'item2', name: 'Nasoclear Saline Spray', sku: 'NAS-SAL', quantity: 12 }
-    ]
-  };
+  useEffect(() => {
+    loadActivePicking();
+    loadTodayCompletedPicking();
+  }, []);
+const loadActivePicking = async () => {
+  try {
+    setLoading(true);
 
-  const demoCompletedInvoices = [
-    {
-      id: 'demo1',
-      invoice_no: 'INV-2024-0846',
-      status: 'DELIVERED',
-      customer: { name: 'Michael Chen', phone: '+1 (555) 234-5678', address: '456 Pine Avenue, Building B, Floor 3, Brooklyn, NY 11201' },
-      created_at: '2024-12-17T08:30:00',
-      updated_at: '2024-12-17T09:15:00',
-      items: [
-        { name: 'Mechanical Keyboard RGB', sku: 'MKR-101', quantity: 1 },
-        { name: 'Gaming Mouse', sku: 'GMS-202', quantity: 2 },
-        { name: 'Monitor Arm Dual', sku: 'MAD-303', quantity: 1 },
-        { name: 'Desk Mat Premium', sku: 'DMP-404', quantity: 1 },
-        { name: 'USB Cable Pack', sku: 'UCP-505', quantity: 3 }
-      ]
-    },
-    {
-      id: 'demo2',
-      invoice_no: 'INV-2024-0845',
-      status: 'DELIVERED',
-      customer: { name: 'Emily Davis', phone: '+1 (555) 876-5432', address: '789 Elm Street, Suite 200, Manhattan, NY 10013' },
-      created_at: '2024-12-17T07:00:00',
-      updated_at: '2024-12-17T08:30:00',
-      items: [
-        { name: 'Wireless Headset Pro', sku: 'WHP-601', quantity: 1 },
-        { name: 'Webcam 4K Ultra', sku: 'WCU-702', quantity: 1 },
-        { name: 'LED Desk Lamp', sku: 'LDL-803', quantity: 2 },
-        { name: 'Cable Management Kit', sku: 'CMK-904', quantity: 1 }
-      ]
-    },
-    {
-      id: 'demo3',
-      invoice_no: 'INV-2024-0844',
-      status: 'DELIVERED',
-      customer: { name: 'Robert Wilson', phone: '+1 (555) 345-6789', address: '321 Oak Boulevard, Apartment 5C, Queens, NY 11354' },
-      created_at: '2024-12-16T14:00:00',
-      updated_at: '2024-12-16T16:45:00',
-      items: [
-        { name: 'Standing Desk Converter', sku: 'SDC-101', quantity: 1 },
-        { name: 'Ergonomic Chair', sku: 'ERC-202', quantity: 1 },
-        { name: 'Monitor 27" 4K', sku: 'MON-303', quantity: 2 },
-        { name: 'Laptop Stand Aluminum', sku: 'LSA-404', quantity: 1 },
-        { name: 'Keyboard Wrist Rest', sku: 'KWR-505', quantity: 1 },
-        { name: 'Mouse Pad XXL', sku: 'MPX-606', quantity: 1 }
-      ]
+    const res = await getActivePickingTask();
+
+    if (res.data?.data) {
+      const task = res.data.data;
+
+      setActiveInvoice({
+        ...task.invoice,
+        created_at: task.start_time,
+      });
+    } else {
+      setActiveInvoice(null);
     }
-  ];
+  } catch (err) {
+    console.error("Failed to load active picking task", err);
+    setActiveInvoice(null);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const [activeInvoice, setActiveInvoice] = useState(demoActiveInvoice);
-  const [completedInvoices, setCompletedInvoices] = useState(demoCompletedInvoices);
+  const loadTodayCompletedPicking = async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+
+      const res = await api.get("/sales/picking/history/", {
+        params: {
+          status: "PICKED",
+          start_date: today,
+          end_date: today,
+        },
+      });
+
+      setCompletedInvoices(res.data?.results || []);
+    } catch (err) {
+      console.error("Failed to load picking history", err);
+    }
+  };
 
   const toggleItemPicked = (itemId) => {
     setPickedItems(prev => ({
@@ -88,17 +69,37 @@ export default function MyInvoiceListPage() {
   const pickedCount = activeInvoice?.items?.filter(item => pickedItems[item.id]).length || 0;
   const totalItems = activeInvoice?.items?.length || 0;
 
-  const handleCompletePicking = () => {
-    if (allItemsPicked && activeInvoice) {
-      const completedInvoice = {
-        ...activeInvoice,
-        status: 'DELIVERED',
-        updated_at: new Date().toISOString()
-      };
-      setCompletedInvoices([completedInvoice, ...completedInvoices]);
-      setActiveInvoice(null);
+  const { user } = useAuth();
+
+  const handleCompletePicking = async () => {
+    if (!allItemsPicked || !activeInvoice) return;
+
+    if (!user?.email) {
+      alert("User email not found");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      await api.post("/sales/picking/complete/", {
+        invoice_no: activeInvoice.invoice_no,
+        user_email: user.email,
+        notes: "Picked all items",
+      });
+
+      await loadActivePicking();
+      await loadTodayCompletedPicking();
       setPickedItems({});
-      alert('Invoice completed!');
+
+    } catch (err) {
+      console.error(err);
+      alert(
+        err.response?.data?.message ||
+        "Failed to complete picking"
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,7 +113,7 @@ export default function MyInvoiceListPage() {
   if (loading) return <div className="p-6">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div  className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -141,100 +142,108 @@ export default function MyInvoiceListPage() {
               className="bg-white rounded-2xl border-2 border-teal-500 shadow-lg overflow-hidden cursor-pointer transition-all hover:shadow-xl"
               onClick={() => setExpandedInvoice(expandedInvoice === activeInvoice.id ? null : activeInvoice.id)}
             >
-              {/* Header */}
-              <div className="p-6 pb-4">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
+              {/* Compact Header */}
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  {/* Left: Invoice Info */}
+                  <div className="flex items-center gap-4 flex-1">
                     <div className="bg-teal-50 p-3 rounded-xl">
-                      <svg className="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-7 h-7 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Invoice #{activeInvoice.invoice_no}</h3>
-                      <p className="text-gray-500">{activeInvoice.customer?.name}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-xl font-bold text-gray-900">Invoice #{activeInvoice.invoice_no}</h3>
+                        <span className="inline-flex px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-medium items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></span>
+                          In Progress
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          {activeInvoice.customer?.name}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          </svg>
+                          {activeInvoice.customer?.phone}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {activeInvoice.customer?.address}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {new Date(activeInvoice.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <svg
-                    className={`w-6 h-6 text-gray-400 transition-transform ${expandedInvoice === activeInvoice.id ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
 
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="inline-flex px-4 py-2 bg-teal-50 text-teal-700 rounded-full text-sm font-medium items-center gap-2">
-                    <span className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></span>
-                    In Progress
-                  </span>
-                </div>
+                  {/* Right: Circular Progress & Expand Icon */}
+                  <div className="flex items-center gap-4">
+                    {/* Circular Progress */}
+                    <div className="relative w-16 h-16">
+                      <svg className="w-16 h-16 transform -rotate-90">
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          stroke="#e5e7eb"
+                          strokeWidth="6"
+                          fill="none"
+                        />
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          stroke="url(#gradient)"
+                          strokeWidth="6"
+                          fill="none"
+                          strokeDasharray={`${2 * Math.PI * 28}`}
+                          strokeDashoffset={`${2 * Math.PI * 28 * (1 - pickedCount / totalItems)}`}
+                          strokeLinecap="round"
+                          className="transition-all duration-500"
+                        />
+                        <defs>
+                          <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#14b8a6" />
+                            <stop offset="100%" stopColor="#06b6d4" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-lg font-bold text-gray-900">{Math.round((pickedCount / totalItems) * 100)}%</span>
+                        <span className="text-[9px] text-gray-500 -mt-0.5">{pickedCount}/{totalItems}</span>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    {/* Expand Icon */}
+                    <svg
+                      className={`w-6 h-6 text-gray-400 transition-transform ${expandedInvoice === activeInvoice.id ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
-                    <span>{pickedCount}/{totalItems} items picked</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Started {new Date(activeInvoice.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <div className="overflow-hidden h-3 text-xs flex rounded-full bg-gray-200">
-                    <div
-                      style={{ width: `${(pickedCount / totalItems) * 100}%` }}
-                      className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-teal-500 to-cyan-600 transition-all duration-500"
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1 text-right">{Math.round((pickedCount / totalItems) * 100)}% Complete</p>
                 </div>
               </div>
 
               {/* Expanded Details */}
               {expandedInvoice === activeInvoice.id && (
-                <div className="px-6 pb-6 pt-2 bg-gray-50 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-white p-4 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        PHONE
-                      </p>
-                      <p className="font-semibold text-sm">{activeInvoice.customer?.phone}</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        START TIME
-                      </p>
-                      <p className="font-semibold text-sm">
-                        {new Date(activeInvoice.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-lg mb-4 flex items-start gap-2">
-                    <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">DELIVERY ADDRESS</p>
-                      <p className="text-sm text-gray-700">{activeInvoice.customer?.address}</p>
-                    </div>
-                  </div>
-
+                <div className="px-5 pb-5 pt-2 bg-gray-50 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
                   <div className="bg-white p-4 rounded-lg mb-4">
                     <h4 className="text-sm font-semibold text-gray-900 mb-3">Items to Pick ({totalItems})</h4>
                     <div className="space-y-2">
@@ -334,106 +343,129 @@ export default function MyInvoiceListPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {completedInvoices.map((inv) => (
-                    <>
-                      <tr 
-                        key={inv.id} 
+                    <Fragment key={inv.id}>
+                      <tr
                         className="hover:bg-gray-50 transition cursor-pointer"
-                        onClick={() => setExpandedInvoice(expandedInvoice === inv.id ? null : inv.id)}
+                        onClick={() =>
+                          setExpandedInvoice(expandedInvoice === inv.id ? null : inv.id)
+                        }
                       >
                         <td className="px-6 py-4">
-                          <span className="font-semibold text-gray-900">#{inv.invoice_no}</span>
+                          <span className="font-semibold text-gray-900">
+                            #{inv.invoice_no}
+                          </span>
                         </td>
+
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {new Date(inv.created_at).toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            year: 'numeric' 
+                          {new Date(inv.start_time).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
                           })}
                         </td>
+
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {new Date(inv.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {new Date(inv.start_time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </td>
+
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {new Date(inv.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {inv.end_time
+                            ? new Date(inv.end_time).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "-"}
                         </td>
+
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {calculateDuration(inv.created_at, inv.updated_at)}
+                          {inv.duration ? `${inv.duration} min` : "-"}
                         </td>
+
                         <td className="px-6 py-4 text-right">
                           <svg
-                            className={`w-5 h-5 text-gray-400 transition-transform inline-block ${expandedInvoice === inv.id ? 'rotate-180' : ''}`}
+                            className={`w-5 h-5 text-gray-400 transition-transform inline-block ${
+                              expandedInvoice === inv.id ? "rotate-180" : ""
+                            }`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
                           </svg>
                         </td>
                       </tr>
-                      
+
                       {/* Expanded Details Row */}
                       {expandedInvoice === inv.id && (
-                        <tr key={`${inv.id}-details`}>
+                        <tr>
                           <td colSpan="6" className="px-6 py-4 bg-gray-50">
                             <div className="space-y-4">
                               {/* Customer Details */}
                               <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                  <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                  </svg>
+                                <h4 className="text-sm font-semibold text-gray-900 mb-3">
                                   Customer Details
                                 </h4>
                                 <div className="grid grid-cols-3 gap-4">
                                   <div>
-                                    <p className="text-xs text-gray-500 mb-1">Name</p>
-                                    <p className="text-sm font-medium text-gray-900">{inv.customer?.name}</p>
+                                    <p className="text-xs text-gray-500">Name</p>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {inv.customer_name}
+                                    </p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-gray-500 mb-1">Phone</p>
-                                    <p className="text-sm font-medium text-gray-900">{inv.customer?.phone}</p>
+                                    <p className="text-xs text-gray-500">Phone</p>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {inv.customer?.phone || "-"}
+                                    </p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-gray-500 mb-1">Address</p>
-                                    <p className="text-sm font-medium text-gray-900">{inv.customer?.address}</p>
+                                    <p className="text-xs text-gray-500">Address</p>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {inv.customer?.address || "-"}
+                                    </p>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Items Delivered */}
+                              {/* Items Picked */}
                               <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                  <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                  </svg>
+                                <h4 className="text-sm font-semibold text-gray-900 mb-3">
                                   Items Picked ({inv.items?.length || 0})
                                 </h4>
+
                                 <div className="grid grid-cols-2 gap-3">
-                                  {inv.items?.map((item, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                      <div className="flex items-center gap-3">
-                                        <div className="bg-teal-100 p-2 rounded">
-                                          <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                          </svg>
-                                        </div>
-                                        <div>
-                                          <p className="font-medium text-sm text-gray-900">{item.product_name || item.name}</p>
-                                          <p className="text-xs text-gray-500">SKU: {item.sku || 'N/A'}</p>
-                                        </div>
+                                  {inv.items?.map((item) => (
+                                    <div
+                                      key={item.id || `${inv.id}-${item.sku}`}
+                                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                                    >
+                                      <div>
+                                        <p className="font-medium text-sm text-gray-900">
+                                          {item.product_name || item.name}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          SKU: {item.sku || "N/A"}
+                                        </p>
                                       </div>
-                                      <span className="font-bold text-sm text-gray-900">{item.quantity} {item.quantity > 1 ? 'pcs' : 'pc'}</span>
+                                      <span className="font-bold text-sm text-gray-900">
+                                        {item.quantity} {item.quantity > 1 ? "pcs" : "pc"}
+                                      </span>
                                     </div>
                                   ))}
                                 </div>
                               </div>
 
-                              {/* Status Badge */}
+                              {/* Status */}
                               <div className="flex justify-end">
-                                <span className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-bold border border-emerald-200 flex items-center gap-2">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
+                                <span className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-bold">
                                   PICKED
                                 </span>
                               </div>
@@ -441,7 +473,7 @@ export default function MyInvoiceListPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

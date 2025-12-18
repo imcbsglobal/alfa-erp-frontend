@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PickInvoiceModal from "../components/PickInvoiceModal";
 import api from "../../../services/api";
+import { getActivePickingTask } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -16,6 +17,8 @@ export default function InvoiceListPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState("");
+
+  const [activePicking, setActivePicking] = useState(null);
 
   // Modal state
   const [showPickModal, setShowPickModal] = useState(false);
@@ -197,9 +200,7 @@ export default function InvoiceListPage() {
 
       setShowPickModal(false);
 
-      navigate(`/ops/picking/invoices/pick/${selectedInvoice.id}`, {
-        state: { message: "Picking started successfully" },
-      });
+      navigate("/invoices/my");
 
     } catch (err) {
       throw new Error(
@@ -558,7 +559,7 @@ export default function InvoiceListPage() {
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
                             {/* Pick Button - Only show for Pending invoices */}
-                            {invoice.status === "PENDING" && (
+                            {invoice.status === "PENDING" && !activePicking && (
                               <button
                                 onClick={() => handlePickClick(invoice)}
                                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
