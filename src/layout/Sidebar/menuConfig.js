@@ -19,14 +19,6 @@ export const MENU_CONFIG = [
     type: "single", // single menu item (no submenu)
   },
   {
-    id: "history",
-    label: "History",
-    icon: ListIcon,
-    type: "single",
-    path: "/history",
-    hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
-  },
-  {
     id: "invoice",
     label: "Invoice",
     icon: InvoiceIcon,
@@ -50,7 +42,15 @@ export const MENU_CONFIG = [
      isActive: (pathname) =>
       pathname.startsWith("/invoices") ||
       pathname.startsWith("/ops/picking/invoices"),
-    },
+  },
+  {
+    id: "history",
+    label: "History",
+    icon: ListIcon,
+    type: "single",
+    path: "/history",
+    hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
+  },
   {
     id: "user-management",
     label: "User Management",

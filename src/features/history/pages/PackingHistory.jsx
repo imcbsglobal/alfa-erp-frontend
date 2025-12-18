@@ -1,102 +1,111 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Pagination from "../../../components/Pagination";
+import { getPackingHistory } from "../../../services/sales";
 
 export default function PackingHistory() {
-  const [history, setHistory] = useState([]);
-  const [filtered, setFiltered] = useState([]);
+  const navigate = useNavigate();
 
+  const [history, setHistory] = useState([]);
   const [search, setSearch] = useState("");
-  const [filterPacker, setFilterPacker] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [filterDate, setFilterDate] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 10;
 
   useEffect(() => {
-    // TODO: Replace with API
-    setHistory([
-      {
-        id: 1,
-        invoice: "INV-004",
-        packer: "packer1@gmail.com",
-        time: "12:30 PM",
-        date: "2024-12-10",
-      },
-      {
-        id: 2,
-        invoice: "INV-005",
-        packer: "packer2@gmail.com",
-        time: "1:10 PM",
-        date: "2024-12-10",
-      },
-    ]);
-  }, []);
+    load();
+  }, [currentPage, search, filterStatus, filterDate]);
 
-  // APPLY FILTERS
-  useEffect(() => {
-    let data = [...history];
+  const load = async () => {
+    setLoading(true);
+    try {
+      const params = {
+        page: currentPage,
+        page_size: itemsPerPage,
+      };
 
-    // Search invoice or packer
-    if (search.trim() !== "") {
-      data = data.filter(
-        (x) =>
-          x.invoice.toLowerCase().includes(search.toLowerCase()) ||
-          x.packer.toLowerCase().includes(search.toLowerCase())
-      );
+      if (search.trim()) params.search = search.trim();
+      if (filterStatus) params.status = filterStatus;
+      if (filterDate) params.start_date = filterDate;
+
+      const response = await getPackingHistory(params);
+      setHistory(response.data.results);
+      setTotalCount(response.data.count);
+    } catch (error) {
+      console.error("Failed to load packing history:", error);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Filter by packer
-    if (filterPacker) {
-      data = data.filter((x) => x.packer === filterPacker);
-    }
+  const handleViewInvoice = (invoiceId) => {
+    navigate(`/invoices/${invoiceId}`);
+  };
 
-    // Filter by date
-    if (filterDate) {
-      data = data.filter((x) => x.date === filterDate);
-    }
+  const formatDuration = (minutes) => {
+    if (!minutes) return "-";
+    if (minutes < 60) return `${Math.round(minutes)} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return `${hours}h ${mins}m`;
+  };
 
-    setFiltered(data);
-    setCurrentPage(1); // reset pagination whenever filters change
-  }, [search, filterPacker, filterDate, history]);
+  const statusBadge = (status) => {
+    const styles = {
+      PENDING: "bg-gray-100 text-gray-700 border-gray-200",
+      IN_PROGRESS: "bg-yellow-100 text-yellow-700 border-yellow-200",
+      PACKED: "bg-green-100 text-green-700 border-green-200",
+    };
 
-  // PAGINATION
-  const indexLast = currentPage * itemsPerPage;
-  const indexFirst = indexLast - itemsPerPage;
-  const rows = filtered.slice(indexFirst, indexLast);
+    const labels = {
+      PENDING: "Pending",
+      IN_PROGRESS: "In Progress",
+      PACKED: "Packed",
+    };
 
-  // Unique packer list
-  const uniquePackers = [...new Set(history.map((h) => h.packer))];
+    return (
+      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[status] || "bg-gray-100 text-gray-700"}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
-
       {/* HEADER + FILTER ROW */}
       <div className="flex justify-between mb-4">
         <h2 className="text-xl font-bold text-gray-800">Packing History</h2>
 
         <div className="flex gap-3">
-
           {/* Search */}
           <input
             type="text"
             placeholder="Search invoice or packer..."
-            className="px-3 py-2 border border-gray-300 rounded-lg"
+            className="px-3 py-2 border border-gray-300 rounded-lg w-64"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
           />
 
-          {/* Packer Dropdown */}
+          {/* Status Filter */}
           <select
             className="px-3 py-2 border border-gray-300 rounded-lg"
-            value={filterPacker}
-            onChange={(e) => setFilterPacker(e.target.value)}
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setCurrentPage(1);
+            }}
           >
-            <option value="">All Packers</option>
-            {uniquePackers.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
+            <option value="">All Status</option>
+            <option value="PENDING">Pending</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="PACKED">Packed</option>
           </select>
 
           {/* Date Filter */}
@@ -104,46 +113,105 @@ export default function PackingHistory() {
             type="date"
             className="px-3 py-2 border border-gray-300 rounded-lg"
             value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
+            onChange={(e) => {
+              setFilterDate(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>
 
       {/* TABLE */}
-      <table className="w-full">
-        <thead>
-          <tr className="bg-gradient-to-r from-teal-500 to-cyan-600 text-left">
-            <th className="px-6 py-4 text-sm font-bold text-white">Invoice</th>
-            <th className="px-6 py-4 text-sm font-bold text-white">Packer</th>
-            <th className="px-6 py-4 text-sm font-bold text-white">Time</th>
-            <th className="px-6 py-4 text-sm font-bold text-white">Date</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {rows.map((h) => (
-            <tr key={h.id} className="border-b hover:bg-gray-50">
-              <td className="px-6 py-3">{h.invoice}</td>
-              <td className="px-6 py-3">{h.packer}</td>
-              <td className="px-6 py-3">{h.time}</td>
-              <td className="px-6 py-3">{h.date}</td>
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">Loading...</div>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gradient-to-r from-teal-500 to-cyan-600 text-left">
+              <th className="px-6 py-4 text-sm font-bold text-white">Invoice</th>
+              <th className="px-6 py-4 text-sm font-bold text-white">Customer</th>
+              <th className="px-6 py-4 text-sm font-bold text-white">Packer</th>
+              <th className="px-6 py-4 text-sm font-bold text-white">Status</th>
+              <th className="px-6 py-4 text-sm font-bold text-white">Date & Time</th>
+              <th className="px-6 py-4 text-sm font-bold text-white">Duration</th>
             </tr>
-          ))}
+          </thead>
 
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan="4" className="text-center py-4 text-gray-500">
-                No records found
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          <tbody>
+            {history.map((h) => (
+              <tr key={h.id} className="border-b hover:bg-gray-50">
+                <td className="px-6 py-3">
+                  <button
+                    onClick={() => handleViewInvoice(h.id)}
+                    className="text-teal-600 hover:text-teal-800 font-medium hover:underline"
+                  >
+                    {h.invoice_no}
+                  </button>
+                </td>
+                <td className="px-6 py-3">
+                  <p className="font-medium">{h.customer_name}</p>
+                  <p className="text-xs text-gray-500">{h.customer_email}</p>
+                </td>
+                <td className="px-6 py-3">
+                  <p className="font-medium">{h.packer_name}</p>
+                  <p className="text-xs text-gray-500">{h.packer_email}</p>
+                </td>
+                <td className="px-6 py-3">{statusBadge(h.packing_status)}</td>
+                <td className="px-6 py-3">
+                  <div className="text-sm text-gray-600">
+                    <p className="font-medium">
+                      {new Date(h.start_time).toLocaleDateString('en-IN', {
+                        year: '2-digit',
+                        month: '2-digit',
+                        day: '2-digit'
+                      })}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {new Date(h.start_time).toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                      {h.end_time && (
+                        <> to {new Date(h.end_time).toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}</>
+                      )}
+                    </p>
+                  </div>
+                </td>
+                <td className="px-6 py-3">
+                  {h.duration ? (
+                    <button
+                      onClick={() => handleViewInvoice(h.id)}
+                      className="text-teal-600 hover:text-teal-800 font-medium hover:underline"
+                    >
+                      {formatDuration(h.duration)}
+                    </button>
+                  ) : (
+                    <span className="text-gray-400">In Progress</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+
+            {history.length === 0 && (
+              <tr>
+                <td colSpan="6" className="text-center py-4 text-gray-500">
+                  No packing records found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
 
       {/* PAGINATION */}
       <Pagination
         currentPage={currentPage}
-        totalItems={filtered.length}
+        totalItems={totalCount}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
         label="pack records"

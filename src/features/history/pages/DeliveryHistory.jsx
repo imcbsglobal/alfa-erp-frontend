@@ -1,86 +1,104 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Pagination from "../../../components/Pagination";
+import { getDeliveryHistory } from "../../../services/sales";
 
 export default function DeliveryHistory() {
-  const [history, setHistory] = useState([]);
+  const navigate = useNavigate();
 
+  const [history, setHistory] = useState([]);
   const [search, setSearch] = useState("");
-  const [filterMode, setFilterMode] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [filterDate, setFilterDate] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 8;
 
   useEffect(() => {
-    // TODO: Replace with real API
-    setHistory([
-      {
-        id: 1,
-        invoice: "INV-007",
-        mode: "SelfPickup",
-        customer: "customer1@gmail.com",
-        picked_at: "2:30 PM",
-        date: "2024-12-10",
-      },
-      {
-        id: 2,
-        invoice: "INV-008",
-        mode: "Courier",
-        courier_name: "DTDC",
-        tracking_id: "DTDC123456",
-        delivered: "4:45 PM",
-        date: "2024-12-10",
-      },
-      {
-        id: 3,
-        invoice: "INV-009",
-        mode: "CompanyDelivery",
-        driver: "driver1@gmail.com",
-        delivered: "3:15 PM",
-        date: "2024-12-11",
-      },
-    ]);
-  }, []);
+    load();
+  }, [currentPage, search, filterType, filterStatus, filterDate]);
 
-  // Badge formatter
-  const modeBadge = (mode) => {
+  const load = async () => {
+    setLoading(true);
+    try {
+      const params = {
+        page: currentPage,
+        page_size: itemsPerPage,
+      };
+
+      if (search.trim()) params.search = search.trim();
+      if (filterType) params.delivery_type = filterType;
+      if (filterStatus) params.status = filterStatus;
+      if (filterDate) params.start_date = filterDate;
+
+      const response = await getDeliveryHistory(params);
+      setHistory(response.data.results);
+      setTotalCount(response.data.count);
+    } catch (error) {
+      console.error("Failed to load delivery history:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewInvoice = (invoiceId) => {
+    navigate(`/invoices/${invoiceId}`);
+  };
+
+  const formatDuration = (minutes) => {
+    if (!minutes) return "-";
+    if (minutes < 60) return `${Math.round(minutes)} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return `${hours}h ${mins}m`;
+  };
+
+  // Badge formatter for delivery type
+  const typeBadge = (type) => {
     const styles = {
-      SelfPickup: "bg-blue-100 text-blue-700 border-blue-200",
-      Courier: "bg-purple-100 text-purple-700 border-purple-200",
-      CompanyDelivery: "bg-green-100 text-green-700 border-green-200",
+      DIRECT: "bg-blue-100 text-blue-700 border-blue-200",
+      COURIER: "bg-purple-100 text-purple-700 border-purple-200",
+      INTERNAL: "bg-green-100 text-green-700 border-green-200",
+    };
+
+    const labels = {
+      DIRECT: "Self Pickup",
+      COURIER: "Courier",
+      INTERNAL: "Company Delivery",
     };
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[mode]}`}>
-        {mode === "SelfPickup" && "Self Pickup"}
-        {mode === "Courier" && "Courier"}
-        {mode === "CompanyDelivery" && "Company Delivery"}
+      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[type] || "bg-gray-100 text-gray-700"}`}>
+        {labels[type] || type}
       </span>
     );
   };
 
-  // FILTER LOGIC (invoice + mode + date)
-  const filtered = history.filter((h) => {
-    const matchSearch =
-      h.invoice.toLowerCase().includes(search.toLowerCase()) ||
-      (h.customer?.toLowerCase() || "").includes(search.toLowerCase()) ||
-      (h.courier_name?.toLowerCase() || "").includes(search.toLowerCase()) ||
-      (h.driver?.toLowerCase() || "").includes(search.toLowerCase());
+  const statusBadge = (status) => {
+    const styles = {
+      PENDING: "bg-gray-100 text-gray-700 border-gray-200",
+      IN_TRANSIT: "bg-yellow-100 text-yellow-700 border-yellow-200",
+      DELIVERED: "bg-green-100 text-green-700 border-green-200",
+    };
 
-    const matchMode = filterMode ? h.mode === filterMode : true;
-    const matchDate = filterDate ? h.date === filterDate : true;
+    const labels = {
+      PENDING: "Pending",
+      IN_TRANSIT: "In Transit",
+      DELIVERED: "Delivered",
+    };
 
-    return matchSearch && matchMode && matchDate;
-  });
-
-  // Pagination
-  const indexLast = currentPage * itemsPerPage;
-  const indexFirst = indexLast - itemsPerPage;
-  const currentItems = filtered.slice(indexFirst, indexLast);
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${styles[status] || "bg-gray-100 text-gray-700"}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
-
       {/* HEADER + FILTERS ROW  */}
       <div className="flex justify-between mb-4">
         <h2 className="text-xl font-bold text-gray-800">Delivery History</h2>
@@ -91,94 +109,143 @@ export default function DeliveryHistory() {
             type="text"
             placeholder="Search invoice or details..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border px-3 py-2 rounded-lg w-64"
           />
 
-          {/* Mode Filter */}
+          {/* Type Filter */}
           <select
-            value={filterMode}
-            onChange={(e) => setFilterMode(e.target.value)}
+            value={filterType}
+            onChange={(e) => {
+              setFilterType(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border px-3 py-2 rounded-lg"
           >
-            <option value="">All Modes</option>
-            <option value="SelfPickup">Self Pickup</option>
-            <option value="Courier">Courier</option>
-            <option value="CompanyDelivery">Company Delivery</option>
+            <option value="">All Types</option>
+            <option value="DIRECT">Self Pickup</option>
+            <option value="COURIER">Courier</option>
+            <option value="INTERNAL">Company Delivery</option>
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border px-3 py-2 rounded-lg"
+          >
+            <option value="">All Status</option>
+            <option value="PENDING">Pending</option>
+            <option value="IN_TRANSIT">In Transit</option>
+            <option value="DELIVERED">Delivered</option>
           </select>
 
           {/* Date Filter */}
           <input
             type="date"
             value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
+            onChange={(e) => {
+              setFilterDate(e.target.value);
+              setCurrentPage(1);
+            }}
             className="border px-3 py-2 rounded-lg w-44"
           />
         </div>
       </div>
 
       {/* Table */}
-      <table className="w-full">
-        <thead>
-          <tr className="bg-gradient-to-r from-teal-500 to-cyan-600">
-            <th className="px-6 py-4 text-white text-left">Invoice</th>
-            <th className="px-6 py-4 text-white text-left">Mode</th>
-            <th className="px-6 py-4 text-white text-left">Details</th>
-            <th className="px-6 py-4 text-white text-left">Date</th>
-            <th className="px-6 py-4 text-white text-left">Completed At</th>
-          </tr>
-        </thead>
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">Loading...</div>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gradient-to-r from-teal-500 to-cyan-600">
+              <th className="px-6 py-4 text-white text-left">Invoice</th>
+              <th className="px-6 py-4 text-white text-left">Customer</th>
+              <th className="px-6 py-4 text-white text-left">Type</th>
+              <th className="px-6 py-4 text-white text-left">Details</th>
+              <th className="px-6 py-4 text-white text-left">Status</th>
+              <th className="px-6 py-4 text-white text-left">Duration</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {currentItems.map((h) => (
-            <tr key={h.id} className="border-b hover:bg-gray-50">
-              <td className="px-6 py-3">{h.invoice}</td>
+          <tbody>
+            {history.map((h) => (
+              <tr key={h.id} className="border-b hover:bg-gray-50">
+                <td className="px-6 py-3">
+                  <button
+                    onClick={() => handleViewInvoice(h.id)}
+                    className="text-teal-600 hover:text-teal-800 font-medium hover:underline"
+                  >
+                    {h.invoice_no}
+                  </button>
+                </td>
 
-              <td className="px-6 py-3">{modeBadge(h.mode)}</td>
+                <td className="px-6 py-3">
+                  <p className="font-medium">{h.customer_name}</p>
+                  <p className="text-xs text-gray-500">{h.customer_email}</p>
+                </td>
 
-              <td className="px-6 py-3 text-gray-700">
-                {h.mode === "SelfPickup" && (
-                  <>
-                    <p className="font-medium">{h.customer}</p>
+                <td className="px-6 py-3">{typeBadge(h.delivery_type)}</td>
+
+                <td className="px-6 py-3 text-gray-700">
+                  {h.delivery_type === "DIRECT" && (
                     <p className="text-xs text-gray-500">Customer collected the order</p>
-                  </>
-                )}
+                  )}
 
-                {h.mode === "Courier" && (
-                  <>
-                    <p className="font-medium">{h.courier_name}</p>
-                    <p className="text-xs text-gray-500">Tracking: {h.tracking_id}</p>
-                  </>
-                )}
+                  {h.delivery_type === "COURIER" && (
+                    <>
+                      <p className="font-medium">{h.courier_name}</p>
+                      <p className="text-xs text-gray-500">Tracking: {h.tracking_no}</p>
+                    </>
+                  )}
 
-                {h.mode === "CompanyDelivery" && (
-                  <>
-                    <p className="font-medium">{h.driver}</p>
-                    <p className="text-xs text-gray-500">Delivered by company driver</p>
-                  </>
-                )}
-              </td>
+                  {h.delivery_type === "INTERNAL" && (
+                    <>
+                      <p className="font-medium">{h.delivery_user_name}</p>
+                      <p className="text-xs text-gray-500">{h.delivery_user_email}</p>
+                    </>
+                  )}
+                </td>
 
-              <td className="px-6 py-3">{h.date}</td>
+                <td className="px-6 py-3">{statusBadge(h.delivery_status)}</td>
 
-              <td className="px-6 py-3">{h.delivered || h.picked_at || "-"}</td>
-            </tr>
-          ))}
+                <td className="px-6 py-3">
+                  {h.duration ? (
+                    <button
+                      onClick={() => handleViewInvoice(h.id)}
+                      className="text-teal-600 hover:text-teal-800 font-medium hover:underline"
+                    >
+                      {formatDuration(h.duration)}
+                    </button>
+                  ) : (
+                    <span className="text-gray-400">In Progress</span>
+                  )}
+                </td>
+              </tr>
+            ))}
 
-          {currentItems.length === 0 && (
-            <tr>
-              <td colSpan="5" className="text-center py-4 text-gray-500">
-                No delivery records found
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            {history.length === 0 && (
+              <tr>
+                <td colSpan="6" className="text-center py-4 text-gray-500">
+                  No delivery records found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
 
       {/* Pagination Component */}
       <Pagination
         currentPage={currentPage}
-        totalItems={filtered.length}
+        totalItems={totalCount}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
         label="delivery records"
