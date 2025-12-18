@@ -37,10 +37,20 @@ export const MENU_CONFIG = [
         icon: ListIcon,
         path: "/invoices",
       },
+
+      {
+        label: "My Assigned Bills",
+        icon: PlusCircleIcon,
+        path: "/invoices/my",
+        hasAccess: (user, permissions) =>
+          permissions["my-invoices"]?.view === true,
+      },
     ],
     // Check if any submenu path matches current location
-    isActive: (pathname) => pathname.includes("/invoices"),
-  },
+     isActive: (pathname) =>
+      pathname.startsWith("/invoices") ||
+      pathname.startsWith("/ops/picking/invoices"),
+    },
   {
     id: "user-management",
     label: "User Management",

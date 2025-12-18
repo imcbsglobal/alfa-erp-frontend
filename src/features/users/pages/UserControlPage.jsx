@@ -169,6 +169,7 @@ export default function UserControlPage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [availableMenus, setAvailableMenus] = useState([]);
   const [userPermissions, setUserPermissions] = useState({});
+  const [expandedMenus, setExpandedMenus] = useState({});
 
   // Fetch users from API
   const fetchUsers = async () => {
@@ -233,7 +234,27 @@ export default function UserControlPage() {
       ...prev,
       [menuId]: !prev[menuId]
     }));
+  };  
+
+  const toggleExpand = (menuId) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuId]: !prev[menuId]
+    }));
   };
+
+  // Auto-expand all parent menus on user selection
+  useEffect(() => {
+    if (availableMenus.length > 0) {
+      const expanded = {};
+      availableMenus.forEach(menu => {
+        if (menu.children?.length > 0) {
+          expanded[menu.id] = true;
+        }
+      });
+      setExpandedMenus(expanded);
+    }
+  }, [availableMenus]);
 
   const handleSavePermissions = async () => {
     if (!selectedUser) return;
@@ -285,8 +306,94 @@ export default function UserControlPage() {
     );
   });
 
-  const getEnabledCount = () => {
-    return Object.values(userPermissions).filter((p) => p?.view).length;
+  const getEnabledCount = () =>
+      Object.values(userPermissions).filter(Boolean).length;
+
+  const MenuItem = ({ menu, level = 0 }) => {
+    const enabled = !!userPermissions[menu.id];
+    const hasChildren = menu.children?.length > 0;
+    const isExpanded = expandedMenus[menu.id];
+
+    return (
+      <div className="mb-2">
+        <div
+          style={{ marginLeft: level * 24 }}
+          className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
+            enabled
+              ? "border-teal-500 bg-gradient-to-r from-teal-50 to-cyan-50 shadow-sm"
+              : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+          }`}
+        >
+          {hasChildren ? (
+            <button
+              onClick={() => toggleExpand(menu.id)}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+            >
+              <svg
+                className={`w-4 h-4 text-gray-600 transition-transform ${
+                  isExpanded ? "rotate-90" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          ) : (
+            <div className="w-6" />
+          )}
+
+          <button
+            onClick={() => togglePermission(menu.id)}
+            className="flex-1 flex justify-between items-center"
+          >
+            <div className="flex items-center gap-3">
+              <div className={enabled ? "text-teal-600" : "text-gray-400"}>
+                {permissionIcons[menu.code] || permissionIcons.default}
+              </div>
+              <div className="text-left">
+                <span className="font-medium block text-sm">{menu.name}</span>
+                <span className="text-xs text-gray-500">{menu.code}</span>
+              </div>
+            </div>
+
+            {enabled && (
+              <svg
+                className="w-5 h-5 text-teal-600 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={3}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
+
+        {hasChildren && isExpanded && (
+          <div className="mt-2">
+            {menu.children.map((child) => (
+              <MenuItem
+                key={child.id}
+                menu={child}
+                level={level + 1}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -339,7 +446,7 @@ export default function UserControlPage() {
               </div>
 
               {/* User List */}
-              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              <div className="space-y-1 max-h-[500px] overflow-y-auto pr-2">
                 {loading ? (
                   <p className="text-center text-gray-500 py-8">
                     Loading users...
@@ -533,9 +640,17 @@ export default function UserControlPage() {
                     <button
                       onClick={() => {
                         const updates = {};
-                        availableMenus.forEach((menu) => {
-                          updates[menu.id] = { view: true };
-                        });
+
+                        const walk = (menus) => {
+                          menus.forEach((m) => {
+                            updates[m.id] = true;
+                            if (m.children?.length) {
+                              walk(m.children);
+                            }
+                          });
+                        };
+
+                        walk(availableMenus);
                         setUserPermissions(updates);
                       }}
                       className="flex-1 py-2 px-4 bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200 transition-colors font-medium text-sm"
@@ -552,61 +667,11 @@ export default function UserControlPage() {
 
                   {/* Menu List */}
                   <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {availableMenus.map((menu) => (
-                      <button
+                    {availableMenus.map(menu => (
+                      <MenuItem
                         key={menu.id}
-                        onClick={() => togglePermission(menu.id)}
-                        className={`w-full flex justify-between items-center p-4 rounded-lg border-2 transition-all ${
-                          userPermissions[menu.id]
-                            ? "border-teal-500 bg-teal-50"
-                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`${
-                              userPermissions[menu.id]
-                                ? "text-teal-600"
-                                : "text-gray-400"
-                            }`}
-                          >
-                            {permissionIcons[menu.code] ||
-                              permissionIcons.default}
-                          </div>
-                          <div className="text-left">
-                            <span
-                              className={`font-medium block ${
-                                userPermissions[menu.id]
-                                  ? "text-teal-900"
-                                  : "text-gray-700"
-                              }`}
-                            >
-                              {menu.name}
-                            </span>
-                            {menu.code && (
-                              <span className="text-xs text-gray-500">
-                                {menu.code}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {userPermissions[menu.id]?.view && (
-                          <svg
-                            className="w-5 h-5 text-teal-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={3}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        )}
-                      </button>
+                        menu={menu}
+                      />
                     ))}
                   </div>
                 </div>

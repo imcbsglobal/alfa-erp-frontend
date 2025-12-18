@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 
-export default function InvoicePickingPage() {
+export default function InvoicePickingPage({ mode = "LIVE" }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -14,6 +14,9 @@ export default function InvoicePickingPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pickedItems, setPickedItems] = useState({});
   const [error, setError] = useState("");
+  const isLive = mode === "LIVE";
+  const isAssigned = mode === "ASSIGNED";
+  const isHistory = mode === "HISTORY";
 
   useEffect(() => {
     loadInvoice();
@@ -27,8 +30,16 @@ export default function InvoicePickingPage() {
       const res = await api.get(`/sales/invoices/${id}/`);
       const status = res.data.status || "PENDING";
 
-      if (!["PICKING", "PICKED"].includes(status)) {
-        throw new Error("This invoice is not available for picking");
+      if (isLive && status !== "PICKING") {
+        throw new Error("Invoice not in picking stage");
+      }
+
+      if (isAssigned && status !== "PICKED") {
+        throw new Error("Invoice not assigned to you");
+      }
+
+      if (isHistory && status !== "COMPLETED") {
+        throw new Error("Invoice not completed");
       }
 
       setInvoice(res.data);
@@ -172,7 +183,9 @@ export default function InvoicePickingPage() {
                   className={`p-4 hover:bg-gray-50 transition-all cursor-pointer ${
                     pickedItems[item.id] ? "bg-green-50" : ""
                   }`}
-                  onClick={() => toggleItem(item.id)}
+                  onClick={() => {
+                    if (!isHistory) toggleItem(item.id);
+                  }}
                 >
                 <div className="flex items-center gap-4">
                   {/* Checkbox */}
@@ -239,16 +252,9 @@ export default function InvoicePickingPage() {
 
         {/* Stop Picking Button */}
         <div className="mt-6 flex justify-center">
-          <button
-            onClick={handleStopPicking}
-            disabled={progress.picked === 0}
-            className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-bold text-lg shadow-lg hover:from-red-600 hover:to-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            Stop Picking & Complete
-          </button>
+          {!isHistory && (
+            <button>Stop Picking & Complete</button>
+          )}
         </div>
       </div>
 

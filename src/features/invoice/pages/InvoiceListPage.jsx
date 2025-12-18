@@ -192,17 +192,19 @@ export default function InvoiceListPage() {
       await api.post("/sales/picking/start/", {
         invoice_no: selectedInvoice.invoice_no,
         user_email: employeeEmail,
-        notes: "Picking started"
+        notes: "Picking started",
       });
 
       setShowPickModal(false);
 
-      // Go to picking screen
-      // navigate(`/store/invoice/pick/${selectedInvoice.id}`);
+      navigate(`/ops/picking/invoices/pick/${selectedInvoice.id}`, {
+        state: { message: "Picking started successfully" },
+      });
+
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.message || "Failed to start picking";
-      throw new Error(errorMsg);
+      throw new Error(
+        err.response?.data?.message || "Failed to start picking"
+      );
     }
   };
 
@@ -226,18 +228,18 @@ export default function InvoiceListPage() {
   };
 
   const getStatusBadgeColor = (status) => {
-    const actualStatus = status || "Pending"; // Default to Pending if no status
-    
-    switch (actualStatus) {
+    switch (status) {
       case "PENDING":
         return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "Picked":
+      case "PREPARING":
         return "bg-blue-100 text-blue-700 border-blue-200";
-      case "ReadyForPacking":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      case "Packed":
+      case "PICKED":
         return "bg-green-100 text-green-700 border-green-200";
-      case "Shipped":
+      case "READY_FOR_PACKING":
+        return "bg-purple-100 text-purple-700 border-purple-200";
+      case "PACKED":
+        return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "SHIPPED":
         return "bg-teal-100 text-teal-700 border-teal-200";
       default:
         return "bg-gray-100 text-gray-700 border-gray-200";
@@ -556,7 +558,7 @@ export default function InvoiceListPage() {
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
                             {/* Pick Button - Only show for Pending invoices */}
-                            {(invoice.status || "Pending") === "PENDING" && (
+                            {invoice.status === "PENDING" && (
                               <button
                                 onClick={() => handlePickClick(invoice)}
                                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"

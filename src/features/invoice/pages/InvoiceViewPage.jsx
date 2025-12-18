@@ -163,27 +163,57 @@ export default function InvoiceViewPage() {
                     {/* Header */}
                     <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white flex-shrink-0">
                       <div className="grid grid-cols-12 gap-3 px-4 py-3 text-xs font-bold uppercase">
-                        <div className="col-span-4">Item Name</div>
-                        <div className="col-span-2 text-right">Qty</div>
-                        <div className="col-span-2 text-center">MRP</div>
-                        <div className="col-span-2 text-center">Shelf</div>
-                        <div className="col-span-2 text-left">Remarks</div>
+                        <div className="col-span-1 text-center">Shelf</div>
+                        <div className="col-span-3">Item Name</div>
+                        <div className="col-span-1 text-right">Qty</div>
+                        <div className="col-span-2 text-right">MRP</div>
+                        <div className="col-span-2 text-center">Batch No</div>
+                        <div className="col-span-1 text-center">Exp Date</div>
+                        <div className="col-span-1 text-center">Remarks</div>
                       </div>
                     </div>
 
                     {/* Body */}
                     <div className="flex-1 divide-y divide-gray-200 overflow-y-auto">
                       {currentItems.map((item, index) => (
-                        <div key={index} className="grid grid-cols-12 gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-                          <div className="col-span-4 text-sm font-medium text-gray-900">{item.name}</div>
-                          <div className="col-span-2 text-sm text-gray-700 font-semibold text-right">{item.quantity}</div>
+                        <div
+                          key={index}
+                          className="grid grid-cols-12 gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                        >
+                          {/* Shelf */}
+                          <div className="col-span-1 text-sm text-center font-semibold text-gray-700">
+                            {item.shelf_location || "—"}
+                          </div>
+
+                          {/* Item Name */}
+                          <div className="col-span-3 text-sm font-medium text-gray-900">
+                            {item.name}
+                          </div>
+
+                          {/* Qty */}
+                          <div className="col-span-1 text-sm text-right font-semibold text-gray-800">
+                            {item.quantity}
+                          </div>
+
+                          {/* MRP */}
                           <div className="col-span-2 text-sm font-semibold text-gray-900 text-right">
-                            Rs.{item.mrp?.toFixed(2)}
+                            ₹{item.mrp?.toFixed(2)}
                           </div>
-                          <div className="col-span-2 text-sm text-gray-600 text-center">
-                            {item.shelf_location || "N/A"}
+
+                          {/* Batch No */}
+                          <div className="col-span-2 text-sm text-center text-gray-700">
+                            {item.batch_no || "—"}
                           </div>
-                          <div className="col-span-2 text-xs text-gray-500 text-left">{item.remarks}</div>
+
+                          {/* Exp Date */}
+                          <div className="col-span-1 text-xs text-center text-gray-600">
+                            {item.exp_date || "—"}
+                          </div>
+
+                          {/* Remarks */}
+                          <div className="col-span-1 text-xs text-center text-gray-500 truncate">
+                            {item.remarks || "—"}
+                          </div>
                         </div>
                       ))}
                     </div>
