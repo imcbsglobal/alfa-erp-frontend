@@ -91,7 +91,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+    <div className="min-h-screen max-h-screen flex bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-400 to-cyan-500 p-12 items-center justify-center relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10">

@@ -70,9 +70,13 @@ export default function UserListPage() {
       const response = await getUsers();
 
       const apiData = response?.data?.data;
-      const userList = Array.isArray(apiData?.results) ? apiData.results : [];
 
-      const sortedUsers = userList.sort((a, b) =>
+      // Only include users with role 'ADMIN' or 'USER'
+      const filteredList = (Array.isArray(apiData?.results) ? apiData.results : []).filter(
+        (u) => u.role === "ADMIN" || u.role === "USER"
+      );
+
+      const sortedUsers = filteredList.sort((a, b) =>
         a.name?.toLowerCase() > b.name?.toLowerCase() ? 1 : -1
       );
 

@@ -4,12 +4,21 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000
 
 // LOGIN (uses axios, not api)
 export async function login(email, password) {
-  const response = await axios.post(`${API_BASE_URL}/auth/login/`, {
-    email,
-    password,
-  });
+  // const response = await axios.post(`${API_BASE_URL}/auth/login/`, {
+  //   email,
+  //   password,
+  // });
+    try {
+    const response = await axios.post(`${API_BASE_URL}/auth/login/`, { email, password });
+    return response.data;
+  } catch (err) {
+    if (err.response?.data?.detail == "No active account found with the given credentials"){
+      message
+    }
+    const msg = err.response?.data?.detail  || err.response?.data?.message || err.message;
+    throw new Error(msg);
+  }
 
-  return response.data;
 }
 
 // USERS
