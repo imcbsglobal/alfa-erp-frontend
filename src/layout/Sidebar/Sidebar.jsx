@@ -1,3 +1,4 @@
+import { useAuth } from "../../features/auth/AuthContext";
 import { ChevronLeftIcon } from "../Icons";
 import { SidebarMenu } from "./SidebarMenu";
 
@@ -9,6 +10,8 @@ export function Sidebar({
   onNavigate,
   visibleMenus = [],
 }) {
+  const { user } = useAuth();
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -31,7 +34,7 @@ export function Sidebar({
           left: 0,
           top: 0,
           height: "100vh",
-          zIndex: 50, // Reduced from 999
+          zIndex: 50,
           overflow: "visible",
         }}
       >
@@ -82,6 +85,7 @@ export function Sidebar({
               <SidebarMenu
                 key={menu.id}
                 menu={menu}
+                user={user}
                 sidebarOpen={sidebarOpen}
                 openMenuId={openMenuId}
                 onToggle={onToggleMenu}

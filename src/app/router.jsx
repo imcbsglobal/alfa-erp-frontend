@@ -17,16 +17,17 @@ import AddDepartmentPage from "../features/master/pages/AddDepartmentPage";
 
 import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
 import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
+import MyInvoiceListPage from "../features/invoice/pages/MyInvoiceListPage";
 import HistoryPage from "../features/history/pages/HistoryPage";
 import { useAuth } from "../features/auth/AuthContext";
 
 import OperationsLayout from "../layout/OperationsLayout";
-import MyInvoiceListPage from "../features/invoice/pages/MyInvoiceListPage";
 import PackingInvoiceListPage from "../features/packing/pages/PackingInvoiceListPage";
 import PackingInvoiceViewPage from "../features/packing/pages/PackingInvoiceViewPage";
+import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
 
 export default function AppRouter() {
-    const { user, menus = [], logout } = useAuth();
+  const { user, menus = [], logout } = useAuth();
   
   return (
     <Routes>
@@ -38,17 +39,23 @@ export default function AppRouter() {
       {/* ADMIN / SUPERADMIN / USER */}
       <Route element={<ProtectedRoute allowedRoles={["SUPERADMIN", "ADMIN", "USER"]} />}>
         <Route element={<MainLayout />}>
-        <Route
-          path="/dashboard"
-          element={
-            user?.role === "SUPERADMIN"
-              ? <SuperAdminDashboard />
-              : <UserDashboard />
-          }
-        />
+          <Route
+            path="/dashboard"
+            element={
+              user?.role === "SUPERADMIN"
+                ? <SuperAdminDashboard />
+                : <UserDashboard />
+            }
+          />
           <Route path="/invoices" element={<InvoiceListPage />} />
           <Route path="/invoices/view/:id" element={<InvoiceViewPage />} />
           <Route path="/invoices/my" element={<MyInvoiceListPage />} />
+          
+          {/* Packing routes for SUPERADMIN */}
+          <Route path="/packing/invoices" element={<PackingInvoiceListPage />} />
+          <Route path="/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} />
+          <Route path="/packing/my" element={<MyPackingListPage />} />
+
           <Route path="/user-management" element={<UserListPage />} />
           <Route path="/user-control" element={<UserControlPage />} />
           <Route path="/add-user" element={<AddUserPage />} />
@@ -63,6 +70,7 @@ export default function AppRouter() {
         </Route>
       </Route>
 
+      {/* OPERATIONS (PICKER, PACKER, DELIVERY, STORE) */}
       <Route
         element={
           <ProtectedRoute allowedRoles={["PICKER", "PACKER", "DELIVERY", "STORE"]} />
@@ -72,11 +80,11 @@ export default function AppRouter() {
           {/* Picking */}
           <Route path="/ops/picking/invoices" element={<InvoiceListPage />} />
           <Route path="/ops/picking/invoices/view/:id" element={<InvoiceViewPage />} />
-          
 
-          {/* Packing (future) */}
-          <Route path="/ops/packing/invoices"element={<PackingInvoiceListPage />}/>
-          <Route path="/ops/packing/invoices/view/:id"element={<PackingInvoiceViewPage />}/>
+          {/* Packing */}
+          <Route path="/ops/packing/invoices" element={<PackingInvoiceListPage />} />
+          <Route path="/ops/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} />
+          <Route path="/ops/packing/my" element={<MyPackingListPage />} />
 
           {/* Delivery (future) */}
           {/* <Route path="/ops/delivery/..." /> */}

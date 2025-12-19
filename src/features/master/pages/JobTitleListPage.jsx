@@ -311,14 +311,11 @@ export default function JobTitleListPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-5 gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">
               Job Titles
             </h1>
-            <p className="text-sm sm:text-base text-gray-600">
-              Manage job titles for Alfa Agencies
-            </p>
           </div>
 
           {canManageJobTitles && (

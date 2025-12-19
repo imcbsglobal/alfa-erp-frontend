@@ -161,12 +161,12 @@ export default function MainLayout() {
               <MenuIcon className="w-6 h-6 text-gray-600" />
             </button>
 
-            <div>
+            {/* <div>
               <h1 className="text-base sm:text-xl font-bold text-gray-800">{getPageTitle()}</h1>
               <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">
                 Welcome back, {user?.name || "User"}
               </p>
-            </div>
+            </div> */}
           </div>
 
           {/* Profile */}

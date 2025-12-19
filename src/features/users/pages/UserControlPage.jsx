@@ -267,13 +267,10 @@ export default function UserControlPage() {
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
+        <div className="mb-6 sm:mb-5">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
             User Access Control
           </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            Manage menu access and permissions for admins and users at Alfa Agencies
-          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -417,12 +414,6 @@ export default function UserControlPage() {
                         </div>
                         <p className="text-sm sm:text-base text-gray-600 truncate">{selectedUser.email}</p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs sm:text-sm text-gray-500">Enabled Menus</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-teal-600">
-                        {getEnabledCount()}/{availableMenus.length}
-                      </p>
                     </div>
                   </div>
                 </div>

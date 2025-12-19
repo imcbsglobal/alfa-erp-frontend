@@ -16,7 +16,7 @@ export const MENU_CONFIG = [
     label: "Dashboard",
     icon: HomeIcon,
     path: "/dashboard",
-    type: "single", // single menu item (no submenu)
+    type: "single",
   },
   {
     id: "invoice",
@@ -46,13 +46,30 @@ export const MENU_CONFIG = [
     id: "packing",
     label: "Packing",
     icon: InvoiceIcon,
-    type: "single",
-    path: "/ops/packing/invoices",
-    hasAccess: (user) => user?.role === "PACKER",
+    type: "dropdown",
+    hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
+    submenu: [
+      {
+        label: "Packing List",
+        icon: ListIcon,
+        // Path as function - receives user
+        path: (user) => user?.role === "PACKER" ? "/ops/packing/invoices" : "/packing/invoices",
+        hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
+      },
+      {
+        label: "My Assigned Packing",
+        icon: PlusCircleIcon,
+        // Path as function - receives user
+        path: (user) => user?.role === "PACKER" ? "/ops/packing/my" : "/packing/my",
+        hasAccess: (user, permissions) =>
+          user?.role === "PACKER" || 
+          user?.role === "SUPERADMIN" || 
+          permissions["my-packing"]?.view === true,
+      },
+    ],
     isActive: (pathname) =>
-      pathname.startsWith("/ops/packing/invoices"),
+      pathname.startsWith("/packing") || pathname.startsWith("/ops/packing"),
   },
-
   {
     id: "history",
     label: "History",
@@ -66,7 +83,6 @@ export const MENU_CONFIG = [
     label: "User Management",
     icon: UsersIcon,
     type: "dropdown",
-    // Permission check - return true to show menu
     hasAccess: (user, permissions) => {
       if (user?.role === "SUPERADMIN" || user?.role === "ADMIN") {
         return true;
@@ -107,52 +123,17 @@ export const MENU_CONFIG = [
     ],
     isActive: (pathname) => pathname.includes("/master/"),
   },
-  
-  // ============================================================
-  // ADD YOUR NEW MENUS HERE - Examples:
-  // ============================================================
-  
-  // Example 1: Single menu item
-  // {
-  //   id: "settings",
-  //   label: "Settings",
-  //   icon: SettingsIcon,
-  //   path: "/settings",
-  //   type: "single",
-  // },
-  
-  // Example 2: Dropdown with submenu
-  // {
-  //   id: "reports",
-  //   label: "Reports",
-  //   icon: ReportIcon,
-  //   type: "dropdown",
-  //   submenu: [
-  //     { label: "Sales Report", icon: ChartIcon, path: "/reports/sales" },
-  //     { label: "Inventory Report", icon: BoxIcon, path: "/reports/inventory" },
-  //   ],
-  //   isActive: (pathname) => pathname.includes("/reports"),
-  // },
-  
-  // Example 3: Menu with role-based access
-  // {
-  //   id: "analytics",
-  //   label: "Analytics",
-  //   icon: AnalyticsIcon,
-  //   type: "dropdown",
-  //   hasAccess: (user) => ["SUPERADMIN", "ADMIN", "MANAGER"].includes(user?.role),
-  //   submenu: [
-  //     { label: "Dashboard", icon: HomeIcon, path: "/analytics/dashboard" },
-  //     { label: "Trends", icon: TrendIcon, path: "/analytics/trends" },
-  //   ],
-  //   isActive: (pathname) => pathname.includes("/analytics"),
-  // },
 ];
 
-// Page title mapping - add your routes here
+// Page title mapping
 export const PAGE_TITLES = {
   "/dashboard": "Dashboard",
   "/invoices": "Invoice Management",
+  "/invoices/my": "My Assigned Bills",
+  "/packing/invoices": "Packing Management",
+  "/packing/my": "My Assigned Packing",
+  "/ops/packing/invoices": "Packing Management",
+  "/ops/packing/my": "My Assigned Packing",
   "/user-management": "User Management",
   "/add-user": "Add User",
   "/user-control": "User Control",
@@ -160,5 +141,5 @@ export const PAGE_TITLES = {
   "/master/job-title/add": "Add Job Title",
   "/master/department": "Departments",
   "/master/department/add": "Add Department",
-  // Add more page titles here
+  "/history": "History",
 };

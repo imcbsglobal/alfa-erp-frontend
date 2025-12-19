@@ -2,114 +2,169 @@ import { useEffect, useState, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
-import { getActivePickingTask } from "../../../services/sales";
+import toast from "react-hot-toast";
 
-export default function MyInvoiceListPage() {
-  const [invoices, setInvoices] = useState([]);
+export default function MyPackingListPage() {
   const [loading, setLoading] = useState(false);
   const [expandedInvoice, setExpandedInvoice] = useState(null);
-  const [pickedItems, setPickedItems] = useState({});
+  const [packedItems, setPackedItems] = useState({});
   const [activeInvoice, setActiveInvoice] = useState(null);
   const [completedInvoices, setCompletedInvoices] = useState([]);
+  const { user } = useAuth();
 
   useEffect(() => {
-    loadActivePicking();
-    loadTodayCompletedPicking();
+    loadActivePacking();
+    loadTodayCompletedPacking();
   }, []);
 
-  const loadActivePicking = async () => {
+  const loadActivePacking = async () => {
     try {
       setLoading(true);
-      const res = await getActivePickingTask();
+      
+      // Check if user email exists
+      if (!user?.email) {
+        console.warn("User email not found");
+        setActiveInvoice(null);
+        return;
+      }
+
+      const res = await api.get("/sales/packing/active/");
+      
       if (res.data?.data) {
         const task = res.data.data;
-        setActiveInvoice({ ...task.invoice, created_at: task.start_time });
+        setActiveInvoice({ 
+          ...task.invoice, 
+          created_at: task.start_time,
+          session_id: task.session_id 
+        });
       } else {
         setActiveInvoice(null);
       }
     } catch (err) {
-      console.error("Failed to load active picking task", err);
+      console.error("Failed to load active packing task", err);
+      if (err.response?.status !== 404) {
+        toast.error("Failed to load active packing task");
+      }
       setActiveInvoice(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadTodayCompletedPicking = async () => {
+  const loadTodayCompletedPacking = async () => {
     try {
       const today = new Date().toISOString().split("T")[0];
-      const res = await api.get("/sales/picking/history/", {
-        params: { status: "PICKED", start_date: today, end_date: today },
+      const res = await api.get("/sales/packing/history/", {
+        params: { 
+          status: "PACKED", 
+          start_date: today, 
+          end_date: today 
+        },
       });
       setCompletedInvoices(res.data?.results || []);
     } catch (err) {
-      console.error("Failed to load picking history", err);
+      console.error("Failed to load packing history", err);
     }
   };
 
-  const toggleItemPicked = (itemId) => {
-    setPickedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
+  const toggleItemPacked = (itemId) => {
+    setPackedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
-  const allItemsPicked =
-    activeInvoice?.items?.every((item) => pickedItems[item.id]) || false;
-  const pickedCount =
-    activeInvoice?.items?.filter((item) => pickedItems[item.id]).length || 0;
+  const allItemsPacked =
+    activeInvoice?.items?.every((item) => packedItems[item.id]) || false;
+  const packedCount =
+    activeInvoice?.items?.filter((item) => packedItems[item.id]).length || 0;
   const totalItems = activeInvoice?.items?.length || 0;
 
-  const { user } = useAuth();
-
-  const handleCompletePicking = async () => {
-    if (!allItemsPicked || !activeInvoice) return;
-    if (!user?.email) {
-      alert("User email not found");
+  const handleCompletePacking = async () => {
+    if (!allItemsPacked || !activeInvoice) {
+      toast.error("Please pack all items first");
       return;
     }
+    
+    if (!user?.email) {
+      toast.error("User email not found. Please log in again.");
+      return;
+    }
+
     try {
       setLoading(true);
-      await api.post("/sales/picking/complete/", {
+      await api.post("/sales/packing/complete/", {
         invoice_no: activeInvoice.invoice_no,
         user_email: user.email,
-        notes: "Picked all items",
+        notes: "Packed all items",
       });
-      await loadActivePicking();
-      await loadTodayCompletedPicking();
-      setPickedItems({});
+
+      // Reset state
+      setPackedItems({});
+      
+      // Reload data
+      await loadActivePacking();
+      await loadTodayCompletedPacking();
+      
+      toast.success("Packing completed successfully!");
     } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Failed to complete picking");
+      console.error("Complete packing error:", err);
+      const errorMessage = err.response?.data?.message 
+        || err.response?.data?.error 
+        || "Failed to complete packing";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateDuration = (start, end) => {
-    const diff = Math.floor((new Date(end) - new Date(start)) / 60000);
-    return `${diff} min`;
-  };
+  // Show loading only on initial load
+  if (loading && !activeInvoice && completedInvoices.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <svg className="animate-spin h-10 w-10 text-purple-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (loading) return <div className="p-6">Loading...</div>;
-
-  /* ------------------------------------------------------------------ */
-  /*  RENDER
-  /* ------------------------------------------------------------------ */
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            My Assigned Invoices
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            My Assigned Packing Tasks
           </h1>
+          <p className="text-gray-600">
+            View and manage your assigned packing tasks.
+          </p>
         </div>
+
+        {/* No Active Task Message */}
+        {!activeInvoice && (
+          <div className="mb-8 bg-white rounded-xl shadow-md p-8 text-center">
+            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              No Active Packing Task
+            </h3>
+            <p className="text-gray-500">
+              You don't have any active packing tasks at the moment.
+            </p>
+          </div>
+        )}
 
         {/* Active Bill Section */}
         {activeInvoice && (
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
-              <div className="bg-teal-50 p-2 rounded-lg">
+              <div className="bg-purple-50 p-2 rounded-lg">
                 <svg
-                  className="w-6 h-6 text-teal-600"
+                  className="w-6 h-6 text-purple-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -129,7 +184,7 @@ export default function MyInvoiceListPage() {
             </div>
 
             <div
-              className="bg-white rounded-2xl border-2 border-teal-500 shadow-lg overflow-hidden cursor-pointer transition-all hover:shadow-xl"
+              className="bg-white rounded-2xl border-2 border-purple-500 shadow-lg overflow-hidden cursor-pointer transition-all hover:shadow-xl"
               onClick={() =>
                 setExpandedInvoice(
                   expandedInvoice === activeInvoice.id ? null : activeInvoice.id
@@ -141,9 +196,9 @@ export default function MyInvoiceListPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
                   {/* Left: Invoice Info */}
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="bg-teal-50 p-3 rounded-xl">
+                    <div className="bg-purple-50 p-3 rounded-xl">
                       <svg
-                        className="w-7 h-7 text-teal-600"
+                        className="w-7 h-7 text-purple-600"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -161,8 +216,8 @@ export default function MyInvoiceListPage() {
                         <h3 className="text-xl font-bold text-gray-900">
                           Invoice #{activeInvoice.invoice_no}
                         </h3>
-                        <span className="inline-flex px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-medium items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></span>
+                        <span className="inline-flex px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse"></span>
                           In Progress
                         </span>
                       </div>
@@ -197,7 +252,7 @@ export default function MyInvoiceListPage() {
                               d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                             />
                           </svg>
-                          {activeInvoice.customer?.phone}
+                          {activeInvoice.customer?.phone1}
                         </span>
                         <span className="flex items-center gap-1">
                           <svg
@@ -219,7 +274,7 @@ export default function MyInvoiceListPage() {
                               d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                             />
                           </svg>
-                          {activeInvoice.customer?.address}
+                          {activeInvoice.customer?.address1}
                         </span>
                         <span className="flex items-center gap-1">
                           <svg
@@ -261,36 +316,36 @@ export default function MyInvoiceListPage() {
                           cx="32"
                           cy="32"
                           r="28"
-                          stroke="url(#gradient)"
+                          stroke="url(#gradient-purple)"
                           strokeWidth="6"
                           fill="none"
                           strokeDasharray={`${2 * Math.PI * 28}`}
                           strokeDashoffset={`${2 *
                             Math.PI *
                             28 *
-                            (1 - pickedCount / totalItems)}`}
+                            (1 - packedCount / totalItems)}`}
                           strokeLinecap="round"
                           className="transition-all duration-500"
                         />
                         <defs>
                           <linearGradient
-                            id="gradient"
+                            id="gradient-purple"
                             x1="0%"
                             y1="0%"
                             x2="100%"
                             y2="100%"
                           >
-                            <stop offset="0%" stopColor="#14b8a6" />
-                            <stop offset="100%" stopColor="#06b6d4" />
+                            <stop offset="0%" stopColor="#a855f7" />
+                            <stop offset="100%" stopColor="#6366f1" />
                           </linearGradient>
                         </defs>
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <span className="text-lg font-bold text-gray-900">
-                          {Math.round((pickedCount / totalItems) * 100)}%
+                          {Math.round((packedCount / totalItems) * 100)}%
                         </span>
                         <span className="text-[9px] text-gray-500 -mt-0.5">
-                          {pickedCount}/{totalItems}
+                          {packedCount}/{totalItems}
                         </span>
                       </div>
                     </div>
@@ -323,30 +378,30 @@ export default function MyInvoiceListPage() {
                 >
                   <div className="bg-white p-4 rounded-lg mb-4">
                     <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                      Items to Pick ({totalItems})
+                      Items to Pack ({totalItems})
                     </h4>
                     <div className="space-y-2">
                       {activeInvoice.items.map((item) => (
                         <div
                           key={item.id}
                           className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                            pickedItems[item.id]
-                              ? "bg-teal-50 border-teal-500"
-                              : "bg-white border-gray-200 hover:border-teal-300"
+                            packedItems[item.id]
+                              ? "bg-purple-50 border-purple-500"
+                              : "bg-white border-gray-200 hover:border-purple-300"
                           }`}
-                          onClick={() => toggleItemPicked(item.id)}
+                          onClick={() => toggleItemPacked(item.id)}
                         >
                           <div className="flex items-center gap-3">
                             <div
                               className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                                pickedItems[item.id]
-                                  ? "bg-teal-600"
+                                packedItems[item.id]
+                                  ? "bg-purple-600"
                                   : "bg-white border-2 border-gray-300"
                               }`}
                             >
                               <svg
                                 className={`w-5 h-5 ${
-                                  pickedItems[item.id]
+                                  packedItems[item.id]
                                     ? "text-white"
                                     : "text-gray-400"
                                 }`}
@@ -367,7 +422,7 @@ export default function MyInvoiceListPage() {
                                 {item.name}
                               </p>
                               <p className="text-xs text-gray-500">
-                                SKU: {item.sku}
+                                Code: {item.item_code}
                               </p>
                             </div>
                           </div>
@@ -375,9 +430,9 @@ export default function MyInvoiceListPage() {
                             <span className="font-bold text-sm text-gray-900">
                               {item.quantity} {item.quantity > 1 ? "pcs" : "pc"}
                             </span>
-                            {pickedItems[item.id] && (
-                              <span className="px-3 py-1 bg-teal-600 text-white rounded-full text-xs font-medium">
-                                Picked
+                            {packedItems[item.id] && (
+                              <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-medium">
+                                Packed
                               </span>
                             )}
                           </div>
@@ -387,30 +442,42 @@ export default function MyInvoiceListPage() {
                   </div>
 
                   <button
-                    onClick={handleCompletePicking}
-                    disabled={!allItemsPicked}
+                    onClick={handleCompletePacking}
+                    disabled={!allItemsPacked || loading}
                     className={`w-full py-3 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 ${
-                      allItemsPicked
-                        ? "bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white shadow-lg"
+                      allItemsPacked && !loading
+                        ? "bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-lg"
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"
                     }`}
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    {allItemsPicked
-                      ? "Complete Picking"
-                      : `Pick Remaining ${totalItems - pickedCount} Items`}
+                    {loading ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        {allItemsPacked
+                          ? "Complete Packing"
+                          : `Pack Remaining ${totalItems - packedCount} Items`}
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -461,16 +528,16 @@ export default function MyInvoiceListPage() {
                 />
               </svg>
               <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                No completed invoices yet
+                No completed packing yet
               </h3>
               <p className="text-gray-500">
-                Your completed invoices will appear here
+                Your completed packing tasks will appear here
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
+                <thead className="bg-gradient-to-r from-purple-500 to-indigo-600">
                   <tr>
                     <th className="px-3 sm:px-6 py-4 text-left text-sm font-bold text-white">
                       Invoice Number
@@ -551,7 +618,7 @@ export default function MyInvoiceListPage() {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
+                              d="M19 9l-7-7-7-7"
                             />
                           </svg>
                         </td>
@@ -576,66 +643,66 @@ export default function MyInvoiceListPage() {
                                   </div>
                                   <div>
                                     <p className="text-xs text-gray-500">Phone</p>
-                                    <p className="text-sm font-medium text-gray-900">
-                                      {inv.customer?.phone || "-"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-gray-500">Address</p>
-                                    <p className="text-sm font-medium text-gray-900">
-                                      {inv.customer?.address || "-"}
-                                    </p>
-                                  </div>
-                                </div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {inv.customer?.phone || "-"}
+                                </p>
                               </div>
-
-                              {/* Items Picked */}
-                              <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                                  Items Picked ({inv.items?.length || 0})
-                                </h4>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  {inv.items?.map((item) => (
-                                    <div
-                                      key={item.id || `${inv.id}-${item.sku}`}
-                                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                                    >
-                                      <div>
-                                        <p className="font-medium text-sm text-gray-900">
-                                          {item.product_name || item.name}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                          SKU: {item.sku || "N/A"}
-                                        </p>
-                                      </div>
-                                      <span className="font-bold text-sm text-gray-900">
-                                        {item.quantity}{" "}
-                                        {item.quantity > 1 ? "pcs" : "pc"}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Status */}
-                              <div className="flex justify-end">
-                                <span className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-bold">
-                                  PICKED
-                                </span>
+                              <div>
+                                <p className="text-xs text-gray-500">Address</p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {inv.customer?.address || "-"}
+                                </p>
                               </div>
                             </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                          </div>
+
+                          {/* Items Packed */}
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                              Items Packed ({inv.items?.length || 0})
+                            </h4>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {inv.items?.map((item, idx) => (
+                                <div
+                                  key={item.id || idx}
+                                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                                >
+                                  <div>
+                                    <p className="font-medium text-sm text-gray-900">
+                                      {item.product_name || item.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      Code: {item.item_code || "N/A"}
+                                    </p>
+                                  </div>
+                                  <span className="font-bold text-sm text-gray-900">
+                                    {item.quantity}{" "}
+                                    {item.quantity > 1 ? "pcs" : "pc"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Status */}
+                          <div className="flex justify-end">
+                            <span className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-bold">
+                              PACKED
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
     </div>
-  );
+  </div>
+</div>
+);
 }

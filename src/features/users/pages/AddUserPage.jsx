@@ -214,16 +214,11 @@ export default function AddUserPage() {
       <br></br>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header with Back Button */}
-        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <div className="mb-6 sm:mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
               {isEditMode ? "Edit User" : "Add New User"}
             </h1>
-            <p className="text-sm sm:text-base text-gray-600">
-              {isEditMode
-                ? "Update user details for Alfa Agencies"
-                : "Create a new admin or user account for Alfa Agencies"}
-            </p>
           </div>
           <button
             onClick={handleBackClick}

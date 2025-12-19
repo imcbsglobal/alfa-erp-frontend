@@ -318,16 +318,15 @@ export default function InvoiceListPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-6 gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
               Invoice Management
             </h1>
-            <p className="text-sm sm:text-base text-gray-600">Pick and manage invoices</p>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={handleShowOngoingWork}
               className="flex-1 sm:flex-initial px-3 sm:px-5 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"

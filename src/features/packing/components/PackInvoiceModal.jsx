@@ -1,47 +1,121 @@
-// src/features/packing/components/PackInvoiceModal.jsx
 import { useState } from "react";
 
-export default function PackInvoiceModal({ isOpen, onClose, onPack, invoiceNumber }) {
-  const [email, setEmail] = useState("");
+export default function PackInvoiceModal({
+  isOpen,
+  onClose,
+  onPack,
+  invoiceNumber,
+  title = "Start Packing",
+  actionLabel = "Start Packing",
+}) {
+  const [employeeEmail, setEmployeeEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!employeeEmail.trim()) {
+      setError("Please enter your email address");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(employeeEmail)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await onPack(employeeEmail.trim());
+      setEmployeeEmail("");
+    } catch (err) {
+      setError(err.message || "Failed to start packing");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && employeeEmail.trim()) {
+      handleSubmit(e);
+    }
+  };
 
   if (!isOpen) return null;
 
-  const handleSubmit = () => {
-    if (!email) return alert("Enter employee email");
-    onPack(email);
-    setEmail("");
-  };
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-        <h2 className="text-xl font-bold mb-2">Start Packing</h2>
-        <p className="text-gray-600 mb-4">
-          Invoice: <b>{invoiceNumber}</b>
-        </p>
-
-        <input
-          type="email"
-          placeholder="Enter employee email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border px-3 py-2 rounded-lg mb-4"
-        />
-
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-200 rounded-lg"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg"
-          >
-            Start Packing
-          </button>
+    <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+          <h2 className="text-lg sm:text-xl font-bold text-white">{title}</h2>
+          <p className="text-purple-50 text-xs sm:text-sm mt-1">
+            Invoice: <span className="font-semibold">{invoiceNumber}</span>
+          </p>
         </div>
+
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6">
+          <div className="mb-4">
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+              Employee Email <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={employeeEmail}
+              onChange={(e) => {
+                setEmployeeEmail(e.target.value);
+                setError("");
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="employee@company.com"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+              disabled={loading}
+              autoFocus
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Scan your barcode or type your email manually
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-xs sm:text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full sm:flex-1 px-4 py-2.5 sm:py-3 text-sm sm:text-base bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="w-full sm:flex-1 px-4 py-2.5 sm:py-3 text-sm sm:text-base bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-indigo-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={loading || !employeeEmail.trim()}
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                actionLabel
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

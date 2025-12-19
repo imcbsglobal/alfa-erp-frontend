@@ -314,14 +314,11 @@ export default function UserListPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-5 gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
               User Management
             </h1>
-            <p className="text-sm sm:text-base text-gray-600">
-              Manage admins and users for Alfa Agencies
-            </p>
           </div>
 
           {canAddUsers && (

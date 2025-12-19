@@ -19,3 +19,16 @@ export const getDeliveryHistory = (params = {}) => {
 export const getInvoiceById = (id) => {
   return api.get(`/sales/invoices/${id}/`);
 };
+
+// ADD THESE PACKING EXPORTS
+export const startPacking = (data) =>
+  api.post("/sales/packing/start/", data);
+
+export const completePacking = (data) =>
+  api.post("/sales/packing/complete/", data);
+
+export const getActivePackingTask = (params = {}) =>
+  api.get("/sales/packing/active/", { params });
+
+export const getPackedInvoices = (params = {}) =>
+  api.get("/sales/invoices/", { params: { status: "PACKED", ...params } });

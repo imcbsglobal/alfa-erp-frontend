@@ -4,6 +4,7 @@ import { ChevronDownIcon } from "../Icons";
 
 export function SidebarMenu({ 
   menu, 
+  user,
   sidebarOpen, 
   openMenuId, 
   onToggle, 
@@ -11,6 +12,12 @@ export function SidebarMenu({
 }) {
   const location = useLocation();
   const buttonRef = useRef(null);
+
+  // Helper function to resolve path (handles both string and function)
+  const resolvePath = (path) => {
+    if (!path) return "#";
+    return typeof path === 'function' ? path(user) : path;
+  };
 
   const handleMouseEnter = () => {
     // Only trigger on desktop when sidebar is collapsed
@@ -31,7 +38,8 @@ export function SidebarMenu({
     e.stopPropagation();
     
     if (menu.type === "single") {
-      onNavigate(menu.path);
+      const path = resolvePath(menu.path);
+      onNavigate(path);
     } else if (menu.type === "dropdown") {
       if (sidebarOpen) {
         onToggle(openMenuId === menu.id ? null : menu.id);
@@ -39,9 +47,10 @@ export function SidebarMenu({
     }
   };
 
+  const menuPath = resolvePath(menu.path);
   const isMenuActive = menu.isActive 
     ? menu.isActive(location.pathname) 
-    : location.pathname === menu.path;
+    : location.pathname === menuPath;
 
   const isOpen = openMenuId === menu.id;
 
@@ -80,26 +89,30 @@ export function SidebarMenu({
       {/* Submenu - Expanded Sidebar (Mobile & Desktop) */}
       {menu.type === "dropdown" && sidebarOpen && isOpen && (
         <div className="mt-1 space-y-1 pl-3 sm:pl-4">
-          {menu.submenu.map((item, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onNavigate(item.path);
-                onToggle(null);
-              }}
-              className={`flex items-center gap-3 px-3 py-2 sm:py-2.5 rounded-lg w-full text-xs sm:text-sm transition-all ${
-                location.pathname === item.path
-                  ? "bg-teal-50 text-teal-700 font-medium shadow-sm"
-                  : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
-              }`}
-            >
-              <item.icon className="w-4 h-4 flex-shrink-0" />
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {menu.submenu.map((item, index) => {
+            const itemPath = resolvePath(item.path);
+            
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onNavigate(itemPath);
+                  onToggle(null);
+                }}
+                className={`flex items-center gap-3 px-3 py-2 sm:py-2.5 rounded-lg w-full text-xs sm:text-sm transition-all ${
+                  location.pathname === itemPath
+                    ? "bg-teal-50 text-teal-700 font-medium shadow-sm"
+                    : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
+                }`}
+              >
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -120,24 +133,28 @@ export function SidebarMenu({
               {menu.label}
             </p>
           </div>
-          {menu.submenu.map((item, index) => (
-            <button
-              key={index}
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate(item.path);
-                onToggle(null);
-              }}
-              className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm transition-all ${
-                location.pathname === item.path
-                  ? "bg-teal-50 text-teal-700 font-medium shadow-sm"
-                  : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
-              }`}
-            >
-              <item.icon className="w-4 h-4 flex-shrink-0" />
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {menu.submenu.map((item, index) => {
+            const itemPath = resolvePath(item.path);
+            
+            return (
+              <button
+                key={index}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigate(itemPath);
+                  onToggle(null);
+                }}
+                className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm transition-all ${
+                  location.pathname === itemPath
+                    ? "bg-teal-50 text-teal-700 font-medium shadow-sm"
+                    : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
+                }`}
+              >
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
