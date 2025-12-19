@@ -1,6 +1,14 @@
 import { useState } from "react";
 
-export default function PickInvoiceModal({ isOpen, onClose, onPick, invoiceNumber }) {
+export default function PickInvoiceModal({
+    isOpen,
+    onClose,
+    onPick,
+    invoiceNumber,
+    title = "Claim Invoice",
+    actionLabel = "Start Picking",
+  }) {
+
   const [employeeEmail, setEmployeeEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -47,7 +55,7 @@ export default function PickInvoiceModal({ isOpen, onClose, onPick, invoiceNumbe
         
         {/* Header */}
         <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
-          <h2 className="text-lg sm:text-xl font-bold text-white">Claim Invoice</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-white">{title}</h2>
           <p className="text-teal-50 text-xs sm:text-sm mt-1">
             Invoice: <span className="font-semibold">{invoiceNumber}</span>
           </p>
@@ -111,7 +119,7 @@ export default function PickInvoiceModal({ isOpen, onClose, onPick, invoiceNumbe
                   Processing...
                 </>
               ) : (
-                "Start Picking"
+                actionLabel
               )}
             </button>
           </div>

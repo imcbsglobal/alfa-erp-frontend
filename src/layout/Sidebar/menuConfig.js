@@ -22,14 +22,15 @@ export const MENU_CONFIG = [
     id: "invoice",
     label: "Invoice",
     icon: InvoiceIcon,
-    type: "dropdown", // dropdown with submenu
+    type: "dropdown",
+    hasAccess: (user) =>
+      !["PICKER", "PACKER", "DELIVERY"].includes(user?.role),
     submenu: [
       {
         label: "Invoice List",
         icon: ListIcon,
         path: "/invoices",
       },
-
       {
         label: "My Assigned Bills",
         icon: PlusCircleIcon,
@@ -38,11 +39,20 @@ export const MENU_CONFIG = [
           permissions["my-invoices"]?.view === true,
       },
     ],
-    // Check if any submenu path matches current location
-     isActive: (pathname) =>
-      pathname.startsWith("/invoices") ||
-      pathname.startsWith("/ops/picking/invoices"),
+    isActive: (pathname) =>
+      pathname.startsWith("/invoices"),
   },
+  {
+    id: "packing",
+    label: "Packing",
+    icon: InvoiceIcon,
+    type: "single",
+    path: "/ops/packing/invoices",
+    hasAccess: (user) => user?.role === "PACKER",
+    isActive: (pathname) =>
+      pathname.startsWith("/ops/packing/invoices"),
+  },
+
   {
     id: "history",
     label: "History",

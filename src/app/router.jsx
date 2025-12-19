@@ -22,6 +22,8 @@ import { useAuth } from "../features/auth/AuthContext";
 
 import OperationsLayout from "../layout/OperationsLayout";
 import MyInvoiceListPage from "../features/invoice/pages/MyInvoiceListPage";
+import PackingInvoiceListPage from "../features/packing/pages/PackingInvoiceListPage";
+import PackingInvoiceViewPage from "../features/packing/pages/PackingInvoiceViewPage";
 
 export default function AppRouter() {
     const { user, menus = [], logout } = useAuth();
@@ -73,7 +75,8 @@ export default function AppRouter() {
           
 
           {/* Packing (future) */}
-          {/* <Route path="/ops/packing/..." /> */}
+          <Route path="/ops/packing/invoices"element={<PackingInvoiceListPage />}/>
+          <Route path="/ops/packing/invoices/view/:id"element={<PackingInvoiceViewPage />}/>
 
           {/* Delivery (future) */}
           {/* <Route path="/ops/delivery/..." /> */}
@@ -81,7 +84,7 @@ export default function AppRouter() {
       </Route>
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/403" replace />} />
+      {/* <Route path="*" element={<Navigate to="/403" replace />} /> */}
     </Routes>
   );
 }

@@ -52,14 +52,29 @@ export default function LoginPage() {
 
       setUserSession(user, access, refresh, menus);
 
-      // ✅ Role-based redirect (correct)
+      
       const OPS_ROLES = ["PICKER", "PACKER", "DELIVERY", "STORE"];
 
       if (OPS_ROLES.includes(user.role)) {
-        navigate("/ops/picking/invoices", { replace: true });
-        return;
+        switch (user.role) {
+          case "PACKER":
+            navigate("/ops/packing/invoices", { replace: true });
+            break;
+          case "DELIVERY":
+            navigate("/ops/delivery/invoices", { replace: true });
+            break;
+          case "STORE":
+            navigate("/ops/store", { replace: true });
+            break;
+          default: // PICKER
+            navigate("/ops/picking/invoices", { replace: true });
+        }
+        return; // 🔴 THIS is what you were missing
       }
 
+      // Non-ops roles
+      navigate("/dashboard", { replace: true });
+    
       // Admin / Superadmin / User
       navigate("/dashboard", { replace: true });
 
