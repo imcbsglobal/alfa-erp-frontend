@@ -94,7 +94,7 @@ export const MasterIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
       d="M9.75 3a1.5 1.5 0 012.598-1.073l.109.111a1.5 1.5 0 001.5 0l.109-.111A1.5 1.5 0 0116.75 3v.632a1.5 1.5 0 001.016 1.424l.328.109a1.5 1.5 0 010 2.846l-.328.11A1.5 1.5 0 0016.75 9.5v.63a1.5 1.5 0 
-       01-2.598 1.073l-.109-.111a1.5 1.5 0 00-1.5 0l-.109.111A1.5 1.5 0 019.75 10.13v-.631A1.5 1.5 0 018.734 8.065l-.327-.11a1.5 1.5 0 010-2.845l.328-.11A1.5 1.5 0 019.75 3.632V3z" />
+       01-2.598 1.073l-.109-.111a1.5 1.5 0 00-1.5 0l-.109.111A1.5 1.5 0 019.75 10.13v-.631A1.5 1.5 0 018.734 8.065l-.327-.11a1.5 1.5 0 010-2.845l.328-.11A1.5 1.5 0 009.75 3.632V3z" />
     <circle cx="9" cy="17" r="3" strokeWidth="2" />
   </svg>
 );
@@ -132,7 +132,6 @@ export const BuildingIcon = ({ className }) => (
   </svg>
 );
 
-// Add to Icons.jsx
 export const InvoiceIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -154,5 +153,19 @@ export const PlusCircleIcon = ({ className }) => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
       d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" 
     />
+  </svg>
+);
+
+// NEW: Mobile Menu Icon (Hamburger)
+export const MenuIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+// NEW: Close Icon (X)
+export const XIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
   </svg>
 );

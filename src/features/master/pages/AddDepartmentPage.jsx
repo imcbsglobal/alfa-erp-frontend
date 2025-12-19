@@ -16,7 +16,6 @@ export default function AddDepartmentPage() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Only SUPERADMIN / ADMIN should create departments
   const canManageDepartments =
     currentUser?.role === "SUPERADMIN" || currentUser?.role === "ADMIN";
 
@@ -57,7 +56,6 @@ export default function AddDepartmentPage() {
         name: "",
       });
 
-      // Optional: go back to list
       navigate("/master/department");
     } catch (error) {
       console.error("Create department error:", error);
@@ -72,25 +70,24 @@ export default function AddDepartmentPage() {
   };
 
   if (!canManageDepartments) {
-    // Prevent flicker while useEffect redirects
     return null;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Add Department</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Add Department</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
               Create a new department for Alfa Agencies
             </p>
           </div>
 
           <button
             onClick={() => navigate("/master/department")}
-            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition"
+            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition"
           >
             <svg
               className="w-5 h-5"
@@ -111,7 +108,7 @@ export default function AddDepartmentPage() {
 
         {/* General Error */}
         {errors.general && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl flex items-start gap-3">
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 sm:px-6 py-4 rounded-xl flex items-start gap-3">
             <svg
               className="w-6 h-6 flex-shrink-0 mt-0.5"
               fill="currentColor"
@@ -131,7 +128,7 @@ export default function AddDepartmentPage() {
         )}
 
         {/* Form Card */}
-        <div className="bg-white rounded-xl shadow-md p-8">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 lg:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Department Name */}
             <div>
@@ -167,21 +164,21 @@ export default function AddDepartmentPage() {
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
               <button
                 type="button"
                 onClick={() => {
                   setFormData({ name: "" });
                   setErrors({});
                 }}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
+                className="w-full sm:flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
               >
                 Reset Form
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full sm:flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>

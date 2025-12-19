@@ -4,6 +4,7 @@ import PickInvoiceModal from "../components/PickInvoiceModal";
 import api from "../../../services/api";
 import { getActivePickingTask } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
+import toast from "react-hot-toast";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 export default function InvoiceListPage() {
@@ -14,7 +15,6 @@ export default function InvoiceListPage() {
 
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [successMessage, setSuccessMessage] = useState("");
 
   const [activePicking, setActivePicking] = useState(null);
 
@@ -30,16 +30,6 @@ export default function InvoiceListPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  // Show success message if redirected from picking page
-  useEffect(() => {
-    if (location.state?.message) {
-      setSuccessMessage(location.state.message);
-      setTimeout(() => setSuccessMessage(""), 5000);
-      // Clear the state
-      window.history.replaceState({}, document.title);
-    }
-  }, [location]);
 
   // Load invoices
   useEffect(() => {
@@ -78,11 +68,10 @@ export default function InvoiceListPage() {
     setLoading(true);
     try {
       const res = await api.get("/sales/invoices/?status=PENDING&page_size=100");
-      const data = res.data;
-
-      setInvoices(data.results || []);
+      setInvoices(res.data.results || []);
     } catch (err) {
       console.error("Failed to load invoices:", err);
+      toast.error("Failed to load invoices");
     } finally {
       setLoading(false);
     }
@@ -92,22 +81,20 @@ export default function InvoiceListPage() {
   const loadOngoingTasks = async () => {
     setLoadingOngoing(true);
     try {
-      const res = await api.get("/sales/picking/active/");
-      // Handle the response structure: { success, message, data }
-      // data can be null or a single task object
-      const responseData = res.data?.data;
+      const res = await api.get("/sales/picking/history/?status=PREPARING");
+      const responseData = res.data?.results;
+      console.log("Ongoing tasks data:", responseData);
       if (responseData) {
-        // Convert single task object to array
-        setOngoingTasks([responseData]);
+        setOngoingTasks(responseData);
       } else {
         setOngoingTasks([]);
       }
-    } catch (err) {
-      console.error("Failed to load ongoing tasks:", err);
-      setOngoingTasks([]);
-    } finally {
       setLoadingOngoing(false);
-    }
+    } catch (err) {
+        console.error("Failed to load ongoing tasks:", err);
+        toast.error("Failed to load ongoing tasks");
+        setOngoingTasks([]);
+      }
   };
 
   // Handle showing ongoing work
@@ -117,10 +104,9 @@ export default function InvoiceListPage() {
   };
 
   // Handle refresh
-  const handleRefresh = () => {
-    loadInvoices();
-    setSuccessMessage("Invoices refreshed successfully");
-    setTimeout(() => setSuccessMessage(""), 3000);
+  const handleRefresh = async () => {
+    await loadInvoices();
+    toast.success("Invoices refreshed");
   };
 
   // Calculate progress percentage
@@ -150,7 +136,7 @@ export default function InvoiceListPage() {
 
   // Handle Pick Invoice
   const handlePickClick = (invoice) => {
-    const invoiceStatus = invoice.status || "Pending"; // Default to Pending if no status
+    const invoiceStatus = invoice.status || "Pending";
     
     if (invoiceStatus !== "PENDING") {
       alert("Only pending invoices can be picked");
@@ -169,11 +155,13 @@ export default function InvoiceListPage() {
       });
 
       setShowPickModal(false);
+      setSelectedInvoice(null);
 
-      navigate("/invoices/my");
+      await loadInvoices();
 
+      toast.success(`Picking started for invoice ${selectedInvoice.invoice_no}`);
     } catch (err) {
-      throw new Error(
+      toast.error(
         err.response?.data?.message || "Failed to start picking"
       );
     }
@@ -218,7 +206,7 @@ export default function InvoiceListPage() {
   };
 
   const getStatusLabel = (status) => {
-    const actualStatus = status || "Pending"; // Default to Pending if no status
+    const actualStatus = status || "Pending";
     
     switch (actualStatus) {
       case "ReadyForPacking":
@@ -247,23 +235,23 @@ export default function InvoiceListPage() {
     }
 
     return (
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+      <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-200">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-gray-600">
+          <div className="text-xs sm:text-sm text-gray-600">
             Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, invoices.length)} of {invoices.length} invoices
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
                 currentPage === 1
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300"
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
@@ -272,11 +260,11 @@ export default function InvoiceListPage() {
               <>
                 <button
                   onClick={() => handlePageChange(1)}
-                  className="px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300 transition-all"
+                  className="hidden sm:block px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300 transition-all text-sm"
                 >
                   1
                 </button>
-                {startPage > 2 && <span className="text-gray-400">...</span>}
+                {startPage > 2 && <span className="hidden sm:inline text-gray-400">...</span>}
               </>
             )}
 
@@ -284,7 +272,7 @@ export default function InvoiceListPage() {
               <button
                 key={number}
                 onClick={() => handlePageChange(number)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm ${
                   currentPage === number
                     ? "bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-md"
                     : "bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300"
@@ -296,10 +284,10 @@ export default function InvoiceListPage() {
 
             {endPage < totalPages && (
               <>
-                {endPage < totalPages - 1 && <span className="text-gray-400">...</span>}
+                {endPage < totalPages - 1 && <span className="hidden sm:inline text-gray-400">...</span>}
                 <button
                   onClick={() => handlePageChange(totalPages)}
-                  className="px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300 transition-all"
+                  className="hidden sm:block px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300 transition-all text-sm"
                 >
                   {totalPages}
                 </button>
@@ -309,13 +297,13 @@ export default function InvoiceListPage() {
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
                 currentPage === totalPages
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300"
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -327,44 +315,35 @@ export default function InvoiceListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        
-        {/* Success Message */}
-        {successMessage && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-            <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-green-800 font-semibold">{successMessage}</p>
-          </div>
-        )}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
               Invoice Management
             </h1>
-            <p className="text-gray-600">Pick and manage invoices</p>
+            <p className="text-sm sm:text-base text-gray-600">Pick and manage invoices</p>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={handleShowOngoingWork}
-              className="px-5 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+              className="flex-1 sm:flex-initial px-3 sm:px-5 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
-              Ongoing Work
+              <span className="hidden sm:inline">Ongoing Work</span>
+              <span className="sm:hidden">Ongoing</span>
             </button>
 
             <button
               onClick={handleRefresh}
-              className="px-5 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+              className="flex-1 sm:flex-initial px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Refresh
@@ -372,8 +351,8 @@ export default function InvoiceListPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        {/* Table - Desktop View */}
+        <div className="hidden lg:block bg-white rounded-xl shadow-md overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
@@ -447,7 +426,6 @@ export default function InvoiceListPage() {
 
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            {/* Pick Button - Only show for Pending invoices */}
                             {invoice.status === "PENDING" && !activePicking && (
                               <button
                                 onClick={() => handlePickClick(invoice)}
@@ -460,7 +438,6 @@ export default function InvoiceListPage() {
                               </button>
                             )}
                             
-                            {/* View Button - Always show */}
                             <button
                               onClick={() => handleViewInvoice(invoice.id)}
                               className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
@@ -483,6 +460,108 @@ export default function InvoiceListPage() {
             </>
           )}
         </div>
+
+        {/* Card View - Mobile/Tablet */}
+        <div className="lg:hidden space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <svg className="animate-spin h-10 w-10 text-cyan-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p className="text-gray-600 text-sm">Loading invoices...</p>
+              </div>
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-xl shadow-md">
+              <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">No invoices found</h3>
+              <p className="text-gray-500 text-sm">No pending invoices at the moment</p>
+            </div>
+          ) : (
+            <>
+              {currentItems.map((invoice) => (
+                <div key={invoice.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+                  <div className="p-4">
+                    {/* Invoice Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 text-base mb-1">{invoice.invoice_no}</p>
+                        <p className="text-xs text-gray-500">{invoice.customer?.code}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(invoice.status)}`}>
+                        {getStatusLabel(invoice.status)}
+                      </span>
+                    </div>
+
+                    {/* Customer Info */}
+                    <div className="space-y-2 mb-3 pb-3 border-b border-gray-200">
+                      <div className="flex items-center gap-2 text-sm">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span className="text-gray-700 font-medium">{invoice.customer?.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        </svg>
+                        <span>{invoice.customer?.area}</span>
+                      </div>
+                    </div>
+
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+                      <div>
+                        <p className="text-gray-500 mb-1">Date</p>
+                        <p className="text-gray-800 font-medium">{invoice.invoice_date}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 mb-1">Amount</p>
+                        <p className="text-gray-800 font-bold">₹{invoice.total_amount}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-gray-500 mb-1">Sales Person</p>
+                        <p className="text-gray-800 font-medium">{invoice.salesman?.name}</p>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      {invoice.status === "PENDING" && !activePicking && (
+                        <button
+                          onClick={() => handlePickClick(invoice)}
+                          className="flex-1 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                          </svg>
+                          Pick
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => handleViewInvoice(invoice.id)}
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {renderPagination()}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Pick Invoice Modal */}
@@ -495,36 +574,36 @@ export default function InvoiceListPage() {
 
       {/* Ongoing Work Modal */}
       {showOngoingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
-                <h2 className="text-xl font-bold text-white">Ongoing Picking Tasks</h2>
+                <h2 className="text-base sm:text-xl font-bold text-white">Ongoing Picking Tasks</h2>
               </div>
               <button
                 onClick={() => setShowOngoingModal(false)}
-                className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
+                className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1.5 sm:p-2 transition-all"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+            <div className="p-3 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
               {loadingOngoing ? (
                 <div className="flex items-center justify-center py-20">
                   <div className="text-center">
-                    <svg className="animate-spin h-10 w-10 text-purple-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-10 w-10 text-teal-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p className="text-gray-600">Loading ongoing tasks...</p>
+                    <p className="text-gray-600 text-sm">Loading ongoing tasks...</p>
                   </div>
                 </div>
               ) : ongoingTasks.length === 0 ? (
@@ -532,91 +611,131 @@ export default function InvoiceListPage() {
                   <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                   </svg>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">No Ongoing Tasks</h3>
-                  <p className="text-gray-500">There are no active picking tasks at the moment</p>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-2">No Ongoing Tasks</h3>
+                  <p className="text-gray-500 text-sm">There are no active picking tasks at the moment</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gradient-to-r from-purple-500 to-indigo-600">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-white">Invoice No</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-white">Date</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-white">Start Time</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-white">Duration</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-white">Employee ID</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-white">Employee Name</th>
-                        <th className="px-4 py-3 text-center text-sm font-bold text-white">Progress</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {ongoingTasks.map((task, index) => {
-                        const progress = calculateProgress(task);
-                        const totalItems = task.invoice?.items?.length || 0;
-                        const pickedItems = task.invoice?.items?.filter(item => item.picked)?.length || 0;
-                        
-                        return (
-                          <tr key={index} className="hover:bg-purple-50 transition">
-                            <td className="px-4 py-4">
-                              <p className="font-semibold text-gray-800">{task.invoice?.invoice_no}</p>
-                            </td>
-                            <td className="px-4 py-4 text-sm text-gray-600">
-                              {task.invoice?.invoice_date || "N/A"}
-                            </td>
-                            <td className="px-4 py-4 text-sm text-gray-600">
-                              {task.start_time ? new Date(task.start_time).toLocaleTimeString() : "N/A"}
-                            </td>
-                            <td className="px-4 py-4 text-sm text-gray-600">
-                              {formatDuration(task.start_time)}
-                            </td>
-                            <td className="px-4 py-4 text-sm text-gray-600">
-                              {task.invoice?.customer?.code || "N/A"}
-                            </td>
-                            <td className="px-4 py-4 text-sm font-medium text-gray-800">
-                              {user?.email || "Current User"}
-                            </td>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                                  <div 
-                                    className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2.5 rounded-full transition-all"
-                                    style={{ width: `${progress}%` }}
-                                  ></div>
+                <>
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Invoice No</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Date</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Start Time</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Duration</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Employee ID</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Employee Name</th>
+                          <th className="px-4 py-3 text-center text-sm font-bold text-white">Progress</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {ongoingTasks.map((task, index) => {
+                          const progress = calculateProgress(task);
+                          const totalItems = task.invoice?.items?.length || 0;
+                          const pickedItems = task.invoice?.items?.filter(item => item.picked)?.length || 0;
+                          
+                          return (
+                            <tr key={index} className="hover:bg-purple-50 transition">
+                              <td className="px-4 py-4">
+                                <p className="font-semibold text-gray-800">{task.invoice_no}</p>
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-600">
+                                {task?.invoice_date || "N/A"}
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-600">
+                                {task.start_time ? new Date(task.start_time).toLocaleTimeString() : "N/A"}
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-600">
+                                {formatDuration(task.start_time)}
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-600">
+                                {task.invoice?.customer?.code || "N/A"}
+                              </td>
+                              <td className="px-4 py-4 text-sm font-medium text-gray-800">
+                                {task?.picker_name || "Current User"}
+                              </td>
+                              <td className="px-4 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                                    <div 
+                                      className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                                      style={{ width: `${progress}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className="text-sm font-semibold text-gray-700 min-w-[45px]">
+                                    {progress}%
+                                  </span>
                                 </div>
-                                <span className="text-sm font-semibold text-gray-700 min-w-[45px]">
-                                  {progress}%
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {pickedItems} / {totalItems} items
-                              </p>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {pickedItems} / {totalItems} items
+                                </p>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
 
-            {/* Modal Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={loadOngoingTasks}
-                className="px-5 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh
-              </button>
-              <button
-                onClick={() => setShowOngoingModal(false)}
-                className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all"
-              >
-                Close
-              </button>
+                  {/* Mobile Card View */}
+                  <div className="lg:hidden space-y-3">
+                    {ongoingTasks.map((task, index) => {
+                      const progress = calculateProgress(task);
+                      const totalItems = task.invoice?.items?.length || 0;
+                      const pickedItems = task.invoice?.items?.filter(item => item.picked)?.length || 0;
+                      
+                      return (
+                        <div key={index} className="bg-white rounded-lg border-2 border-purple-200 p-4 shadow-sm">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <p className="font-bold text-gray-900 mb-1">{task.invoice_no}</p>
+                              <p className="text-xs text-gray-500">{task?.invoice_date || "N/A"}</p>
+                            </div>
+                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
+                              {progress}%
+                            </span>
+                          </div>
+
+                          <div className="space-y-2 mb-3 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Employee:</span>
+                              <span className="font-medium text-gray-800">{task?.picker_name || "Current User"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Employee ID:</span>
+                              <span className="font-medium text-gray-800">{task.invoice?.customer?.code || "N/A"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Start Time:</span>
+                              <span className="font-medium text-gray-800">
+                                {task.start_time ? new Date(task.start_time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : "N/A"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Duration:</span>
+                              <span className="font-medium text-gray-800">{formatDuration(task.start_time)}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                              <div 
+                                className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                                style={{ width: `${progress}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-xs text-gray-500 text-center">
+                              {pickedItems} / {totalItems} items picked
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

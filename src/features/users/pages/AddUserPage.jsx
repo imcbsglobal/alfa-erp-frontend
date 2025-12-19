@@ -49,7 +49,7 @@ export default function AddUserPage() {
       setJobTitles(titles);
     } catch (err) {
       console.error("Failed to load job titles:", err);
-      setJobTitles([]); // prevent crash
+      setJobTitles([]);
     }
   };
 
@@ -73,14 +73,14 @@ export default function AddUserPage() {
       setInitialLoading(true);
       try {
         const res = await getUser(id);
-        const user = res.data?.data;  // <-- FIX
+        const user = res.data?.data;
 
         setFormData((prev) => ({
           ...prev,
           name: user.name || "",
           email: user.email || "",
           role: user.role || "USER",
-          jobTitle: user.job_title || "",      // ID
+          jobTitle: user.job_title || "",
           phone: user.phone || "",
           status: user.is_active ? "ACTIVE" : "INACTIVE",
           avatar: user.avatar || "",
@@ -203,7 +203,7 @@ export default function AddUserPage() {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <p className="text-gray-600">Loading user details...</p>
       </div>
     );
@@ -212,14 +212,14 @@ export default function AddUserPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <br></br>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header with Back Button */}
-        <div className="mb-8 flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
               {isEditMode ? "Edit User" : "Add New User"}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               {isEditMode
                 ? "Update user details for Alfa Agencies"
                 : "Create a new admin or user account for Alfa Agencies"}
@@ -227,7 +227,7 @@ export default function AddUserPage() {
           </div>
           <button
             onClick={handleBackClick}
-            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+            className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all w-full sm:w-auto"
           >
             <svg
               className="w-5 h-5"
@@ -248,7 +248,7 @@ export default function AddUserPage() {
 
         {/* General Error */}
         {errors.general && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl flex items-start gap-3">
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 sm:px-6 py-4 rounded-xl flex items-start gap-3">
             <svg
               className="w-6 h-6 flex-shrink-0 mt-0.5"
               fill="currentColor"
@@ -256,7 +256,7 @@ export default function AddUserPage() {
             >
               <path
                 fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 0116 0zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                d="M10 18a8 8 0 100-16 8 8 0 0016 0zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                 clipRule="evenodd"
               />
             </svg>
@@ -268,21 +268,21 @@ export default function AddUserPage() {
         )}
 
         {/* Form Card */}
-        <div className="bg-white rounded-xl shadow-md p-8">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 lg:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Role Selection */}
-            <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-lg p-6 border border-teal-200">
-              <label className="block text-lg font-bold text-gray-800 mb-3">
+            <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-lg p-4 sm:p-6 border border-teal-200">
+              <label className="block text-base sm:text-lg font-bold text-gray-800 mb-3">
                 Select User Role *
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {canCreateAdmins() && (
                   <button
                     type="button"
                     onClick={() =>
                       setFormData((prev) => ({ ...prev, role: "ADMIN" }))
                     }
-                    className={`p-4 rounded-lg border-2 transition-all ${
+                    className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${
                       formData.role === "ADMIN"
                         ? "border-purple-500 bg-purple-50"
                         : "border-gray-200 bg-white hover:border-gray-300"
@@ -290,14 +290,14 @@ export default function AddUserPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center ${
                           formData.role === "ADMIN"
                             ? "bg-purple-500"
                             : "bg-gray-200"
                         }`}
                       >
                         <svg
-                          className={`w-6 h-6 ${
+                          className={`w-5 h-5 sm:w-6 sm:h-6 ${
                             formData.role === "ADMIN"
                               ? "text-white"
                               : "text-gray-500"
@@ -316,7 +316,7 @@ export default function AddUserPage() {
                       </div>
                       <div className="text-left">
                         <p
-                          className={`font-bold ${
+                          className={`font-bold text-sm sm:text-base ${
                             formData.role === "ADMIN"
                               ? "text-purple-700"
                               : "text-gray-700"
@@ -337,7 +337,7 @@ export default function AddUserPage() {
                   onClick={() =>
                     setFormData((prev) => ({ ...prev, role: "USER" }))
                   }
-                  className={`p-4 rounded-lg border-2 transition-all ${
+                  className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${
                     formData.role === "USER"
                       ? "border-teal-500 bg-teal-50"
                       : "border-gray-200 bg-white hover:border-gray-300"
@@ -345,14 +345,14 @@ export default function AddUserPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center ${
                         formData.role === "USER"
                           ? "bg-teal-500"
                           : "bg-gray-200"
                       }`}
                     >
                       <svg
-                        className={`w-6 h-6 ${
+                        className={`w-5 h-5 sm:w-6 sm:h-6 ${
                           formData.role === "USER"
                             ? "text-white"
                             : "text-gray-500"
@@ -371,7 +371,7 @@ export default function AddUserPage() {
                     </div>
                     <div className="text-left">
                       <p
-                        className={`font-bold ${
+                        className={`font-bold text-sm sm:text-base ${
                           formData.role === "USER"
                             ? "text-teal-700"
                             : "text-gray-700"
@@ -394,8 +394,8 @@ export default function AddUserPage() {
                 Profile Photo (optional)
               </label>
 
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
                   {formData.avatar ? (
                     <img
                       src={formData.avatar}
@@ -411,7 +411,7 @@ export default function AddUserPage() {
                   )}
                 </div>
 
-                <div className="flex-1">
+                <div className="flex-1 w-full">
                   <input
                     type="file"
                     accept="image/*"
@@ -448,7 +448,7 @@ export default function AddUserPage() {
             </div>
 
             {/* Personal Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Full Name *
@@ -574,15 +574,15 @@ export default function AddUserPage() {
 
             {/* Password Section */}
             <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
+              <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">
                 Security Credentials
                 {isEditMode && (
-                  <span className="ml-2 text-sm font-normal text-gray-500">
+                  <span className="ml-2 text-sm font-normal text-gray-500 block sm:inline mt-1 sm:mt-0">
                     (Leave blank to keep current password)
                   </span>
                 )}
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Password {isEditMode ? "" : "*"}
@@ -668,11 +668,11 @@ export default function AddUserPage() {
             </div>
 
             {/* Submit Buttons */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg disabled:opacity-60 hover:from-teal-600 hover:to-cyan-700 transition-all font-semibold"
+                className="w-full px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg disabled:opacity-60 hover:from-teal-600 hover:to-cyan-700 transition-all font-semibold"
               >
                 {loading
                   ? isEditMode

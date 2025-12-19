@@ -37,14 +37,10 @@ export default function DepartmentListPage() {
     try {
       const response = await getDepartments();
 
-      console.log("DEPARTMENT API RAW RESPONSE:", response);
-
       let deptArray = [];
-
       const apiData = response?.data;
 
       if (Array.isArray(apiData?.data?.results)) {
-        // Your actual backend format
         deptArray = apiData.data.results;
       }
       else if (Array.isArray(apiData?.results)) {
@@ -56,11 +52,6 @@ export default function DepartmentListPage() {
       else if (Array.isArray(apiData)) {
         deptArray = apiData;
       }
-      else {
-        console.warn("Unexpected department API response:", apiData);
-      }
-
-      setDepartments(deptArray);
 
       setDepartments(deptArray);
       localStorage.setItem("departments", JSON.stringify(deptArray));
@@ -73,7 +64,6 @@ export default function DepartmentListPage() {
     }
   };
 
-  // Get unique department names for filter dropdown
   const uniqueDepartmentNames = useMemo(() => {
     const names = new Set();
     departments.forEach(dept => {
@@ -82,20 +72,16 @@ export default function DepartmentListPage() {
     return Array.from(names).sort();
   }, [departments]);
 
-  // Filter + search - works across ALL pages
   const processedDepartments = useMemo(() => {
     let filtered = [...departments];
 
-    // Apply search filter
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(
-        (dept) =>
-          dept.name?.toLowerCase().includes(q) 
+        (dept) => dept.name?.toLowerCase().includes(q) 
       );
     }
 
-    // Apply name filter
     if (filterName !== "ALL") {
       filtered = filtered.filter((dept) => dept.name === filterName);
     }
@@ -103,7 +89,6 @@ export default function DepartmentListPage() {
     return filtered;
   }, [departments, searchTerm, filterName]);
 
-  // Pagination calculations
   const totalItems = processedDepartments.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const safePage = Math.min(currentPage, totalPages);
@@ -111,7 +96,6 @@ export default function DepartmentListPage() {
   const endIndex = startIndex + itemsPerPage;
   const currentPageItems = processedDepartments.slice(startIndex, endIndex);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterName]);
@@ -175,7 +159,6 @@ export default function DepartmentListPage() {
     }
   };
 
-  // Pagination component with numbered pages
   const renderPagination = () => {
     if (totalPages <= 1) return null;
 
@@ -194,49 +177,44 @@ export default function DepartmentListPage() {
     }
 
     return (
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+      <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-200">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Info */}
-          <div className="text-sm text-gray-600">
+          <div className="text-xs sm:text-sm text-gray-600">
             Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} departments
           </div>
 
-          {/* Pagination Controls */}
-          <div className="flex items-center gap-2">
-            {/* Previous Button */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
                 currentPage === 1
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
 
-            {/* First Page */}
             {startPage > 1 && (
               <>
                 <button
                   onClick={() => handlePageChange(1)}
-                  className="px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all"
+                  className="px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all text-sm"
                 >
                   1
                 </button>
-                {startPage > 2 && <span className="text-gray-400">...</span>}
+                {startPage > 2 && <span className="text-gray-400 text-sm">...</span>}
               </>
             )}
 
-            {/* Page Numbers */}
             {pageNumbers.map((number) => (
               <button
                 key={number}
                 onClick={() => handlePageChange(number)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm ${
                   currentPage === number
                     ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
                     : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
@@ -246,30 +224,28 @@ export default function DepartmentListPage() {
               </button>
             ))}
 
-            {/* Last Page */}
             {endPage < totalPages && (
               <>
-                {endPage < totalPages - 1 && <span className="text-gray-400">...</span>}
+                {endPage < totalPages - 1 && <span className="text-gray-400 text-sm">...</span>}
                 <button
                   onClick={() => handlePageChange(totalPages)}
-                  className="px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all"
+                  className="px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all text-sm"
                 >
                   {totalPages}
                 </button>
               </>
             )}
 
-            {/* Next Button */}
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
                 currentPage === totalPages
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -281,14 +257,14 @@ export default function DepartmentListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">
               Departments
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Manage departments for Alfa Agencies
             </p>
           </div>
@@ -296,7 +272,7 @@ export default function DepartmentListPage() {
           {canManageDepartments && (
             <button
               onClick={handleNavigateToAdd}
-              className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition font-semibold flex items-center gap-2 shadow-lg"
+              className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition font-semibold flex items-center justify-center gap-2 shadow-lg"
             >
               <svg
                 className="w-5 h-5"
@@ -317,9 +293,8 @@ export default function DepartmentListPage() {
         </div>
 
         {/* Search + Filter */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Search */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Search Departments
@@ -329,7 +304,7 @@ export default function DepartmentListPage() {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm"
                   placeholder="Search by name..."
                 />
                 <svg
@@ -348,7 +323,6 @@ export default function DepartmentListPage() {
               </div>
             </div>
 
-            {/* Filter by Name */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Filter by Name
@@ -356,7 +330,7 @@ export default function DepartmentListPage() {
               <select
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm"
               >
                 <option value="ALL">All Departments</option>
                 {uniqueDepartmentNames.map((name) => (
@@ -368,30 +342,19 @@ export default function DepartmentListPage() {
             </div>
           </div>
 
-          {/* Active Filters Display */}
           {(searchTerm || filterName !== "ALL") && (
             <div className="mt-4 flex flex-wrap gap-2 items-center">
-              <span className="text-sm font-medium text-gray-600">Active Filters:</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-600">Active Filters:</span>
               {searchTerm && (
-                <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium flex items-center gap-2">
+                <span className="px-2 sm:px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2">
                   Search: "{searchTerm}"
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="hover:text-teal-900"
-                  >
-                    ×
-                  </button>
+                  <button onClick={() => setSearchTerm("")} className="hover:text-teal-900">×</button>
                 </span>
               )}
               {filterName !== "ALL" && (
-                <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium flex items-center gap-2">
+                <span className="px-2 sm:px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2">
                   Name: {filterName}
-                  <button
-                    onClick={() => setFilterName("ALL")}
-                    className="hover:text-cyan-900"
-                  >
-                    ×
-                  </button>
+                  <button onClick={() => setFilterName("ALL")} className="hover:text-cyan-900">×</button>
                 </span>
               )}
               <button
@@ -399,7 +362,7 @@ export default function DepartmentListPage() {
                   setSearchTerm("");
                   setFilterName("ALL");
                 }}
-                className="px-3 py-1 text-sm text-red-600 hover:text-red-800 font-medium"
+                className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 font-medium"
               >
                 Clear All
               </button>
@@ -412,55 +375,26 @@ export default function DepartmentListPage() {
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
-                <svg
-                  className="animate-spin h-10 w-10 text-teal-500 mx-auto mb-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+                <svg className="animate-spin h-10 w-10 text-teal-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <p className="text-gray-600">Loading departments...</p>
               </div>
             </div>
           ) : totalItems === 0 ? (
-            <div className="text-center py-20">
-              <svg
-                className="w-16 h-16 text-gray-300 mx-auto mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                />
+            <div className="text-center py-20 px-4">
+              <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                No departments found
-              </h3>
-              <p className="text-gray-500 mb-6">
-                {searchTerm || filterName !== "ALL"
-                  ? "Try adjusting your filters"
-                  : "Get started by adding your first department"}
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">No departments found</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                {searchTerm || filterName !== "ALL" ? "Try adjusting your filters" : "Get started by adding your first department"}
               </p>
               {canManageDepartments && !searchTerm && filterName === "ALL" && (
                 <button
                   onClick={handleNavigateToAdd}
-                  className="px-6 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition font-semibold"
+                  className="px-4 sm:px-6 py-2 sm:py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition font-semibold text-sm"
                 >
                   Add First Department
                 </button>
@@ -468,23 +402,16 @@ export default function DepartmentListPage() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Desktop Table */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">
-                        #
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">
-                        Department Name
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">
-                        Created
-                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-white">#</th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-white">Department Name</th>
+                      <th className="px-6 py-4 text-left text-sm font-bold text-white">Created</th>
                       {canManageDepartments && (
-                        <th className="px-6 py-4 text-left text-sm font-bold text-white">
-                          Actions
-                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-white">Actions</th>
                       )}
                     </tr>
                   </thead>
@@ -500,34 +427,18 @@ export default function DepartmentListPage() {
                               {dept.name?.charAt(0)?.toUpperCase() || "D"}
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-semibold text-gray-900">
-                                {dept.name}
-                              </div>
+                              <div className="text-sm font-semibold text-gray-900">{dept.name}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {dept.created_at || dept.createdAt
-                            ? new Date(
-                                dept.created_at || dept.createdAt
-                              ).toLocaleDateString()
-                            : "-"}
+                          {dept.created_at || dept.createdAt ? new Date(dept.created_at || dept.createdAt).toLocaleDateString() : "-"}
                         </td>
                         {canManageDepartments && (
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => openEdit(dept)}
-                                className="px-2 py-1 text-blue-600 hover:text-blue-800 hover:underline"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => openDeleteConfirm(dept)}
-                                className="px-2 py-1 text-red-600 hover:text-red-800 hover:underline"
-                              >
-                                Delete
-                              </button>
+                              <button onClick={() => openEdit(dept)} className="px-2 py-1 text-blue-600 hover:text-blue-800 hover:underline">Edit</button>
+                              <button onClick={() => openDeleteConfirm(dept)} className="px-2 py-1 text-red-600 hover:text-red-800 hover:underline">Delete</button>
                             </div>
                           </td>
                         )}
@@ -537,23 +448,41 @@ export default function DepartmentListPage() {
                 </table>
               </div>
 
-              {/* Pagination */}
+              {/* Mobile Card View */}
+              <div className="lg:hidden divide-y divide-gray-200">
+                {currentPageItems.map((dept, index) => (
+                  <div key={dept.id} className="p-4 hover:bg-gray-50 transition">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                        {dept.name?.charAt(0)?.toUpperCase() || "D"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900">{dept.name}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Created: {dept.created_at || dept.createdAt ? new Date(dept.created_at || dept.createdAt).toLocaleDateString() : "-"}
+                        </p>
+                      </div>
+                    </div>
+                    {canManageDepartments && (
+                      <div className="flex gap-2 pt-3 border-t border-gray-200">
+                        <button onClick={() => openEdit(dept)} className="flex-1 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition">Edit</button>
+                        <button onClick={() => openDeleteConfirm(dept)} className="flex-1 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg font-medium transition">Delete</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
               {renderPagination()}
             </>
           )}
         </div>
       </div>
 
-      {/* Slide-over Edit Panel */}
       {editingDept && (
-        <EditDepartmentSlideOver
-          department={editingDept}
-          onClose={closeEdit}
-          onSave={handleSaveEdit}
-        />
+        <EditDepartmentSlideOver department={editingDept} onClose={closeEdit} onSave={handleSaveEdit} />
       )}
 
-      {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <DeleteConfirmModal
           title="Delete Department"
@@ -565,8 +494,6 @@ export default function DepartmentListPage() {
     </div>
   );
 }
-
-/* ================ Slide-over Component ================ */
 
 function EditDepartmentSlideOver({ department, onClose, onSave }) {
   const [name, setName] = useState(department.name || "");
@@ -592,43 +519,20 @@ function EditDepartmentSlideOver({ department, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-40 flex">
-      <div
-        className="fixed inset-0 bg-black bg-opacity-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black bg-opacity-40" onClick={onClose} />
       <div className="relative ml-auto h-full w-full max-w-md bg-white shadow-xl flex flex-col">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-800">
-            Edit Department
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-800"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+        <div className="px-4 sm:px-6 py-4 border-b flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-800">Edit Department</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
-        >
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Department Name *
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Department Name *</label>
             <input
               type="text"
               value={name}
@@ -639,20 +543,11 @@ function EditDepartmentSlideOver({ department, onClose, onSave }) {
           </div>
         </form>
 
-        <div className="px-6 py-4 border-t flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
+        <div className="px-4 sm:px-6 py-4 border-t flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-60"
-          >
+          <button type="button" onClick={handleSubmit} disabled={saving} className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-60">
             {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
@@ -661,31 +556,18 @@ function EditDepartmentSlideOver({ department, onClose, onSave }) {
   );
 }
 
-/* ================ Delete Confirm Modal ================ */
-
 function DeleteConfirmModal({ title, message, onCancel, onConfirm }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="fixed inset-0 bg-black bg-opacity-40"
-        onClick={onCancel}
-      />
-      <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-2">
-          {title || "Are you sure?"}
-        </h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black bg-opacity-40" onClick={onCancel} />
+      <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-4 sm:p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">{title || "Are you sure?"}</h3>
         <p className="text-sm text-gray-600 mb-6">{message}</p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-          >
+        <div className="flex flex-col sm:flex-row justify-end gap-3">
+          <button onClick={onCancel} className="w-full sm:w-auto px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
             Cancel
           </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-          >
+          <button onClick={onConfirm} className="w-full sm:w-auto px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700">
             Delete
           </button>
         </div>

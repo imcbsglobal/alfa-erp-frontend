@@ -17,7 +17,6 @@ import AddDepartmentPage from "../features/master/pages/AddDepartmentPage";
 
 import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
 import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
-import InvoicePickingPage from "../features/invoice/pages/InvoicePickingPage";
 import HistoryPage from "../features/history/pages/HistoryPage";
 import { useAuth } from "../features/auth/AuthContext";
 
@@ -71,7 +70,7 @@ export default function AppRouter() {
           {/* Picking */}
           <Route path="/ops/picking/invoices" element={<InvoiceListPage />} />
           <Route path="/ops/picking/invoices/view/:id" element={<InvoiceViewPage />} />
-          <Route path="/ops/picking/invoices/pick/:id" element={<InvoicePickingPage />} />
+          
 
           {/* Packing (future) */}
           {/* <Route path="/ops/packing/..." /> */}

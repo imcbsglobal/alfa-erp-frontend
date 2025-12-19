@@ -161,24 +161,24 @@ export default function SuperAdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white py-8 px-6">
+      <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white py-6 sm:py-8 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Admin Dashboard</h1>
           <p className="text-teal-50">Welcome back, {user?.name || 'Super Admin'}</p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {statCards.map((stat, index) => (
-            <div key={index} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div key={index} className="bg-white rounded-xl shadow-md p-4 sm:p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 text-sm font-medium">{stat.title}</p>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">{stat.value}</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-800 mt-2">{stat.value}</p>
                 </div>
-                <div className={`${stat.color} w-14 h-14 rounded-full flex items-center justify-center text-2xl`}>
+                <div className={`${stat.color} w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl sm:text-2xl`}>
                   {stat.icon}
                 </div>
               </div>
@@ -187,20 +187,20 @@ export default function SuperAdminDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Quick Actions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {quickActions.map((action, index) => (
               <button
                 key={index}
                 onClick={action.action}
-                className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all transform hover:-translate-y-1 text-left group"
+                className="bg-white rounded-xl shadow-md p-4 sm:p-6 hover:shadow-xl transition-all transform hover:-translate-y-1 text-left group"
               >
-                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center text-white mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
                   {action.icon}
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">{action.title}</h3>
-                <p className="text-gray-600 text-sm">{action.description}</p>
+                <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1 sm:mb-2">{action.title}</h3>
+                <p className="text-gray-600 text-xs sm:text-sm">{action.description}</p>
               </button>
             ))}
           </div>

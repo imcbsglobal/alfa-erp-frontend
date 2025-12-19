@@ -19,7 +19,6 @@ export default function AddJobTitlePage() {
   const [loading, setLoading] = useState(false);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
 
-  // Only SUPERADMIN / ADMIN should create job titles
   const canManageJobTitles =
     currentUser?.role === "SUPERADMIN" || currentUser?.role === "ADMIN";
 
@@ -90,7 +89,6 @@ export default function AddJobTitlePage() {
         department_id: "",
       });
 
-      // Optional: go back to list
       navigate("/master/job-title");
     } catch (error) {
       console.error("Create job title error:", error);
@@ -113,25 +111,24 @@ export default function AddJobTitlePage() {
   };
 
   if (!canManageJobTitles) {
-    // Prevent flicker while useEffect redirects
     return null;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Add Job Title</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Add Job Title</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
               Create a new job title for Alfa Agencies
             </p>
           </div>
 
           <button
             onClick={() => navigate("/master/job-title")}
-            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition"
+            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition"
           >
             <svg
               className="w-5 h-5"
@@ -152,7 +149,7 @@ export default function AddJobTitlePage() {
 
         {/* General Error */}
         {errors.general && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl flex items-start gap-3">
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 sm:px-6 py-4 rounded-xl flex items-start gap-3">
             <svg
               className="w-6 h-6 flex-shrink-0 mt-0.5"
               fill="currentColor"
@@ -172,7 +169,7 @@ export default function AddJobTitlePage() {
         )}
 
         {/* Form Card */}
-        <div className="bg-white rounded-xl shadow-md p-8">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 lg:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Job Title */}
             <div>
@@ -233,10 +230,10 @@ export default function AddJobTitlePage() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Loading departments...
+                  <span className="text-sm">Loading departments...</span>
                 </div>
               ) : departments.length === 0 ? (
-                <div className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-yellow-50 text-yellow-700">
+                <div className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-yellow-50 text-yellow-700 text-sm">
                   No departments available. Please add departments first.
                 </div>
               ) : (
@@ -275,18 +272,18 @@ export default function AddJobTitlePage() {
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
               <button
                 type="button"
                 onClick={handleReset}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
+                className="w-full sm:flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
               >
                 Reset Form
               </button>
               <button
                 type="submit"
                 disabled={loading || loadingDepartments || departments.length === 0}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full sm:flex-1 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>

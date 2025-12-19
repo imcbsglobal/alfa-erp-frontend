@@ -37,7 +37,7 @@ export default function PickStatusBadge({ status, pickedBy }) {
   }
 
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${bg} ${text}`}>
+    <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold ${bg} ${text} whitespace-nowrap`}>
       {label}
     </span>
   );

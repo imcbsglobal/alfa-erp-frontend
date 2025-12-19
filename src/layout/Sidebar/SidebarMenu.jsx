@@ -13,13 +13,15 @@ export function SidebarMenu({
   const buttonRef = useRef(null);
 
   const handleMouseEnter = () => {
-    if (!sidebarOpen && menu.type === "dropdown") {
+    // Only trigger on desktop when sidebar is collapsed
+    if (window.innerWidth >= 1024 && !sidebarOpen && menu.type === "dropdown") {
       onToggle(menu.id);
     }
   };
 
   const handleMouseLeave = () => {
-    if (!sidebarOpen && menu.type === "dropdown") {
+    // Only trigger on desktop when sidebar is collapsed
+    if (window.innerWidth >= 1024 && !sidebarOpen && menu.type === "dropdown") {
       onToggle(null);
     }
   };
@@ -54,16 +56,16 @@ export function SidebarMenu({
         type="button"
         id={`menu-${menu.id}`}
         onClick={handleClick}
-        className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
+        className={`w-full flex items-center gap-3 px-3 py-2.5 sm:py-3 rounded-lg transition-all ${
           isMenuActive
             ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
             : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
-        } ${!sidebarOpen && "justify-center"}`}
+        } ${!sidebarOpen && "lg:justify-center"}`}
       >
         <menu.icon className="w-5 h-5 flex-shrink-0" />
         {sidebarOpen && (
           <>
-            <span className="font-medium flex-1 text-left">{menu.label}</span>
+            <span className="font-medium flex-1 text-left text-sm sm:text-base">{menu.label}</span>
             {menu.type === "dropdown" && (
               <ChevronDownIcon
                 className={`w-4 h-4 transition-transform duration-200 ${
@@ -75,9 +77,9 @@ export function SidebarMenu({
         )}
       </button>
 
-      {/* Submenu - Expanded Sidebar */}
+      {/* Submenu - Expanded Sidebar (Mobile & Desktop) */}
       {menu.type === "dropdown" && sidebarOpen && isOpen && (
-        <div className="mt-1 space-y-1 pl-4">
+        <div className="mt-1 space-y-1 pl-3 sm:pl-4">
           {menu.submenu.map((item, index) => (
             <button
               key={index}
@@ -88,7 +90,7 @@ export function SidebarMenu({
                 onNavigate(item.path);
                 onToggle(null);
               }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-sm transition-all ${
+              className={`flex items-center gap-3 px-3 py-2 sm:py-2.5 rounded-lg w-full text-xs sm:text-sm transition-all ${
                 location.pathname === item.path
                   ? "bg-teal-50 text-teal-700 font-medium shadow-sm"
                   : "text-gray-700 hover:bg-teal-50 hover:text-teal-700 hover:border-l-4 hover:border-teal-500"
@@ -101,7 +103,7 @@ export function SidebarMenu({
         </div>
       )}
 
-      {/* Submenu - Collapsed Sidebar (Flyout) */}
+      {/* Submenu - Collapsed Sidebar (Desktop only - Flyout) */}
       {menu.type === "dropdown" && !sidebarOpen && isOpen && (
         <div
           style={{
@@ -111,7 +113,7 @@ export function SidebarMenu({
             zIndex: 2000,
             minWidth: "240px",
           }}
-          className="bg-white border border-gray-200 shadow-2xl rounded-lg py-2 ml-2"
+          className="hidden lg:block bg-white border border-gray-200 shadow-2xl rounded-lg py-2 ml-2"
         >
           <div className="px-3 py-2 border-b border-gray-100">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">

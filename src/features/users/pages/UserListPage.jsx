@@ -69,7 +69,6 @@ export default function UserListPage() {
     try {
       const response = await getUsers();
 
-      // YOUR REAL DATA STRUCTURE
       const apiData = response?.data?.data;
       const userList = Array.isArray(apiData?.results) ? apiData.results : [];
 
@@ -118,7 +117,7 @@ export default function UserListPage() {
     }
 
     setFilteredUsers(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   }, [users, searchTerm, filterRole, filterStatus, filterJobTitle]);
 
   // Calculate pagination
@@ -226,26 +225,26 @@ export default function UserListPage() {
     }
 
     return (
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+      <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-200">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Info */}
-          <div className="text-sm text-gray-600">
+          <div className="text-xs sm:text-sm text-gray-600">
             Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredUsers.length)} of {filteredUsers.length} users
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
             {/* Previous Button */}
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
                 currentPage === 1
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
@@ -255,11 +254,11 @@ export default function UserListPage() {
               <>
                 <button
                   onClick={() => handlePageChange(1)}
-                  className="px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all"
+                  className="px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all text-sm"
                 >
                   1
                 </button>
-                {startPage > 2 && <span className="text-gray-400">...</span>}
+                {startPage > 2 && <span className="text-gray-400 text-sm">...</span>}
               </>
             )}
 
@@ -268,7 +267,7 @@ export default function UserListPage() {
               <button
                 key={number}
                 onClick={() => handlePageChange(number)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm ${
                   currentPage === number
                     ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
                     : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
@@ -281,10 +280,10 @@ export default function UserListPage() {
             {/* Last Page */}
             {endPage < totalPages && (
               <>
-                {endPage < totalPages - 1 && <span className="text-gray-400">...</span>}
+                {endPage < totalPages - 1 && <span className="text-gray-400 text-sm">...</span>}
                 <button
                   onClick={() => handlePageChange(totalPages)}
-                  className="px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all"
+                  className="px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all text-sm"
                 >
                   {totalPages}
                 </button>
@@ -295,13 +294,13 @@ export default function UserListPage() {
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
                 currentPage === totalPages
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -313,14 +312,14 @@ export default function UserListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
               User Management
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Manage admins and users for Alfa Agencies
             </p>
           </div>
@@ -328,7 +327,7 @@ export default function UserListPage() {
           {canAddUsers && (
             <button
               onClick={handleNavigateToAddUser}
-              className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+              className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
             >
               <svg
                 className="w-5 h-5"
@@ -349,15 +348,15 @@ export default function UserListPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-teal-500">
-            <p className="text-sm text-gray-600 mb-1">Total Users</p>
-            <p className="text-3xl font-bold text-gray-800">{users.length}</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-teal-500">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Total Users</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-800">{users.length}</p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-            <p className="text-sm text-gray-600 mb-1">Admins</p>
-            <p className="text-3xl font-bold text-gray-800">
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-purple-500">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Admins</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-800">
               {
                 users.filter(
                   (u) => u.role === "ADMIN" || u.role === "SUPERADMIN"
@@ -366,31 +365,31 @@ export default function UserListPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
-            <p className="text-sm text-gray-600 mb-1">Active</p>
-            <p className="text-3xl font-bold text-gray-800">
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-green-500">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Active</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-800">
               {users.filter((u) => u.is_active === true).length}
             </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-gray-400">
-            <p className="text-sm text-gray-600 mb-1">Inactive</p>
-            <p className="text-3xl font-bold text-gray-800">
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-gray-400">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Inactive</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-800">
               {users.filter((u) => u.is_active === false).length}
             </p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="relative">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search users"
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
               />
               <span className="absolute left-3 top-2.5 text-gray-400">
                 <svg
@@ -412,7 +411,7 @@ export default function UserListPage() {
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
             >
               <option value="ALL">All Roles</option>
               <option value="SUPERADMIN">Super Admin</option>
@@ -423,7 +422,7 @@ export default function UserListPage() {
             <select
               value={filterJobTitle}
               onChange={(e) => setFilterJobTitle(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
             >
               <option value="ALL">All Job Titles</option>
               {jobTitles.map((jobTitle) => (
@@ -436,7 +435,7 @@ export default function UserListPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">Active</option>
@@ -473,7 +472,7 @@ export default function UserListPage() {
               </div>
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-20">
+            <div className="text-center py-20 px-4">
               <svg
                 className="w-16 h-16 text-gray-300 mx-auto mb-4"
                 fill="none"
@@ -496,7 +495,8 @@ export default function UserListPage() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
@@ -593,6 +593,65 @@ export default function UserListPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="lg:hidden divide-y divide-gray-200">
+                {currentItems.map((user) => (
+                  <div key={user.id} className="p-4 hover:bg-gray-50 transition">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
+                        {user.avatar ? (
+                          <img
+                            src={user.avatar}
+                            className="w-full h-full object-cover"
+                            alt=""
+                          />
+                        ) : (
+                          user.name?.charAt(0)?.toUpperCase()
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{user.name?.toUpperCase()}</p>
+                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <span className={`px-2 py-1 rounded-full border text-xs font-bold ${getRoleBadgeColor(user.role)}`}>
+                            {user.role}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(user.is_active ? "ACTIVE" : "INACTIVE")}`}>
+                            {user.is_active ? "ACTIVE" : "INACTIVE"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm mb-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Job Title:</span>
+                        <span className="font-medium">{user.job_title_name || "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Created By:</span>
+                        <span className="font-medium">{user.created_by || "-"}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-3 border-t border-gray-200">
+                      <button
+                        onClick={() => handleEditUser(user.id)}
+                        className="flex-1 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="flex-1 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg font-medium transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* Pagination */}
