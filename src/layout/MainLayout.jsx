@@ -121,7 +121,10 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden" style={{ position: "relative", isolation: "isolate" }}>
+    <div
+      className="h-screen bg-gray-50 flex overflow-hidden"
+      style={{ position: "relative" }}
+    >
       <Sidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -135,9 +138,10 @@ export default function MainLayout() {
       <main
         className="flex-1 bg-gray-50 transition-all duration-300 w-full"
         style={{
-          marginLeft: window.innerWidth >= 1024 ? (sidebarOpen ? "16rem" : "5rem") : 0,
+          marginLeft: window.innerWidth >= 1024
+            ? (sidebarOpen ? "16rem" : "5rem")
+            : 0,
           position: "relative",
-          zIndex: 1,
         }}
       >
         <header
@@ -221,7 +225,7 @@ export default function MainLayout() {
           </div>
         </header>
 
-        <div className="pt-14 sm:pt-16 p-3 sm:p-6 h-full overflow-y-auto">
+        <div className="pt-16 sm:pt-20 p-3 sm:p-6 h-full overflow-y-auto">
           <ToastProvider />
           <Outlet />
         </div>

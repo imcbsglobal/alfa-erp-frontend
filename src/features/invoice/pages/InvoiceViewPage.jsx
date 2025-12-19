@@ -73,24 +73,22 @@ export default function InvoiceViewPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
         
-        {/* Back Button */}
-        <div className="mb-4 flex justify-end">
-          <button
-            onClick={handleBack}
-            className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"
-          >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back
-          </button>
-        </div>
-
-        {/* Header */}
-        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg px-4 sm:px-8 py-4 sm:py-5 mb-4">
-          <h1 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">Invoice Management</h1>
+        {/* Header with Back Button */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Invoice Management</h1>
+            <button
+              onClick={handleBack}
+              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back
+            </button>
+          </div>
         </div>
 
         {/* Mobile View */}

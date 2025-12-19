@@ -8,7 +8,7 @@ import {
 } from "../../../services/accessControl";
 import toast from "react-hot-toast";
 
-// Simple SVG icon components
+// Icon components
 const HomeIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -53,24 +53,24 @@ const ListIcon = ({ className }) => (
 );
 
 const permissionIcons = {
-  dashboard: <HomeIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  users: <UsersIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  user_management: <UsersIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  user_list: <UsersIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  user_control: <CogIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  invoice: <FileTextIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  invoice_list: <ListIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  master: <TuneOutlinedIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  job_title: <BriefcaseIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  department: <BuildingIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
-  default: <CogIcon className="w-5 h-5 sm:w-6 sm:h-6" />,
+  dashboard: <HomeIcon className="w-4 h-4" />,
+  users: <UsersIcon className="w-4 h-4" />,
+  user_management: <UsersIcon className="w-4 h-4" />,
+  user_list: <UsersIcon className="w-4 h-4" />,
+  user_control: <CogIcon className="w-4 h-4" />,
+  invoice: <FileTextIcon className="w-4 h-4" />,
+  invoice_list: <ListIcon className="w-4 h-4" />,
+  master: <TuneOutlinedIcon className="w-4 h-4" />,
+  job_title: <BriefcaseIcon className="w-4 h-4" />,
+  department: <BuildingIcon className="w-4 h-4" />,
+  default: <CogIcon className="w-4 h-4" />,
 };
 
 export default function UserControlPage() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [availableMenus, setAvailableMenus] = useState([]);
   const [userPermissions, setUserPermissions] = useState({});
@@ -132,7 +132,7 @@ export default function UserControlPage() {
       ...prev,
       [menuId]: !prev[menuId]
     }));
-  };  
+  };
 
   const toggleExpand = (menuId) => {
     setExpandedMenus(prev => ({
@@ -141,16 +141,9 @@ export default function UserControlPage() {
     }));
   };
 
+  // Keep all menus collapsed by default
   useEffect(() => {
-    if (availableMenus.length > 0) {
-      const expanded = {};
-      availableMenus.forEach(menu => {
-        if (menu.children?.length > 0) {
-          expanded[menu.id] = true;
-        }
-      });
-      setExpandedMenus(expanded);
-    }
+    setExpandedMenus({});
   }, [availableMenus]);
 
   const handleSavePermissions = async () => {
@@ -188,72 +181,62 @@ export default function UserControlPage() {
     return name.toLowerCase().includes(searchLower) || email.toLowerCase().includes(searchLower);
   });
 
-  const getEnabledCount = () => Object.values(userPermissions).filter(Boolean).length;
-
   const MenuItem = ({ menu, level = 0 }) => {
     const enabled = !!userPermissions[menu.id];
     const hasChildren = menu.children?.length > 0;
     const isExpanded = expandedMenus[menu.id];
 
     return (
-      <div className="mb-2">
+      <div className="border-b border-gray-100 last:border-0">
         <div
-          style={{ marginLeft: level * 16 }}
-          className={`flex items-center gap-2 p-2 sm:p-3 rounded-lg border transition-all ${
-            enabled
-              ? "border-teal-500 bg-gradient-to-r from-teal-50 to-cyan-50 shadow-sm"
-              : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+          style={{ paddingLeft: level * 24 + 12 }}
+          className={`flex items-center gap-2 py-1.5 pr-3 hover:bg-gray-50 transition-colors ${
+            enabled ? "bg-teal-50/50" : ""
           }`}
         >
           {hasChildren ? (
             <button
               onClick={() => toggleExpand(menu.id)}
-              className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+              className="p-0.5 hover:bg-gray-200 rounded transition-colors"
             >
               <svg
-                className={`w-4 h-4 text-gray-600 transition-transform ${
+                className={`w-3.5 h-3.5 text-gray-500 transition-transform ${
                   isExpanded ? "rotate-90" : ""
                 }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           ) : (
-            <div className="w-6" />
+            <div className="w-4" />
           )}
+
+          <div className={`${enabled ? "text-teal-600" : "text-gray-400"}`}>
+            {permissionIcons[menu.code] || permissionIcons.default}
+          </div>
 
           <button
             onClick={() => togglePermission(menu.id)}
-            className="flex-1 flex justify-between items-center min-w-0"
+            className="flex-1 flex items-center justify-between min-w-0"
           >
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <div className={`flex-shrink-0 ${enabled ? "text-teal-600" : "text-gray-400"}`}>
-                {permissionIcons[menu.code] || permissionIcons.default}
-              </div>
-              <div className="text-left min-w-0 flex-1">
-                <span className="font-medium block text-xs sm:text-sm truncate">{menu.name}</span>
-                <span className="text-xs text-gray-500 truncate block">{menu.code}</span>
-              </div>
+            <span className="text-sm font-medium text-gray-700 truncate">{menu.name}</span>
+            
+            <div className="flex-shrink-0 ml-2">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={() => {}}
+                className="w-4 h-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500"
+              />
             </div>
-
-            {enabled && (
-              <svg
-                className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600 flex-shrink-0 ml-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
           </button>
         </div>
 
         {hasChildren && isExpanded && (
-          <div className="mt-2">
+          <div>
             {menu.children.map((child) => (
               <MenuItem key={child.id} menu={child} level={level + 1} />
             ))}
@@ -264,226 +247,221 @@ export default function UserControlPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 sm:mb-5">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-            User Access Control
-          </h1>
-        </div>
+    <div className="h-screen bg-gray-50 flex flex-col">
+      {/* Compact Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-2 flex-shrink-0">
+        <h1 className="text-xl font-bold text-gray-800">User Access Control</h1>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* User List */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span>Select User</span>
-                <span className="bg-teal-100 text-teal-700 text-xs font-bold px-2 py-1 rounded-full">
-                  {filteredUsers.length}
-                </span>
-              </h2>
-
-              {/* Search */}
-              <div className="relative mb-4">
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm"
-                />
-                <svg
-                  className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-
-              {/* User List */}
-              <div className="space-y-1 max-h-[400px] sm:max-h-[500px] overflow-y-auto pr-2">
-                {loading ? (
-                  <p className="text-center text-gray-500 py-8 text-sm">Loading users...</p>
-                ) : filteredUsers.length === 0 ? (
-                  <div className="text-center py-8">
-                    <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    <p className="text-gray-500 font-medium text-sm">No users found</p>
-                    <p className="text-xs sm:text-sm text-gray-400 mt-1">Create users in the Add User page</p>
-                  </div>
-                ) : (
-                  filteredUsers.map((u) => {
-                    const userName = u.name || u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || "Unknown User";
-                    const userInitial = userName.charAt(0).toUpperCase();
-
-                    return (
-                      <button
-                        key={u.id}
-                        onClick={() => handleUserSelect(u)}
-                        className={`w-full text-left p-3 sm:p-4 rounded-lg transition-all ${
-                          selectedUser?.id === u.id
-                            ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
-                            : "bg-gray-50 hover:bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <div
-                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 ${
-                              selectedUser?.id === u.id
-                                ? "bg-white/20"
-                                : u.role === "ADMIN"
-                                ? "bg-gradient-to-br from-purple-400 to-purple-500"
-                                : "bg-gradient-to-br from-teal-400 to-cyan-500"
-                            } flex items-center justify-center text-white font-semibold text-sm sm:text-base`}
-                          >
-                            {userInitial}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold truncate text-sm sm:text-base">{userName}</p>
-                              <span
-                                className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
-                                  selectedUser?.id === u.id
-                                    ? "bg-white/20"
-                                    : u.role === "ADMIN"
-                                    ? "bg-purple-100 text-purple-700"
-                                    : "bg-teal-100 text-teal-700"
-                                }`}
-                              >
-                                {u.role}
-                              </span>
-                            </div>
-                            <p className={`text-xs sm:text-sm truncate ${selectedUser?.id === u.id ? "text-teal-100" : "text-gray-500"}`}>
-                              {u.email}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Compact User List - Fixed Width Sidebar */}
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-gray-700">Users</h2>
+              <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
+                {filteredUsers.length}
+              </span>
+            </div>
+            
+            {/* Compact Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:outline-none"
+              />
+              <svg
+                className="absolute left-2.5 top-2 h-4 w-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </div>
           </div>
 
-          {/* Permissions Panel */}
-          <div className="lg:col-span-2">
-            {!selectedUser ? (
-              <div className="bg-white rounded-xl shadow-md p-8 sm:p-12 text-center">
-                <svg className="w-16 h-16 sm:w-24 sm:h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          {/* User List */}
+          <div className="flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <svg className="w-8 h-8 animate-spin text-teal-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Select a User</h3>
-                <p className="text-sm sm:text-base text-gray-600">
-                  Choose a user from the list to manage their menu access and permissions
-                </p>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-12">
+                <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <p className="text-gray-500 font-medium text-sm">No users found</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-md">
-                {/* Selected User Header */}
-                <div className="border-b border-gray-200 p-4 sm:p-6">
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+              filteredUsers.map((u) => {
+                const userInitial = (u.name || u.full_name || u.email || "U").charAt(0).toUpperCase();
+                const isSelected = selectedUser?.id === u.id;
+
+                return (
+                  <button
+                    key={u.id}
+                    onClick={() => handleUserSelect(u)}
+                    className={`w-full text-left px-4 py-2.5 border-b border-gray-100 transition-colors ${
+                      isSelected
+                        ? "bg-teal-50 border-l-4 border-l-teal-600"
+                        : "hover:bg-gray-50 border-l-4 border-l-transparent"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
                       <div
-                        className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex-shrink-0 ${
-                          selectedUser.role === "ADMIN"
-                            ? "bg-gradient-to-br from-purple-400 to-purple-500"
-                            : "bg-gradient-to-br from-teal-400 to-cyan-500"
-                        } flex items-center justify-center text-white text-lg sm:text-2xl font-bold shadow-md`}
+                        className={`w-8 h-8 rounded-full flex-shrink-0 ${
+                          u.role === "ADMIN"
+                            ? "bg-purple-500"
+                            : "bg-teal-500"
+                        } flex items-center justify-center text-white font-semibold text-xs`}
                       >
-                        {(selectedUser.name || selectedUser.full_name || selectedUser.email || "U").charAt(0).toUpperCase()}
+                        {userInitial}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h2 className="text-lg sm:text-2xl font-bold text-gray-800 truncate">
-                            {selectedUser.name || selectedUser.full_name || `${selectedUser.first_name || ""} ${selectedUser.last_name || ""}`.trim() || "Unknown User"}
-                          </h2>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm truncate text-gray-800">
+                            {u.name || u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || "Unknown User"}
+                          </p>
                           <span
-                            className={`text-xs px-3 py-1 rounded-full font-semibold flex-shrink-0 ${
-                              selectedUser.role === "ADMIN"
+                            className={`text-xs px-1.5 py-0.5 rounded ${
+                              u.role === "ADMIN"
                                 ? "bg-purple-100 text-purple-700"
-                                : "bg-teal-100 text-teal-700"
+                                : u.role === "PICKER"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-gray-100 text-gray-700"
                             }`}
                           >
-                            {selectedUser.role}
+                            {u.role}
                           </span>
                         </div>
-                        <p className="text-sm sm:text-base text-gray-600 truncate">{selectedUser.email}</p>
+                        <p className="text-xs text-gray-500 truncate">{u.email}</p>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
 
-                {/* Permissions List */}
-                <div className="p-4 sm:p-6">
-                  {/* Select All/Deselect All */}
-                  <div className="flex gap-2 sm:gap-3 mb-4">
+        {/* Permissions Panel */}
+        <div className="flex-1 flex flex-col bg-white">
+          {!selectedUser ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <svg className="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Select a User</h3>
+                <p className="text-sm text-gray-500">Choose a user to manage permissions</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Selected User Header - Compact */}
+              <div className="border-b border-gray-200 px-6 py-2 bg-gray-50 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex-shrink-0 ${
+                        selectedUser.role === "ADMIN"
+                          ? "bg-purple-500"
+                          : "bg-teal-500"
+                      } flex items-center justify-center text-white text-lg font-bold`}
+                    >
+                      {(selectedUser.name || selectedUser.full_name || selectedUser.email || "U").charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-bold text-gray-800">
+                          {selectedUser.name || selectedUser.full_name || `${selectedUser.first_name || ""} ${selectedUser.last_name || ""}`.trim() || "Unknown User"}
+                        </h2>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded font-medium ${
+                            selectedUser.role === "ADMIN"
+                              ? "bg-purple-100 text-purple-700"
+                              : selectedUser.role === "PICKER"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {selectedUser.role}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">{selectedUser.email}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Actions */}
+                  <div className="flex gap-2">
                     <button
                       onClick={() => {
                         const updates = {};
                         const walk = (menus) => {
                           menus.forEach((m) => {
                             updates[m.id] = true;
-                            if (m.children?.length) {
-                              walk(m.children);
-                            }
+                            if (m.children?.length) walk(m.children);
                           });
                         };
                         walk(availableMenus);
                         setUserPermissions(updates);
                       }}
-                      className="flex-1 py-2 px-3 sm:px-4 bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200 transition-colors font-medium text-xs sm:text-sm"
+                      className="px-3 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 rounded hover:bg-teal-100 transition-colors"
                     >
                       Select All
                     </button>
                     <button
                       onClick={() => setUserPermissions({})}
-                      className="flex-1 py-2 px-3 sm:px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs sm:text-sm"
+                      className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
                     >
-                      Deselect All
+                      Clear All
                     </button>
                   </div>
-
-                  {/* Menu List */}
-                  <div className="space-y-2 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
-                    {availableMenus.map(menu => (
-                      <MenuItem key={menu.id} menu={menu} />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Save Button */}
-                <div className="border-t border-gray-200 p-4 sm:p-6">
-                  <button
-                    onClick={handleSavePermissions}
-                    disabled={saveLoading}
-                    className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition-all font-semibold disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
-                  >
-                    {saveLoading ? (
-                      <>
-                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Save Permissions
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Permissions List - Compact Table Style */}
+              <div className="flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+                {availableMenus.map(menu => (
+                  <MenuItem key={menu.id} menu={menu} />
+                ))}
+              </div>
+
+              {/* Save Button - Fixed at Bottom */}
+              <div className="border-t border-gray-200 px-6 py-2 bg-gray-50 flex-shrink-0">
+                <button
+                  onClick={handleSavePermissions}
+                  disabled={saveLoading}
+                  className="w-full py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-md hover:bg-teal-700 transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saveLoading ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Save Permissions
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -212,7 +212,7 @@ export default function PackingInvoiceListPage() {
   };
 
   const handleViewInvoice = (id) => {
-    navigate(`/ops/packing/invoices/view/${id}`);
+    navigate(`view/${id}`);
   };
 
   const getStatusBadgeColor = (status) => {
@@ -258,7 +258,7 @@ export default function PackingInvoiceListPage() {
               className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
                 currentPage === 1
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300"
+                  : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
               }`}
             >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,7 +270,7 @@ export default function PackingInvoiceListPage() {
               <>
                 <button
                   onClick={() => handlePageChange(1)}
-                  className="hidden sm:block px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300 transition-all text-sm"
+                  className="hidden sm:block px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all text-sm"
                 >
                   1
                 </button>
@@ -284,8 +284,8 @@ export default function PackingInvoiceListPage() {
                 onClick={() => handlePageChange(number)}
                 className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm ${
                   currentPage === number
-                    ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md"
-                    : "bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300"
+                    ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
+                    : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
                 }`}
               >
                 {number}
@@ -297,7 +297,7 @@ export default function PackingInvoiceListPage() {
                 {endPage < totalPages - 1 && <span className="hidden sm:inline text-gray-400">...</span>}
                 <button
                   onClick={() => handlePageChange(totalPages)}
-                  className="hidden sm:block px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300 transition-all text-sm"
+                  className="hidden sm:block px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300 transition-all text-sm"
                 >
                   {totalPages}
                 </button>
@@ -310,7 +310,7 @@ export default function PackingInvoiceListPage() {
               className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
                 currentPage === totalPages
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300"
+                  : "bg-white text-gray-700 hover:bg-teal-50 hover:text-teal-600 border border-gray-300"
               }`}
             >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -362,7 +362,7 @@ export default function PackingInvoiceListPage() {
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
-                <svg className="animate-spin h-10 w-10 text-purple-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin h-10 w-10 text-teal-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -465,7 +465,7 @@ export default function PackingInvoiceListPage() {
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
-                <svg className="animate-spin h-10 w-10 text-purple-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin h-10 w-10 text-teal-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -528,7 +528,7 @@ export default function PackingInvoiceListPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handlePackClick(invoice)}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-purple-600 hover:to-indigo-700 transition-all text-sm"
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -538,7 +538,7 @@ export default function PackingInvoiceListPage() {
                       
                       <button
                         onClick={() => handleViewInvoice(invoice.id)}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-purple-600 hover:to-indigo-700 transition-all text-sm"
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -623,7 +623,7 @@ export default function PackingInvoiceListPage() {
                           const packedItems = task.invoice?.items?.filter(item => item.packed)?.length || 0;
                           
                           return (
-                            <tr key={index} className="hover:bg-purple-50 transition">
+                            <tr key={index} className="hover:bg-teal-50 transition">
                               <td className="px-4 py-4">
                                 <p className="font-semibold text-gray-800">{task.invoice_no}</p>
                               </td>
@@ -643,7 +643,7 @@ export default function PackingInvoiceListPage() {
                                 <div className="flex items-center gap-3">
                                   <div className="flex-1 bg-gray-200 rounded-full h-2.5">
                                     <div 
-                                      className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                                      className="bg-gradient-to-r from-teal-500 to-cyan-600 h-2.5 rounded-full transition-all"
                                       style={{ width: `${progress}%` }}
                                     ></div>
                                   </div>
@@ -669,13 +669,13 @@ export default function PackingInvoiceListPage() {
                       const packedItems = task.invoice?.items?.filter(item => item.packed)?.length || 0;
                       
                       return (
-                        <div key={index} className="bg-white rounded-lg border-2 border-purple-200 p-4 shadow-sm">
+                        <div key={index} className="bg-white rounded-lg border-2 border-teal-200 p-4 shadow-sm">
                           <div className="flex items-start justify-between mb-3">
                             <div>
                               <p className="font-bold text-gray-900 mb-1">{task.invoice_no}</p>
                               <p className="text-xs text-gray-500">{task?.invoice_date || "N/A"}</p>
                             </div>
-                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
+                            <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs font-bold">
                               {progress}%
                             </span>
                           </div>
@@ -700,7 +700,7 @@ export default function PackingInvoiceListPage() {
                           <div className="space-y-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2.5">
                               <div 
-                                className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                                className="bg-gradient-to-r from-teal-500 to-cyan-600 h-2.5 rounded-full transition-all"
                                 style={{ width: `${progress}%` }}
                               ></div>
                             </div>

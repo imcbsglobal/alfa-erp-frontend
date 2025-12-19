@@ -29,9 +29,16 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+ return (
+    <div 
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4"
+      onClick={onClose}
+      style={{ zIndex: 10000 }}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-3 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -64,6 +71,39 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
             </div>
           ) : invoice ? (
             <div className="p-3 sm:p-6 space-y-3 sm:space-y-4">
+              {/* Workflow Status (if available) */}
+              {(invoice.picking_status || invoice.packing_status || invoice.delivery_status) && (
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
+                    <h3 className="text-xs sm:text-sm font-bold text-teal-600 mb-2 sm:mb-3 uppercase tracking-wide">
+                        Picking Timeline
+                    </h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                        <div>
+                        <p className="text-xs text-gray-500 mb-1">Started</p>
+                        <p className="font-semibold text-xs sm:text-sm text-gray-800">
+                            {new Date(invoice.start_time).toLocaleString()}
+                        </p>
+                        </div>
+
+                        <div>
+                        <p className="text-xs text-gray-500 mb-1">Ended</p>
+                        <p className="font-semibold text-xs sm:text-sm text-gray-800">
+                            {invoice.end_time
+                            ? new Date(invoice.end_time).toLocaleString()
+                            : "In Progress"}
+                        </p>
+                        </div>
+
+                        <div>
+                        <p className="text-xs text-gray-500 mb-1">Duration (mins)</p>
+                        <p className="font-semibold text-xs sm:text-sm text-gray-800">
+                            {invoice.duration ?? "—"}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+              )}
               {/* Invoice and Customer Information */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                 <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
@@ -159,40 +199,6 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                   </div>
                 </div>
               </div>
-
-              {/* Workflow Status (if available) */}
-              {(invoice.picking_status || invoice.packing_status || invoice.delivery_status) && (
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                    <h3 className="text-xs sm:text-sm font-bold text-teal-600 mb-2 sm:mb-3 uppercase tracking-wide">
-                        Picking Timeline
-                    </h3>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                        <div>
-                        <p className="text-xs text-gray-500 mb-1">Started</p>
-                        <p className="font-semibold text-xs sm:text-sm text-gray-800">
-                            {new Date(invoice.start_time).toLocaleString()}
-                        </p>
-                        </div>
-
-                        <div>
-                        <p className="text-xs text-gray-500 mb-1">Ended</p>
-                        <p className="font-semibold text-xs sm:text-sm text-gray-800">
-                            {invoice.end_time
-                            ? new Date(invoice.end_time).toLocaleString()
-                            : "In Progress"}
-                        </p>
-                        </div>
-
-                        <div>
-                        <p className="text-xs text-gray-500 mb-1">Duration (mins)</p>
-                        <p className="font-semibold text-xs sm:text-sm text-gray-800">
-                            {invoice.duration ?? "—"}
-                        </p>
-                        </div>
-                    </div>
-                    </div>
-              )}
             </div>
           ) : (
             <div className="text-center py-12 text-gray-500">

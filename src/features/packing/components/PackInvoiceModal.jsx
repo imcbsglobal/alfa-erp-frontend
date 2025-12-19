@@ -49,9 +49,9 @@ export default function PackInvoiceModal({
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
+        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 sm:px-6 py-3 sm:py-4 rounded-t-xl">
           <h2 className="text-lg sm:text-xl font-bold text-white">{title}</h2>
-          <p className="text-purple-50 text-xs sm:text-sm mt-1">
+          <p className="text-teal-50 text-xs sm:text-sm mt-1">
             Invoice: <span className="font-semibold">{invoiceNumber}</span>
           </p>
         </div>
@@ -70,7 +70,7 @@ export default function PackInvoiceModal({
               }}
               onKeyDown={handleKeyDown}
               placeholder="employee@company.com"
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
               disabled={loading}
               autoFocus
             />
@@ -99,7 +99,7 @@ export default function PackInvoiceModal({
             </button>
             <button
               type="submit"
-              className="w-full sm:flex-1 px-4 py-2.5 sm:py-3 text-sm sm:text-base bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-indigo-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full sm:flex-1 px-4 py-2.5 sm:py-3 text-sm sm:text-base bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-600 hover:to-cyan-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               disabled={loading || !employeeEmail.trim()}
             >
               {loading ? (

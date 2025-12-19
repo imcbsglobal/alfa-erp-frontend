@@ -2,11 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
-import toast from "react-hot-toast";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
-export default function PackingInvoiceViewPage() {
+export default function InvoiceViewPage() {
   const { user } = useAuth();
+
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -16,32 +15,7 @@ export default function PackingInvoiceViewPage() {
 
   useEffect(() => {
     loadInvoice();
-  }, [id]);
-
-  // SSE for real-time updates
-  useEffect(() => {
-    if (!id) return;
-    
-    const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
-
-    eventSource.onmessage = (event) => {
-      try {
-        const updatedInvoice = JSON.parse(event.data);
-        if (updatedInvoice.id === parseInt(id)) {
-          setInvoice(updatedInvoice);
-        }
-      } catch (e) {
-        console.error("Invalid SSE invoice:", e);
-      }
-    };
-
-    eventSource.onerror = () => {
-      console.error("SSE connection lost");
-      eventSource.close();
-    };
-
-    return () => eventSource.close();
-  }, [id]);
+  }, []);
 
   const loadInvoice = async () => {
     setLoading(true);
@@ -50,14 +24,21 @@ export default function PackingInvoiceViewPage() {
       setInvoice(res.data);
     } catch (err) {
       console.error("Failed to load invoice:", err);
-      toast.error("Failed to load invoice");
     } finally {
       setLoading(false);
     }
   };
 
   const handleBack = () => {
-    navigate("/ops/packing/invoices");
+    if(user?.role=="PICKER"){
+      navigate(`/ops/picking/invoices/`);
+      return;
+    }
+    if(user?.role=="PACKER"){
+      navigate(`/ops/packing/invoices/`);
+      return;
+    }
+    navigate("/packing/invoices");
   };
 
   // Pagination
@@ -73,24 +54,11 @@ export default function PackingInvoiceViewPage() {
     setCurrentPage(1);
   };
 
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case "PICKED":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "PACKING":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      case "PACKED":
-        return "bg-indigo-100 text-indigo-700 border-indigo-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-screen">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-4 border-purple-500 border-t-transparent mb-4"></div>
+          <div className="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-4 border-teal-500 border-t-transparent mb-4"></div>
           <p className="text-gray-600 text-base sm:text-lg">Loading invoice...</p>
         </div>
       </div>
@@ -113,25 +81,17 @@ export default function PackingInvoiceViewPage() {
         
         {/* Back Button & Status */}
         <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Invoice Management</h1>
+          
           <button
             onClick={handleBack}
-            className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-purple-600 hover:to-indigo-700 transition-all text-sm sm:text-base"
+            className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back
           </button>
-
-          <span className={`px-4 py-2 rounded-full border text-sm font-bold ${getStatusBadgeColor(invoice.status)}`}>
-            Status: {invoice.status}
-          </span>
-        </div>
-
-        {/* Header */}
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg px-4 sm:px-8 py-4 sm:py-5 mb-4">
-          <h1 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">Packing View</h1>
-          <p className="text-sm sm:text-base text-purple-100">Invoice: {invoice.invoice_no}</p>
         </div>
 
         {/* Mobile View */}
@@ -139,7 +99,7 @@ export default function PackingInvoiceViewPage() {
           
           {/* Invoice Information Card */}
           <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-purple-500">
+            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
               Invoice Information
             </h2>
             <div className="space-y-2">
@@ -152,7 +112,7 @@ export default function PackingInvoiceViewPage() {
 
           {/* Customer Information Card */}
           <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-purple-500">
+            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
               Customer Information
             </h2>
             <div className="space-y-2">
@@ -168,7 +128,7 @@ export default function PackingInvoiceViewPage() {
 
           {/* Items Card */}
           <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-purple-500">
+            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
               Item Details ({invoice.items.length})
             </h2>
             
@@ -180,7 +140,7 @@ export default function PackingInvoiceViewPage() {
                       <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
                       <p className="text-xs text-gray-500">Shelf: {item.shelf_location || "—"}</p>
                     </div>
-                    <span className="text-sm font-bold text-purple-600">Qty: {item.quantity}</span>
+                    <span className="text-sm font-bold text-teal-600">Qty: {item.quantity}</span>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2 text-xs">
@@ -194,7 +154,7 @@ export default function PackingInvoiceViewPage() {
                     </div>
                     <div>
                       <span className="text-gray-500">Exp Date:</span>
-                      <span className="ml-1 text-gray-700">{item.expiry_date || "—"}</span>
+                      <span className="ml-1 text-gray-700">{item.exp_date || "—"}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Remarks:</span>
@@ -214,7 +174,7 @@ export default function PackingInvoiceViewPage() {
                   className={`px-3 py-1.5 rounded-md border text-sm transition-all ${
                     currentPage === 1
                       ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
-                      : "bg-white border-gray-300 text-gray-700 hover:border-purple-500"
+                      : "bg-white border-gray-300 text-gray-700 hover:border-teal-500"
                   }`}
                 >
                   ‹ Prev
@@ -230,7 +190,7 @@ export default function PackingInvoiceViewPage() {
                   className={`px-3 py-1.5 rounded-md border text-sm transition-all ${
                     currentPage === totalPages
                       ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
-                      : "bg-white border-gray-300 text-gray-700 hover:border-purple-500"
+                      : "bg-white border-gray-300 text-gray-700 hover:border-teal-500"
                   }`}
                 >
                   Next ›
@@ -240,7 +200,7 @@ export default function PackingInvoiceViewPage() {
           </div>
 
           {/* Total Amount Card */}
-          <div className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg p-4 text-center shadow-md">
+          <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-4 text-center shadow-md">
             <p className="text-sm font-bold tracking-wider mb-1">Total Amount</p>
             <p className="text-2xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
           </div>
@@ -255,7 +215,7 @@ export default function PackingInvoiceViewPage() {
 
               {/* Invoice Information */}
               <div>
-                <div className="border-b-2 border-purple-500 pb-2 mb-4">
+                <div className="border-b-2 border-teal-500 pb-2 mb-4">
                   <h2 className="text-xl font-bold text-gray-900">Invoice Information</h2>
                 </div>
 
@@ -269,7 +229,7 @@ export default function PackingInvoiceViewPage() {
 
               {/* Customer Information */}
               <div>
-                <div className="border-b-2 border-purple-500 pb-2 mb-4">
+                <div className="border-b-2 border-teal-500 pb-2 mb-4">
                   <h2 className="text-xl font-bold text-gray-900">Customer Information</h2>
                 </div>
 
@@ -302,7 +262,7 @@ export default function PackingInvoiceViewPage() {
 
               <div className="h-full flex flex-col">
 
-                <div className="border-b-2 border-purple-500 pb-2 mb-4">
+                <div className="border-b-2 border-teal-500 pb-2 mb-4">
                   <h2 className="text-xl font-bold text-gray-900">Item Details</h2>
                 </div>
 
@@ -310,7 +270,7 @@ export default function PackingInvoiceViewPage() {
                 <div className="flex-1 flex flex-col border border-gray-300 rounded-lg overflow-hidden">
 
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white flex-shrink-0">
+                  <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white flex-shrink-0">
                     <div className="grid grid-cols-12 gap-3 px-4 py-3 text-xs font-bold uppercase">
                       <div className="col-span-1 text-center">Shelf</div>
                       <div className="col-span-3">Item Name</div>
@@ -329,30 +289,37 @@ export default function PackingInvoiceViewPage() {
                         key={index}
                         className="grid grid-cols-12 gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                       >
+                        {/* Shelf */}
                         <div className="col-span-1 text-sm text-center font-semibold text-gray-700">
                           {item.shelf_location || "—"}
                         </div>
 
+                        {/* Item Name */}
                         <div className="col-span-3 text-sm font-medium text-gray-900">
                           {item.name}
                         </div>
 
+                        {/* Qty */}
                         <div className="col-span-1 text-sm text-right font-semibold text-gray-800">
                           {item.quantity}
                         </div>
 
+                        {/* MRP */}
                         <div className="col-span-2 text-sm font-semibold text-gray-900 text-right">
                           ₹{item.mrp?.toFixed(2)}
                         </div>
 
+                        {/* Batch No */}
                         <div className="col-span-2 text-sm text-center text-gray-700">
                           {item.batch_no || "—"}
                         </div>
 
+                        {/* Exp Date */}
                         <div className="col-span-1 text-xs text-center text-gray-600">
-                          {item.expiry_date || "—"}
+                          {item.exp_date || "—"}
                         </div>
 
+                        {/* Remarks */}
                         <div className="col-span-2 text-xs text-center text-gray-500 truncate">
                           {item.remarks || "—"}
                         </div>
@@ -373,7 +340,7 @@ export default function PackingInvoiceViewPage() {
                         className={`w-8 h-8 flex items-center justify-center rounded-md border text-sm transition-all
                         ${currentPage === 1
                           ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
-                          : "bg-white border-gray-300 text-gray-700 hover:border-purple-500 hover:text-purple-600"}`}
+                          : "bg-white border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
                       >
                         ‹
                       </button>
@@ -384,8 +351,8 @@ export default function PackingInvoiceViewPage() {
                           onClick={() => handlePageChange(num)}
                           className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-semibold transition-all
                           ${currentPage === num
-                            ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md"
-                            : "bg-white border border-gray-300 text-gray-700 hover:border-purple-500 hover:text-purple-600"}`}
+                            ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md"
+                            : "bg-white border border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
                         >
                           {num}
                         </button>
@@ -397,7 +364,7 @@ export default function PackingInvoiceViewPage() {
                         className={`w-8 h-8 flex items-center justify-center rounded-md border text-sm transition-all
                         ${currentPage === totalPages
                           ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
-                          : "bg-white border-gray-300 text-gray-700 hover:border-purple-500 hover:text-purple-600"}`}
+                          : "bg-white border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
                       >
                         ›
                       </button>
@@ -406,7 +373,7 @@ export default function PackingInvoiceViewPage() {
                 </div>
 
                 {/* Total Amount */}
-                <div className="mt-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg px-6 py-4 text-center shadow-md flex-shrink-0">
+                <div className="mt-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg px-6 py-4 text-center shadow-md flex-shrink-0">
                   <p className="text-m font-bold tracking-wider mb-1">Total Amount</p>
                   <p className="text-3xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
                 </div>
@@ -421,6 +388,7 @@ export default function PackingInvoiceViewPage() {
     </div>
   );
 }
+
 
 // Components
 function InfoRow({ label, value }) {

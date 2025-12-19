@@ -53,22 +53,6 @@ export function Sidebar({
               className="h-12 sm:h-16 w-auto object-contain"
             />
           )}
-          
-          {/* Toggle Button - Hidden on mobile, visible on desktop */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={`hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-md hover:shadow-lg transition-all ${
-              !sidebarOpen ? 'opacity-0 group-hover/sidebar:opacity-100' : 'opacity-100'
-            }`}
-            aria-label={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
-            style={{ zIndex: 51 }}
-          >
-            <ChevronLeftIcon 
-              className={`w-4 h-4 text-gray-600 hover:text-teal-600 transition-transform ${
-                !sidebarOpen && "rotate-180"
-              }`} 
-            />
-          </button>
         </div>
 
         {/* Navigation */}
@@ -94,6 +78,28 @@ export function Sidebar({
             ))
           )}
         </nav>
+
+        {/* Toggle Button - Rounded Split Style */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={`hidden lg:flex absolute -right-6 top-6 h-8 w-10 bg-white border border-gray-300 rounded-xl shadow-md items-center justify-center transition-all group ${
+              !sidebarOpen ? "opacity-0 group-hover/sidebar:opacity-100" : "opacity-100"
+            }`}
+            aria-label={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+            style={{ zIndex: 51 }}
+          >
+            {/* Left section with arrow */}
+            <div className="flex items-center justify-center w-full h-full">
+              <ChevronLeftIcon
+                className={`w-5 h-5 text-gray-800 transition-transform duration-300 ${
+                  !sidebarOpen ? "rotate-180" : ""
+                }`}
+              />
+            </div>
+
+            {/* Vertical divider */}
+            <div className="absolute right-0 top-0 h-full w-2 border-l border-gray-300 rounded-r-xl bg-white"></div>
+          </button>
       </aside>
     </>
   );

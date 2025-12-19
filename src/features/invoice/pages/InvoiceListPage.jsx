@@ -573,25 +573,33 @@ export default function InvoiceListPage() {
 
       {/* Ongoing Work Modal */}
       {showOngoingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <h2 className="text-base sm:text-xl font-bold text-white">Ongoing Picking Tasks</h2>
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
+            onClick={() => setShowOngoingModal(false)}
+          />
+
+          {/* Modal Wrapper */}
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[9998] flex items-center justify-center p-2 sm:p-4">
+            <div 
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <h2 className="text-base sm:text-xl font-bold text-white">
+                    Ongoing Picking Tasks
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowOngoingModal(false)}
+                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1.5 sm:p-2 transition-all"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                onClick={() => setShowOngoingModal(false)}
-                className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1.5 sm:p-2 transition-all"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
 
             {/* Modal Body */}
             <div className="p-3 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
@@ -738,7 +746,8 @@ export default function InvoiceListPage() {
             </div>
           </div>
         </div>
-      )}
+      </>
+    )}
     </div>
   );
 }

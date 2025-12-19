@@ -120,7 +120,7 @@ export default function MyPackingListPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <svg className="animate-spin h-10 w-10 text-purple-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-10 w-10 text-teal-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
@@ -162,9 +162,9 @@ export default function MyPackingListPage() {
         {activeInvoice && (
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
-              <div className="bg-purple-50 p-2 rounded-lg">
+              <div className="bg-teal-50 p-2 rounded-lg">
                 <svg
-                  className="w-6 h-6 text-purple-600"
+                  className="w-6 h-6 text-teal-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -184,7 +184,7 @@ export default function MyPackingListPage() {
             </div>
 
             <div
-              className="bg-white rounded-2xl border-2 border-purple-500 shadow-lg overflow-hidden cursor-pointer transition-all hover:shadow-xl"
+              className="bg-white rounded-2xl border-2 border-teal-500 shadow-lg overflow-hidden cursor-pointer transition-all hover:shadow-xl"
               onClick={() =>
                 setExpandedInvoice(
                   expandedInvoice === activeInvoice.id ? null : activeInvoice.id
@@ -196,9 +196,9 @@ export default function MyPackingListPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
                   {/* Left: Invoice Info */}
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="bg-purple-50 p-3 rounded-xl">
+                    <div className="bg-teal-50 p-3 rounded-xl">
                       <svg
-                        className="w-7 h-7 text-purple-600"
+                        className="w-7 h-7 text-teal-600"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -216,8 +216,8 @@ export default function MyPackingListPage() {
                         <h3 className="text-xl font-bold text-gray-900">
                           Invoice #{activeInvoice.invoice_no}
                         </h3>
-                        <span className="inline-flex px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse"></span>
+                        <span className="inline-flex px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-medium items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></span>
                           In Progress
                         </span>
                       </div>
@@ -316,7 +316,7 @@ export default function MyPackingListPage() {
                           cx="32"
                           cy="32"
                           r="28"
-                          stroke="url(#gradient-purple)"
+                          stroke="url(#gradient-teal)"
                           strokeWidth="6"
                           fill="none"
                           strokeDasharray={`${2 * Math.PI * 28}`}
@@ -329,14 +329,14 @@ export default function MyPackingListPage() {
                         />
                         <defs>
                           <linearGradient
-                            id="gradient-purple"
+                            id="gradient-teal"
                             x1="0%"
                             y1="0%"
                             x2="100%"
                             y2="100%"
                           >
-                            <stop offset="0%" stopColor="#a855f7" />
-                            <stop offset="100%" stopColor="#6366f1" />
+                            <stop offset="0%" stopColor="#14b8a6" />
+                            <stop offset="100%" stopColor="#06b6d4" />
                           </linearGradient>
                         </defs>
                       </svg>
@@ -386,8 +386,8 @@ export default function MyPackingListPage() {
                           key={item.id}
                           className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer ${
                             packedItems[item.id]
-                              ? "bg-purple-50 border-purple-500"
-                              : "bg-white border-gray-200 hover:border-purple-300"
+                              ? "bg-teal-50 border-teal-500"
+                              : "bg-white border-gray-200 hover:border-teal-300"
                           }`}
                           onClick={() => toggleItemPacked(item.id)}
                         >
@@ -395,7 +395,7 @@ export default function MyPackingListPage() {
                             <div
                               className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
                                 packedItems[item.id]
-                                  ? "bg-purple-600"
+                                  ? "bg-teal-600"
                                   : "bg-white border-2 border-gray-300"
                               }`}
                             >
@@ -431,7 +431,7 @@ export default function MyPackingListPage() {
                               {item.quantity} {item.quantity > 1 ? "pcs" : "pc"}
                             </span>
                             {packedItems[item.id] && (
-                              <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-medium">
+                              <span className="px-3 py-1 bg-teal-600 text-white rounded-full text-xs font-medium">
                                 Packed
                               </span>
                             )}
@@ -446,7 +446,7 @@ export default function MyPackingListPage() {
                     disabled={!allItemsPacked || loading}
                     className={`w-full py-3 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 ${
                       allItemsPacked && !loading
-                        ? "bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-lg"
+                        ? "bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white shadow-lg"
                         : "bg-gray-200 text-gray-400 cursor-not-allowed"
                     }`}
                   >
@@ -537,7 +537,7 @@ export default function MyPackingListPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-purple-500 to-indigo-600">
+                <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                   <tr>
                     <th className="px-3 sm:px-6 py-4 text-left text-sm font-bold text-white">
                       Invoice Number
