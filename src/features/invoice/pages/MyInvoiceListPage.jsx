@@ -439,8 +439,8 @@ export default function MyInvoiceListPage() {
                 </svg>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  Completed Invoices
+                <h2 className="text-xl font-bold text-gray-600">
+                Completed Invoices Today
                 </h2>
               </div>
             </div>

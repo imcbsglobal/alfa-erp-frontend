@@ -5,7 +5,6 @@ import { ChevronDownIcon, LogoutIcon, MenuIcon } from "./Icons";
 import { Sidebar } from "./Sidebar/Sidebar";
 import ToastProvider from "../components/ToastProvider";
 import { MENU_CONFIG, PAGE_TITLES } from "./Sidebar/menuConfig";
-
 import {
   HomeIcon,
   UsersIcon,
@@ -14,21 +13,20 @@ import {
   BuildingIcon,
   InvoiceIcon,
   ListIcon,
+  PlusCircleIcon,
 } from "./Icons";
 
 const iconMap = {
-  dashboard: HomeIcon,
-  people: UsersIcon,
-  settings: CogIcon,
-  work: BriefcaseIcon,
-  business: BuildingIcon,
-  receipt: InvoiceIcon,
-  list_alt: ListIcon,
-  tune: CogIcon,
-  local_shipping: InvoiceIcon,
-  payment: InvoiceIcon,
-  assessment: ListIcon,
+  HomeIcon: HomeIcon,
+  UsersIcon: UsersIcon,
+  CogIcon: CogIcon,
+  BriefcaseIcon: BriefcaseIcon,
+  BuildingIcon: BuildingIcon,
+  InvoiceIcon: InvoiceIcon,
+  ListIcon: ListIcon,
+  PlusCircleIcon: PlusCircleIcon,
 };
+
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -58,25 +56,24 @@ export default function MainLayout() {
 
   // ✅ SAFELY BUILD MENUS FROM BACKEND DATA
   const visibleMenus = useMemo(() => {
-    // SUPERADMIN → static full menu
-    if (user?.role === "SUPERADMIN") {
-      return MENU_CONFIG;
-    }
+  if (user?.role === "SUPERADMIN") {
+    return MENU_CONFIG;
+  }
 
-    // Others → backend-assigned menus
-    return menus.map(menu => ({
-      id: menu.code,
-      label: menu.name,
-      icon: iconMap[menu.icon] || ListIcon,
-      path: menu.url,
-      type: menu.children?.length ? "dropdown" : "single",
-      submenu: menu.children?.map(child => ({
-        label: child.name,
-        icon: iconMap[child.icon] || ListIcon,
-        path: child.url,
-      })) || [],
-    }));
-  }, [user, menus]);
+  return menus.map(menu => ({
+    id: menu.code,
+    label: menu.name,
+    icon: iconMap[menu.icon] || ListIcon,
+    path: menu.url,
+    type: menu.children?.length ? "dropdown" : "single",
+    submenu: menu.children?.map(child => ({
+      label: child.name,
+      icon: iconMap[child.icon] || ListIcon,
+      path: child.url,
+    })) || [],
+  }));
+}, [user, menus]);
+
 
   // Close dropdowns when clicking outside
   useEffect(() => {
