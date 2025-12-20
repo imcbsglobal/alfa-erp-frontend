@@ -151,7 +151,7 @@ export default function InvoiceViewPage() {
                     </div>
                     <div>
                       <span className="text-gray-500">Exp Date:</span>
-                      <span className="ml-1 text-gray-700">{item.exp_date || "—"}</span>
+                      <span className="ml-1 text-gray-700">{item.expiry_date || "—"}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Remarks:</span>

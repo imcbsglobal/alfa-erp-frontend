@@ -99,7 +99,8 @@ export default function MyInvoiceListPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            My Assigned Invoices
+            {/* My Assigned Invoices */}
+            Picked Invoices
           </h1>
         </div>
 
@@ -439,7 +440,7 @@ export default function MyInvoiceListPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
-                  Completed Bills
+                  Completed Invoices
                 </h2>
               </div>
             </div>
