@@ -326,59 +326,161 @@ export default function MyInvoiceListPage() {
                     <h4 className="text-sm font-semibold text-gray-900 mb-3">
                       Items to Pick ({totalItems})
                     </h4>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {activeInvoice.items.map((item) => (
                         <div
                           key={item.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                          className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
                             pickedItems[item.id]
                               ? "bg-teal-50 border-teal-500"
                               : "bg-white border-gray-200 hover:border-teal-300"
                           }`}
                           onClick={() => toggleItemPicked(item.id)}
                         >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                                pickedItems[item.id]
-                                  ? "bg-teal-600"
-                                  : "bg-white border-2 border-gray-300"
-                              }`}
-                            >
-                              <svg
-                                className={`w-5 h-5 ${
+                          <div className="flex items-start justify-between gap-4">
+                            {/* Left: Checkbox and Item Details */}
+                            <div className="flex items-start gap-3 flex-1">
+                              <div
+                                className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
                                   pickedItems[item.id]
-                                    ? "text-white"
-                                    : "text-gray-400"
+                                    ? "bg-teal-600"
+                                    : "bg-white border-2 border-gray-300"
                                 }`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
+                                <svg
+                                  className={`w-5 h-5 ${
+                                    pickedItems[item.id]
+                                      ? "text-white"
+                                      : "text-gray-400"
+                                  }`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </div>
+                              
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between mb-2">
+                                  <div>
+                                    <p className="font-semibold text-sm text-gray-900">
+                                      {item.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {item.item_code || item.sku}
+                                    </p>
+                                  </div>
+                                  <div className="text-right ml-3">
+                                    <span className="font-bold text-lg text-gray-900">
+                                      {item.quantity}
+                                    </span>
+                                    <span className="text-xs text-gray-500 ml-1">
+                                      {item.quantity > 1 ? "pcs" : "pc"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Additional Details Grid */}
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 pt-3 border-t border-gray-200">
+                                  {item.shelf_location && (
+                                    <div className="flex items-center gap-2">
+                                      <svg
+                                        className="w-4 h-4 text-teal-600 flex-shrink-0"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                        />
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                        />
+                                      </svg>
+                                      <div>
+                                        <p className="text-xs text-gray-500">Location</p>
+                                        <p className="text-sm font-semibold text-teal-700">
+                                          {item.shelf_location}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {item.company_name && (
+                                    <div>
+                                      <p className="text-xs text-gray-500">Company</p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {item.company_name}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {item.packing && (
+                                    <div>
+                                      <p className="text-xs text-gray-500">Packing</p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {item.packing}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {item.batch_no && (
+                                    <div>
+                                      <p className="text-xs text-gray-500">Batch</p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {item.batch_no}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {item.expiry_date && (
+                                    <div>
+                                      <p className="text-xs text-gray-500">Expiry</p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {new Date(item.expiry_date).toLocaleDateString('en-US', {
+                                          month: 'short',
+                                          year: 'numeric'
+                                        })}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {item.mrp && (
+                                    <div>
+                                      <p className="text-xs text-gray-500">MRP</p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        ₹{item.mrp}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {item.remarks && (
+                                  <div className="mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                                    <p className="text-xs text-yellow-800">
+                                      <span className="font-semibold">Note:</span> {item.remarks}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-sm text-gray-900">
-                                {item.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                SKU: {item.sku}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-sm text-gray-900">
-                              {item.quantity} {item.quantity > 1 ? "pcs" : "pc"}
-                            </span>
+
+                            {/* Right: Picked Badge */}
                             {pickedItems[item.id] && (
-                              <span className="px-3 py-1 bg-teal-600 text-white rounded-full text-xs font-medium">
-                                Picked
+                              <span className="px-3 py-1 bg-teal-600 text-white rounded-full text-xs font-medium flex-shrink-0">
+                                ✓ Picked
                               </span>
                             )}
                           </div>
