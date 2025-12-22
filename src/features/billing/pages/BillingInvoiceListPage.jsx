@@ -51,7 +51,6 @@ export default function BillingInvoiceListPage() {
 
         // Normal invoice update/add
         setInvoices((prev) => {
-            
           const idx = prev.findIndex((i) => i.id === data.id);
           if (idx !== -1) {
             const copy = [...prev];
@@ -88,19 +87,6 @@ export default function BillingInvoiceListPage() {
   const handleRefresh = async () => {
     await loadInvoices();
     toast.success("Invoices refreshed");
-  };
-
-  // ✅ Pick invoice
-  const handlePickInvoice = async (invoice) => {
-    try {
-      await api.post("/sales/billing/pick/", {
-        invoice_no: invoice.invoice_no,
-      });
-      toast.success(`Picked ${invoice.invoice_no}`);
-      // No reload — SSE will update
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to pick invoice");
-    }
   };
 
   const handleReview = (invoice) => {
@@ -228,9 +214,9 @@ export default function BillingInvoiceListPage() {
                       <tr key={inv.id} className="hover:bg-gray-50 transition">
                         <td className="px-4 py-3">
                           <p className="font-semibold">{inv.invoice_no}</p>
-                          {inv.status === "PICKED" && (
+                          {inv.status === "PICKED" && inv.picker_info && (
                             <p className="text-xs text-blue-600">
-                              Picked by: {inv.picked_by || inv.created_by}
+                              Picked by: {inv.picker_info.name}
                             </p>
                           )}
                           {inv.status === "REVIEW" && inv.return_reason && (
