@@ -12,6 +12,7 @@ export default function MyInvoiceListPage() {
   const [completedInvoices, setCompletedInvoices] = useState([]);
   const [reviewPopup, setReviewPopup] = useState({ open: false, item: null });
   const [reviewChecks, setReviewChecks] = useState({});
+  const [savedIssues, setSavedIssues] = useState([]);
 
   const { user } = useAuth();
 
@@ -69,82 +70,62 @@ export default function MyInvoiceListPage() {
     setReviewChecks({});
   };
 
-  const handleSubmitIssue = async () => {
-    if (!activeInvoice || !reviewPopup.item) return;
-    
-    const hasIssues = Object.values(reviewChecks).some(checked => checked);
-    if (!hasIssues) {
-      alert("Please select at least one issue");
+  const handleSaveIssue = () => {
+    if (!reviewPopup.item) return;
+
+    const issues = [];
+    if (reviewChecks.batchMatch) issues.push("Batch mismatch");
+    if (reviewChecks.expiryCheck) issues.push("Expiry issue");
+    if (reviewChecks.quantityCorrect) issues.push("Quantity incorrect");
+    if (reviewChecks.packagingGood) issues.push("Damaged packaging");
+
+    if (!issues.length) {
+      alert("Select at least one issue");
       return;
     }
-    
-    try {
-      setLoading(true);
-      
-      const issues = [];
-      if (reviewChecks.batchMatch) issues.push("Batch number mismatch");
-      if (reviewChecks.expiryCheck) issues.push("Expiry date issue");
-      if (reviewChecks.quantityCorrect) issues.push("Incorrect quantity");
-      if (reviewChecks.packagingGood) issues.push("Damaged packaging");
-      
-      await api.post("/sales/picking/report-item-issue/", {
-        invoice_no: activeInvoice.invoice_no,
-        item_id: reviewPopup.item.id,
-        item_name: reviewPopup.item.name,
-        issues: issues.join(", "),
-        user_email: user?.email,
-      });
-      
-      await api.post("/sales/picking/return-invoice/", {
-        invoice_no: activeInvoice.invoice_no,
-        user_email: user.email,
-        return_reason: `Item issue reported: ${reviewPopup.item.name}`,
-        notes: `Issues: ${issues.join(", ")}`,
-      });
-      
-      alert("Item issue reported and invoice sent to review successfully");
-      closeReviewPopup();
-      
-      await loadActivePicking();
-      await loadTodayCompletedPicking();
-      setPickedItems({});
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Failed to report item issue");
-    } finally {
-      setLoading(false);
-    }
+
+    setSavedIssues((prev) => [
+      ...prev,
+      {
+        item: reviewPopup.item.name,
+        issues,
+      },
+    ]);
+
+    closeReviewPopup();
   };
 
   const handleSendInvoiceToReview = async () => {
     if (!activeInvoice) return;
-    if (!user?.email) {
-      alert("User email not found");
+
+    if (!savedIssues.length) {
+      alert("No saved issues to send.");
       return;
     }
-    
-    const confirmed = window.confirm(
-      `Send Invoice #${activeInvoice.invoice_no} to review?\n\nThis will flag the entire invoice for manager review.`
-    );
-    
-    if (confirmed) {
-      try {
-        setLoading(true);
-        await api.post("/sales/picking/return-invoice/", {
-          invoice_no: activeInvoice.invoice_no,
-          user_email: user.email,
-          return_reason: "Sent for review by picker",
-          notes: "Invoice sent for review",
-        });
-        alert("Invoice sent to review successfully");
-        await loadActivePicking();
-        await loadTodayCompletedPicking();
-      } catch (err) {
-        console.error(err);
-        alert(err.response?.data?.message || "Failed to send invoice to review");
-      } finally {
-        setLoading(false);
-      }
+
+    try {
+      setLoading(true);
+
+      const notes = savedIssues
+        .map((i) => `${i.item}: ${i.issues.join(", ")}`)
+        .join(" | ");
+
+      await api.post("/sales/billing/return/", {
+        invoice_no: activeInvoice.invoice_no,
+        return_reason: notes,
+        user_email: user.email,
+      });
+
+      alert("Invoice sent to billing review");
+
+      setSavedIssues([]);
+      await loadActivePicking();
+      await loadTodayCompletedPicking();
+    } catch (err) {
+      console.error("Return error:", err.response?.status, err.response?.data);
+      alert(err.response?.data?.message || "Failed to send invoice to review");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -153,6 +134,8 @@ export default function MyInvoiceListPage() {
   const pickedCount =
     activeInvoice?.items?.filter((item) => pickedItems[item.id]).length || 0;
   const totalItems = activeInvoice?.items?.length || 0;
+
+  const hasIssues = savedIssues.length > 0;
 
   const handleCompletePicking = async () => {
     if (!allItemsPicked || !activeInvoice) return;
@@ -217,7 +200,14 @@ export default function MyInvoiceListPage() {
           <div className="mb-6">
             <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
               {/* Compact Header */}
-              <div className="p-4 bg-teal-50 border-b border-teal-200">
+              <div
+                onClick={() =>
+                  setExpandedInvoice(
+                    expandedInvoice === activeInvoice.id ? null : activeInvoice.id
+                  )
+                }
+                className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
@@ -231,11 +221,12 @@ export default function MyInvoiceListPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() =>
+                    onClick={(e) => {
+                      e.stopPropagation();   // ⛔ stop bubbling to parent
                       setExpandedInvoice(
                         expandedInvoice === activeInvoice.id ? null : activeInvoice.id
-                      )
-                    }
+                      );
+                    }}
                     className="text-gray-500 hover:text-gray-700"
                   >
                     <svg
@@ -263,7 +254,8 @@ export default function MyInvoiceListPage() {
                   {activeInvoice.items.map((item) => (
                     <div
                       key={item.id}
-                      className={`p-3 rounded-lg border transition-all ${
+                      onClick={() => toggleItemPicked(item.id)}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
                         pickedItems[item.id]
                           ? "bg-teal-50 border-teal-300"
                           : "bg-white border-gray-200"
@@ -336,7 +328,7 @@ export default function MyInvoiceListPage() {
 
                         {/* Report Issue Button */}
                         <button
-                          onClick={() => openReviewPopup(item)}
+                          onClick={(e) => {e.stopPropagation();openReviewPopup(item);}}
                           className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition"
                           title="Report Issue"
                         >
@@ -362,22 +354,29 @@ export default function MyInvoiceListPage() {
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleSendInvoiceToReview}
-                      className="flex-1 py-3 font-semibold rounded-lg transition-all bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300"
+                      disabled={!hasIssues}
+                      className={`flex-1 py-3 font-semibold rounded-lg transition-all ${
+                        hasIssues
+                          ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300"
+                          : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      }`}
                     >
                       Send Invoice to Review
                     </button>
                     <button
                       onClick={handleCompletePicking}
-                      disabled={!allItemsPicked}
+                      disabled={!allItemsPicked || hasIssues}
                       className={`flex-1 py-3 font-semibold rounded-lg transition-all ${
-                        allItemsPicked
+                        allItemsPicked && !hasIssues
                           ? "bg-teal-600 hover:bg-teal-700 text-white"
                           : "bg-gray-200 text-gray-400 cursor-not-allowed"
                       }`}
                     >
-                      {allItemsPicked
-                        ? "Complete Picking"
-                        : `Pick ${totalItems - pickedCount} More`}
+                      {hasIssues
+                        ? "Resolve Issues First"
+                        : allItemsPicked
+                          ? "Complete Picking"
+                          : `Pick ${totalItems - pickedCount} More`}
                     </button>
                   </div>
                 </div>
@@ -709,10 +708,10 @@ export default function MyInvoiceListPage() {
                 Cancel
               </button>
               <button
-                onClick={handleSubmitIssue}
+                onClick={handleSaveIssue}
                 className="flex-1 py-2 px-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
               >
-                Submit Issue
+                Save
               </button>
             </div>
           </div>

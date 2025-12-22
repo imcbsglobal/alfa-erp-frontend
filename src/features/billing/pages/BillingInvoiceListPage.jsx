@@ -13,6 +13,7 @@ export default function BillingInvoiceListPage() {
 
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reviewModal, setReviewModal] = useState({ open: false, invoice: null });
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -33,21 +34,37 @@ export default function BillingInvoiceListPage() {
 
         // Returned event - invoice sent to review
         if (data.type === "invoice_returned") {
-          setInvoices((prev) =>
-            prev.map((inv) =>
-              inv.invoice_no === data.invoice_no
-                ? {
-                    ...inv,
-                    billing_status: "REVIEW",
-                    status: "REVIEW",
-                    return_reason: data.return_reason,
-                  }
-                : inv
-            )
-          );
-          toast.success(`Invoice ${data.invoice_no} sent to review`);
-          return;
-        }
+            setInvoices((prev) => {
+                const updated = prev.map((inv) =>
+                inv.invoice_no === data.invoice_no
+                    ? {
+                        ...inv,
+                        billing_status: "REVIEW",
+                        status: "REVIEW",
+                        return_reason: data.return_reason,
+                        current_handler: {
+                        ...(inv.current_handler || {}),
+                        status: "REVIEW",
+                        name: data.returned_by || inv.current_handler?.name,
+                        },
+                    }
+                    : inv
+                );
+
+                // ⬆ move review invoice to top immediately
+                const reviewInv = updated.find(
+                (i) => i.invoice_no === data.invoice_no
+                );
+                const rest = updated.filter(
+                (i) => i.invoice_no !== data.invoice_no
+                );
+
+                return reviewInv ? [reviewInv, ...rest] : updated;
+            });
+
+            toast.success(`Invoice ${data.invoice_no} sent to review`);
+            return;
+            }
 
         // Normal invoice update/add
         setInvoices((prev) => {
@@ -75,14 +92,25 @@ export default function BillingInvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/billing/invoices/");
-      setInvoices(res.data.results || []);
+        const res = await api.get("/sales/billing/invoices/");
+        const list = res.data.results || [];
+
+        // 🔴 REVIEW first on load too
+        const sorted = [...list].sort((a, b) => {
+        const aReview = a.billing_status === "REVIEW" || a.status === "REVIEW";
+        const bReview = b.billing_status === "REVIEW" || b.status === "REVIEW";
+        if (aReview && !bReview) return -1;
+        if (!aReview && bReview) return 1;
+        return 0;
+        });
+
+        setInvoices(sorted);
     } catch {
-      toast.error("Failed to load invoices");
+        toast.error("Failed to load invoices");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+    };
 
   const handleRefresh = async () => {
     await loadInvoices();
@@ -90,10 +118,8 @@ export default function BillingInvoiceListPage() {
   };
 
   const handleReview = (invoice) => {
-    navigate(`/billing/invoices/review/${invoice.id}`, {
-      state: { invoice }
-    });
-  };
+    setReviewModal({ open: true, invoice });
+    };
 
   const handleViewInvoice = (id) => {
     if (user?.role === "BILLER") {
@@ -172,11 +198,26 @@ export default function BillingInvoiceListPage() {
     return inv.status; // Show workflow status (INVOICED, PICKING, PICKED, PACKING, PACKED, etc.)
   };
 
-  // Pagination calc
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = invoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(invoices.length / itemsPerPage);
+  // 🔴 Sort so REVIEW invoices come first
+    const sortedInvoices = [...invoices].sort((a, b) => {
+    const aReview = a.billing_status === "REVIEW" || a.status === "REVIEW";
+    const bReview = b.billing_status === "REVIEW" || b.status === "REVIEW";
+
+    if (aReview && !bReview) return -1;
+    if (!aReview && bReview) return 1;
+    return 0;
+    });
+
+    // Pagination calc (after sorting)
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+
+    const currentItems = sortedInvoices.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+    );
+
+    const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
 
   const handlePageChange = (n) => {
     setCurrentPage(n);
@@ -210,7 +251,7 @@ export default function BillingInvoiceListPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">
-            Billing Management
+            Invoice Management
           </h1>
           <button
             onClick={handleRefresh}
@@ -280,13 +321,6 @@ export default function BillingInvoiceListPage() {
                               )}
                             </div>
                           )}
-                          
-                          {/* Show review reason if exists */}
-                          {inv.status === "REVIEW" && inv.return_reason && (
-                            <p className="text-xs text-orange-600 mt-1">
-                              Reason: {inv.return_reason}
-                            </p>
-                          )}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {inv.invoice_date}
@@ -353,6 +387,54 @@ export default function BillingInvoiceListPage() {
           )}
         </div>
       </div>
+      {reviewModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* Header */}
+            <div className="p-4 border-b flex justify-between items-center">
+                <h3 className="font-bold text-gray-900">
+                Invoice #{reviewModal.invoice.invoice_no} - Issues
+                </h3>
+                <button
+                onClick={() => setReviewModal({ open: false, invoice: null })}
+                className="text-gray-400 hover:text-gray-600"
+                >
+                ✕
+                </button>
+            </div>
+
+            {/* Body */}
+                <div className="p-4 space-y-3 text-sm text-gray-700">
+                {/* Review by */}
+                {reviewModal.invoice.current_handler?.name && (
+                    <p className="text-orange-600 font-semibold">
+                    ⚠ Review by: {reviewModal.invoice.current_handler.name}
+                    </p>
+                )}
+
+                {/* Reason */}
+                {reviewModal.invoice.return_reason ? (
+                    <p className="text-orange-700">
+                    <span className="font-semibold">Reason:</span>{" "}
+                    {reviewModal.invoice.return_reason}
+                    </p>
+                ) : (
+                    <p>No issues reported.</p>
+                )}
+                </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t flex justify-end">
+                <button
+                onClick={() => setReviewModal({ open: false, invoice: null })}
+                className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"
+                >
+                Close
+                </button>
+            </div>
+            </div>
+        </div>
+        )}
     </div>
   );
 }

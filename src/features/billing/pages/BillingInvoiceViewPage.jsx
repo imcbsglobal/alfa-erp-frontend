@@ -78,7 +78,7 @@ export default function BillingInvoiceViewPage() {
         {/* Header with Back Button */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Billing Management</h1>
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Invoice Management</h1>
             <button
               onClick={handleBack}
               className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"

@@ -26,7 +26,7 @@ export default function PackingInvoiceListPage() {
 
     // SSE Live Updates
         useEffect(() => {
-        const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+        const eventSource = new EventSource(`${API_BASE_URL.replace("/api", "")}/events/invoices/`);
 
         eventSource.onmessage = (event) => {
             try {
@@ -93,7 +93,7 @@ export default function PackingInvoiceListPage() {
     setLoadingOngoing(true);
     try {
         const res = await api.get("/sales/packing/history/", {
-        params: { status: "PACKING" }
+        params: { status: "IN_PROGRESS" }
         });
         
         const tasks = res.data?.results || [];
@@ -123,19 +123,9 @@ export default function PackingInvoiceListPage() {
     toast.success("Invoices refreshed");
   };
 
-  const calculateProgress = (task) => {
-    // For ongoing tasks, progress should come from backend
-    // If not available, return 0 as we can't track item-level packing here
-    if (!task.invoice?.items || task.invoice.items.length === 0) {
-        return 0;
-    }
-    
-    // Check if items have packed status
-    const packedItems = task.invoice.items.filter(item => item.packed === true);
-    const totalItems = task.invoice.items.length;
-    
-    return Math.round((packedItems.length / totalItems) * 100);
-    };
+  const calculateProgress = () => {
+    return 0;
+  };
 
   const formatDuration = (startTime) => {
     if (!startTime) return "N/A";
@@ -620,15 +610,15 @@ export default function PackingInvoiceListPage() {
                         {ongoingTasks.map((task, index) => {
                           const progress = calculateProgress(task);
                           const totalItems = task.invoice?.items?.length || 0;
-                          const packedItems = task.invoice?.items?.filter(item => item.packed)?.length || 0;
+                          const packedItems = 0;
                           
                           return (
                             <tr key={index} className="hover:bg-teal-50 transition">
                               <td className="px-4 py-4">
-                                <p className="font-semibold text-gray-800">{task.invoice_no}</p>
+                                <p className="font-semibold text-gray-800">{task.invoice?.invoice_no}</p>
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-600">
-                                {task?.invoice_date || "N/A"}
+                                {task.invoice?.invoice_date || "N/A"}
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-600">
                                 {task.start_time ? new Date(task.start_time).toLocaleTimeString() : "N/A"}
@@ -637,7 +627,7 @@ export default function PackingInvoiceListPage() {
                                 {formatDuration(task.start_time)}
                               </td>
                               <td className="px-4 py-4 text-sm font-medium text-gray-800">
-                                {task?.packer_name || "Current User"}
+                                {task.packer?.name || task.packer?.email || "Current User"}
                               </td>
                               <td className="px-4 py-4">
                                 <div className="flex items-center gap-3">
@@ -666,14 +656,14 @@ export default function PackingInvoiceListPage() {
                     {ongoingTasks.map((task, index) => {
                       const progress = calculateProgress(task);
                       const totalItems = task.invoice?.items?.length || 0;
-                      const packedItems = task.invoice?.items?.filter(item => item.packed)?.length || 0;
+                      const packedItems = 0;
                       
                       return (
                         <div key={index} className="bg-white rounded-lg border-2 border-teal-200 p-4 shadow-sm">
                           <div className="flex items-start justify-between mb-3">
                             <div>
-                              <p className="font-bold text-gray-900 mb-1">{task.invoice_no}</p>
-                              <p className="text-xs text-gray-500">{task?.invoice_date || "N/A"}</p>
+                              <p className="font-bold text-gray-900 mb-1">{task.invoice?.invoice_no}</p>
+                              <p className="text-xs text-gray-500">{task.invoice?.invoice_date || "N/A"}</p>
                             </div>
                             <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs font-bold">
                               {progress}%
@@ -683,7 +673,7 @@ export default function PackingInvoiceListPage() {
                           <div className="space-y-2 mb-3 text-xs">
                             <div className="flex justify-between">
                               <span className="text-gray-500">Employee:</span>
-                              <span className="font-medium text-gray-800">{task?.packer_name || "Current User"}</span>
+                              <span className="font-medium text-gray-800">{task.packer?.name || task.packer?.email || "Current User"}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-500">Start Time:</span>
