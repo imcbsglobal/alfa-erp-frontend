@@ -105,18 +105,37 @@ export default function BillingInvoiceListPage() {
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
+      // Awaiting Action
       case "INVOICED":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "PICKED":
-        return "bg-blue-100 text-blue-700 border-blue-200";
+        return "bg-slate-100 text-slate-700 border-slate-300";
+      
+      // Active / In Progress
       case "PICKING":
-        return "bg-indigo-100 text-indigo-700 border-indigo-200";
-      case "BILLED":
-        return "bg-green-100 text-green-700 border-green-200";
+      case "PACKING":
+        return "bg-blue-100 text-blue-700 border-blue-300";
+      
+      // Completed Steps
+      case "PICKED":
+      case "PACKED":
+        return "bg-emerald-100 text-emerald-700 border-emerald-300";
+      
+      // In Transit / Dispatch
+      case "DISPATCHED":
+        return "bg-cyan-100 text-cyan-700 border-cyan-300";
+      
+      // Delivered / Complete
+      case "DELIVERED":
+        return "bg-green-100 text-green-700 border-green-300";
+      
+      // Alert / Review Needed
       case "REVIEW":
-        return "bg-orange-100 text-orange-700 border-orange-200";
+        return "bg-red-100 text-red-700 border-red-300";
+      
+      case "BILLED":
+        return "bg-slate-100 text-slate-700 border-slate-300";
+      
       default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
+        return "bg-gray-100 text-gray-700 border-gray-300";
     }
   };
 
@@ -128,6 +147,14 @@ export default function BillingInvoiceListPage() {
         return "Picked";
       case "PICKING":
         return "Picking";
+      case "PACKING":
+        return "Packing";
+      case "PACKED":
+        return "Packed";
+      case "DISPATCHED":
+        return "Dispatched";
+      case "DELIVERED":
+        return "Delivered";
       case "BILLED":
         return "Billed";
       case "REVIEW":
@@ -135,6 +162,14 @@ export default function BillingInvoiceListPage() {
       default:
         return status;
     }
+  };
+  
+  // Get the display status - show workflow status unless in review
+  const getDisplayStatus = (inv) => {
+    if (inv.billing_status === "REVIEW" || inv.status === "REVIEW") {
+      return "REVIEW";
+    }
+    return inv.status; // Show workflow status (INVOICED, PICKING, PICKED, PACKING, PACKED, etc.)
   };
 
   // Pagination calc
@@ -271,10 +306,10 @@ export default function BillingInvoiceListPage() {
                         <td className="px-4 py-3">
                           <span
                             className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
-                              inv.billing_status || inv.status
+                              getDisplayStatus(inv)
                             )}`}
                           >
-                            {getStatusLabel(inv.billing_status || inv.status)}
+                            {getStatusLabel(getDisplayStatus(inv))}
                           </span>
                         </td>
                         <td className="px-4 py-3">
