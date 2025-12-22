@@ -67,7 +67,7 @@ export default function InvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/invoices/?status=PENDING&page_size=100");
+      const res = await api.get("/sales/invoices/?status=INVOICED&page_size=100");
       setInvoices(res.data.results || []);
     } catch (err) {
       console.error("Failed to load invoices:", err);
@@ -138,7 +138,7 @@ export default function InvoiceListPage() {
   const handlePickClick = (invoice) => {
     const invoiceStatus = invoice.status || "Pending";
     
-    if (invoiceStatus !== "PENDING") {
+    if (invoiceStatus !== "INVOICED") {
       alert("Only pending invoices can be picked");
       return;
     }
@@ -188,7 +188,7 @@ export default function InvoiceListPage() {
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case "PENDING":
+      case "INVOICED":
         return "bg-yellow-100 text-yellow-700 border-yellow-200";
       case "PREPARING":
         return "bg-blue-100 text-blue-700 border-blue-200";
@@ -425,7 +425,7 @@ export default function InvoiceListPage() {
 
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            {invoice.status === "PENDING" && !activePicking && (
+                            {invoice.status === "INVOICED" && !activePicking && (
                               <button
                                 onClick={() => handlePickClick(invoice)}
                                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
@@ -530,7 +530,7 @@ export default function InvoiceListPage() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-2">
-                      {invoice.status === "PENDING" && !activePicking && (
+                      {invoice.status === "INVOICED" && !activePicking && (
                         <button
                           onClick={() => handlePickClick(invoice)}
                           className="flex-1 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm"

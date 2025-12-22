@@ -19,20 +19,37 @@ export const MENU_CONFIG = [
     type: "single",
   },
   {
-    id: "invoice",
+    id: "billing",
     label: "Invoice",
     icon: InvoiceIcon,
     type: "dropdown",
-    hasAccess: (user) =>
-      !["PICKER", "PACKER", "DELIVERY"].includes(user?.role),
+    hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
     submenu: [
       {
         label: "Invoice List",
         icon: ListIcon,
+        path: (user) => user?.role === "BILLER" ? "/ops/billing/invoices" : "/billing/invoices",
+        hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+      },
+    ],
+    isActive: (pathname) =>
+      pathname.startsWith("/billing") || pathname.startsWith("/ops/billing"),
+  },
+  {
+    id: "invoices",
+    label: "Picking",
+    icon: InvoiceIcon,
+    type: "dropdown",
+    hasAccess: (user) =>
+      !["PICKER", "PACKER", "BILLER", "DELIVERY"].includes(user?.role),
+    submenu: [
+      {
+        label: "Picking List",
+        icon: ListIcon,
         path: "/invoices",
       },
       {
-        label: "My Assigned Bills",
+        label: "My Assigned Picking",
         icon: PlusCircleIcon,
         path: "/invoices/my",
         hasAccess: (user, permissions) =>
@@ -52,14 +69,12 @@ export const MENU_CONFIG = [
       {
         label: "Packing List",
         icon: ListIcon,
-        // Path as function - receives user
         path: (user) => user?.role === "PACKER" ? "/ops/packing/invoices" : "/packing/invoices",
         hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
       },
       {
         label: "My Assigned Packing",
         icon: PlusCircleIcon,
-        // Path as function - receives user
         path: (user) => user?.role === "PACKER" ? "/ops/packing/my" : "/packing/my",
         hasAccess: (user, permissions) =>
           user?.role === "PACKER" || 
@@ -134,6 +149,10 @@ export const PAGE_TITLES = {
   "/packing/my": "My Assigned Packing",
   "/ops/packing/invoices": "Packing Management",
   "/ops/packing/my": "My Assigned Packing",
+  "/billing/invoices": "Billing Management",
+  "/billing/my": "My Assigned Billing",
+  "/ops/billing/invoices": "Billing Management",
+  "/ops/billing/my": "My Assigned Billing",
   "/user-management": "User Management",
   "/add-user": "Add User",
   "/user-control": "User Control",
