@@ -214,13 +214,41 @@ export default function BillingInvoiceListPage() {
                       <tr key={inv.id} className="hover:bg-gray-50 transition">
                         <td className="px-4 py-3">
                           <p className="font-semibold">{inv.invoice_no}</p>
-                          {inv.status === "PICKED" && inv.picker_info && (
-                            <p className="text-xs text-blue-600">
-                              Picked by: {inv.picker_info.name}
-                            </p>
+                          
+                          {/* Show current handler info */}
+                          {inv.current_handler && (
+                            <div className="text-xs mt-1">
+                              {inv.current_handler.status === "PREPARING" && (
+                                <p className="text-indigo-600 font-medium">
+                                  🔄 Picking by: {inv.current_handler.name}
+                                </p>
+                              )}
+                              {inv.current_handler.status === "PICKED" && (
+                                <p className="text-blue-600 font-medium">
+                                  ✓ Picked by: {inv.current_handler.name}
+                                </p>
+                              )}
+                              {inv.current_handler.status === "IN_PROGRESS" && (
+                                <p className="text-purple-600 font-medium">
+                                  📦 Packing by: {inv.current_handler.name}
+                                </p>
+                              )}
+                              {inv.current_handler.status === "PACKED" && (
+                                <p className="text-green-600 font-medium">
+                                  ✓ Packed by: {inv.current_handler.name}
+                                </p>
+                              )}
+                              {inv.current_handler.status === "REVIEW" && (
+                                <p className="text-orange-600 font-medium">
+                                  ⚠ Review by: {inv.current_handler.name}
+                                </p>
+                              )}
+                            </div>
                           )}
+                          
+                          {/* Show review reason if exists */}
                           {inv.status === "REVIEW" && inv.return_reason && (
-                            <p className="text-xs text-orange-600">
+                            <p className="text-xs text-orange-600 mt-1">
                               Reason: {inv.return_reason}
                             </p>
                           )}
