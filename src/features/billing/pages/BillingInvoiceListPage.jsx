@@ -51,6 +51,7 @@ export default function BillingInvoiceListPage() {
 
         // Normal invoice update/add
         setInvoices((prev) => {
+            
           const idx = prev.findIndex((i) => i.id === data.id);
           if (idx !== -1) {
             const copy = [...prev];
