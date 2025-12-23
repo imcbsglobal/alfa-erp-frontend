@@ -33,34 +33,25 @@ export default function BillingInvoiceListPage() {
         const data = JSON.parse(event.data);
 
         // Returned event - invoice sent to review
-        if (data.type === "invoice_returned") {
-            setInvoices((prev) => {
-                const updated = prev.map((inv) =>
+        if (data.type === "invoice_review") {
+            setInvoices((prev) =>
+                prev.map((inv) =>
                 inv.invoice_no === data.invoice_no
                     ? {
                         ...inv,
                         billing_status: "REVIEW",
-                        status: "REVIEW",
-                        return_reason: data.return_reason,
+                        return_info: {
+                        ...(inv.return_info || {}),
+                        return_reason: data.review_reason,
+                        },
                         current_handler: {
-                        ...(inv.current_handler || {}),
                         status: "REVIEW",
-                        name: data.returned_by || inv.current_handler?.name,
+                        name: data.sent_by,
                         },
                     }
                     : inv
-                );
-
-                // ⬆ move review invoice to top immediately
-                const reviewInv = updated.find(
-                (i) => i.invoice_no === data.invoice_no
-                );
-                const rest = updated.filter(
-                (i) => i.invoice_no !== data.invoice_no
-                );
-
-                return reviewInv ? [reviewInv, ...rest] : updated;
-            });
+                )
+            );
 
             toast.success(`Invoice ${data.invoice_no} sent to review`);
             return;
@@ -192,21 +183,19 @@ export default function BillingInvoiceListPage() {
   
   // Get the display status - show workflow status unless in review
   const getDisplayStatus = (inv) => {
-    if (inv.billing_status === "REVIEW" || inv.status === "REVIEW") {
-      return "REVIEW";
-    }
-    return inv.status; // Show workflow status (INVOICED, PICKING, PICKED, PACKING, PACKED, etc.)
-  };
+    if (inv.billing_status === "REVIEW") return "REVIEW";
+    return inv.status;
+};
 
   // 🔴 Sort so REVIEW invoices come first
     const sortedInvoices = [...invoices].sort((a, b) => {
-    const aReview = a.billing_status === "REVIEW" || a.status === "REVIEW";
-    const bReview = b.billing_status === "REVIEW" || b.status === "REVIEW";
-
+    const aReview = a.billing_status === "REVIEW";
+    const bReview = b.billing_status === "REVIEW";
     if (aReview && !bReview) return -1;
     if (!aReview && bReview) return 1;
     return 0;
     });
+
 
     // Pagination calc (after sorting)
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -294,31 +283,23 @@ export default function BillingInvoiceListPage() {
                           {/* Show current handler info */}
                           {inv.current_handler && (
                             <div className="text-xs mt-1">
-                              {inv.current_handler.status === "PREPARING" && (
-                                <p className="text-indigo-600 font-medium">
-                                  🔄 Picking by: {inv.current_handler.name}
-                                </p>
-                              )}
-                              {inv.current_handler.status === "PICKED" && (
+                              {inv.current_handler?.status === "PICKED" && (
                                 <p className="text-blue-600 font-medium">
-                                  ✓ Picked by: {inv.current_handler.name}
+                                    ✓ Picked by: {inv.current_handler.name}
                                 </p>
-                              )}
-                              {inv.current_handler.status === "IN_PROGRESS" && (
-                                <p className="text-purple-600 font-medium">
-                                  📦 Packing by: {inv.current_handler.name}
-                                </p>
-                              )}
-                              {inv.current_handler.status === "PACKED" && (
+                                )}
+
+                                {inv.current_handler?.status === "PACKED" && (
                                 <p className="text-green-600 font-medium">
-                                  ✓ Packed by: {inv.current_handler.name}
+                                    ✓ Packed by: {inv.current_handler.name}
                                 </p>
-                              )}
-                              {inv.current_handler.status === "REVIEW" && (
+                                )}
+
+                                {inv.current_handler?.status === "REVIEW" && (
                                 <p className="text-orange-600 font-medium">
-                                  ⚠ Review by: {inv.current_handler.name}
+                                    ⚠ Review by: {inv.current_handler.name}
                                 </p>
-                              )}
+                                )}
                             </div>
                           )}
                         </td>
@@ -348,24 +329,14 @@ export default function BillingInvoiceListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            {/* Show Review button for REVIEW status */}
-                            {(inv.billing_status === "REVIEW" || inv.status === "REVIEW") && (
-                              <button
-                                onClick={() => handleReview(inv)}
-                                className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition font-medium"
-                              >
-                                Review
-                              </button>
-                            )}
                             
-                            {/* Show Review button for BILLED status */}
-                            {inv.billing_status === "BILLED" && (
-                              <button
-                                onClick={() => handleReview(inv)}
-                                className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition font-medium"
-                              >
-                                Review
-                              </button>
+                            {inv.billing_status === "REVIEW" && (
+                                <button
+                                    onClick={() => handleReview(inv)}
+                                    className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition font-medium"
+                                >
+                                    Review
+                                </button>
                             )}
                             
                             {/* View button for all */}
@@ -413,13 +384,13 @@ export default function BillingInvoiceListPage() {
                 )}
 
                 {/* Reason */}
-                {reviewModal.invoice.return_reason ? (
-                    <p className="text-orange-700">
+                {reviewModal.invoice.return_info?.return_reason ? (
+                <p className="text-orange-700">
                     <span className="font-semibold">Reason:</span>{" "}
-                    {reviewModal.invoice.return_reason}
-                    </p>
+                    {reviewModal.invoice.return_info.return_reason}
+                </p>
                 ) : (
-                    <p>No issues reported.</p>
+                <p>No issues reported.</p>
                 )}
                 </div>
 

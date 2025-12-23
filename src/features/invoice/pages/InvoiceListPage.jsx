@@ -43,14 +43,18 @@ export default function InvoiceListPage() {
     eventSource.onmessage = (event) => {
       try {
         const invoice = JSON.parse(event.data);
-        setInvoices((prev) => {
-          // Update existing or add new
-          const exists = prev.find(inv => inv.id === invoice.id);
-          if (exists) {
-            return prev.map(inv => inv.id === invoice.id ? invoice : inv);
-          }
-          return [invoice, ...prev];
-        });
+        if (invoice.status === "INVOICED") {
+          setInvoices(prev => {
+            const exists = prev.find(inv => inv.id === invoice.id);
+            if (exists) {
+              return prev.map(inv => inv.id === invoice.id ? invoice : inv);
+            }
+            return [invoice, ...prev];
+          });
+        } else {
+          // remove when it moves to PICKING, PICKED, etc.
+          setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
+        }
       } catch (e) {
         console.error("Invalid SSE invoice:", e);
       }
@@ -67,7 +71,9 @@ export default function InvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/invoices/?status=INVOICED&page_size=100");
+      const res = await api.get("/sales/invoices/", {
+        params: { status: "INVOICED", page_size: 100 },
+      });
       setInvoices(res.data.results || []);
     } catch (err) {
       console.error("Failed to load invoices:", err);
@@ -135,19 +141,31 @@ export default function InvoiceListPage() {
   };
 
   // Handle Pick Invoice
-  const handlePickClick = (invoice) => {
-    const invoiceStatus = invoice.status || "Pending";
-    
-    if (invoiceStatus !== "INVOICED") {
-      alert("Only pending invoices can be picked");
+  const handlePickClick = async (invoice) => {
+    await loadInvoices(); // force fresh data
+
+    if (invoice.status !== "INVOICED") {
+      toast.error("This invoice is no longer available for picking");
       return;
     }
+
     setSelectedInvoice(invoice);
     setShowPickModal(true);
   };
 
   const handlePickInvoice = async (employeeEmail) => {
     try {
+      // 1. Check if user already has active picking
+      const activeRes = await api.get("/sales/picking/active/");
+      if (activeRes.data?.data) {
+        const activeInvoice = activeRes.data.data.invoice;
+        toast("You already have an active picking task");
+        setShowPickModal(false);
+        navigate(`/ops/picking/invoices/view/${activeInvoice.id}`);
+        return;
+      }
+
+      // 2. Try to start picking
       await api.post("/sales/picking/start/", {
         invoice_no: selectedInvoice.invoice_no,
         user_email: employeeEmail,
@@ -156,14 +174,25 @@ export default function InvoiceListPage() {
 
       setShowPickModal(false);
       setSelectedInvoice(null);
-
       await loadInvoices();
 
-      toast.success(`Picking started for invoice ${selectedInvoice.invoice_no}`);
+      toast.success(`Picking started for ${selectedInvoice.invoice_no}`);
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to start picking"
-      );
+      const msg = err.response?.data?.errors?.invoice_no?.[0];
+
+      if (msg?.includes("already exists")) {
+        toast("Picking already started. Redirecting…");
+
+        // fetch active and redirect
+        const activeRes = await api.get("/sales/picking/active/");
+        if (activeRes.data?.data) {
+          const inv = activeRes.data.data.invoice;
+          navigate(`/ops/picking/invoices/view/${inv.id}`);
+        }
+        return;
+      }
+
+      toast.error(err.response?.data?.message || "Failed to start picking");
     }
   };
 
@@ -190,31 +219,24 @@ export default function InvoiceListPage() {
     switch (status) {
       case "INVOICED":
         return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "PREPARING":
+      case "PICKING":
         return "bg-blue-100 text-blue-700 border-blue-200";
       case "PICKED":
         return "bg-green-100 text-green-700 border-green-200";
-      case "READY_FOR_PACKING":
+      case "PACKING":
         return "bg-purple-100 text-purple-700 border-purple-200";
       case "PACKED":
         return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "SHIPPED":
+      case "DISPATCHED":
         return "bg-teal-100 text-teal-700 border-teal-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
+      case "DELIVERED":
+        return "bg-gray-200 text-gray-700 border-gray-300";
+      case "REVIEW":
+        return "bg-red-100 text-red-700 border-red-200";
     }
   };
 
-  const getStatusLabel = (status) => {
-    const actualStatus = status || "Pending";
-    
-    switch (actualStatus) {
-      case "ReadyForPacking":
-        return "Ready for Packing";
-      default:
-        return actualStatus;
-    }
-  };
+  const getStatusLabel = (status) => status || "INVOICED";
 
   // Pagination UI renderer
   const renderPagination = () => {
@@ -425,7 +447,7 @@ export default function InvoiceListPage() {
 
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            {invoice.status === "INVOICED" && !activePicking && (
+                            {invoice.status === "INVOICED" && (
                               <button
                                 onClick={() => handlePickClick(invoice)}
                                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
@@ -530,7 +552,7 @@ export default function InvoiceListPage() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-2">
-                      {invoice.status === "INVOICED" && !activePicking && (
+                      {invoice.status === "INVOICED" && (
                         <button
                           onClick={() => handlePickClick(invoice)}
                           className="flex-1 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm"

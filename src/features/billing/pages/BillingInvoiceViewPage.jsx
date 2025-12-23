@@ -1,3 +1,6 @@
+// ============================================
+// 1. BillingInvoiceViewPage.jsx
+// ============================================
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
@@ -5,7 +8,6 @@ import { useAuth } from "../../auth/AuthContext";
 
 export default function BillingInvoiceViewPage() {
   const { user } = useAuth();
-
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,18 +39,12 @@ export default function BillingInvoiceViewPage() {
     navigate("/billing/invoices");
   };
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = invoice?.items?.slice(indexOfFirstItem, indexOfLastItem) || [];
   const totalPages = invoice ? Math.ceil(invoice.items.length / itemsPerPage) : 0;
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
-
-  const handleItemsPerPageChange = (e) => {
-    setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1);
-  };
 
   if (loading) {
     return (
@@ -75,7 +71,6 @@ export default function BillingInvoiceViewPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
         
-        {/* Header with Back Button */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Invoice Management</h1>
@@ -94,7 +89,6 @@ export default function BillingInvoiceViewPage() {
         {/* Mobile View */}
         <div className="block lg:hidden space-y-4">
           
-          {/* Invoice Information Card */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
               Invoice Information
@@ -108,7 +102,6 @@ export default function BillingInvoiceViewPage() {
             </div>
           </div>
 
-          {/* Customer Information Card */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
               Customer Information
@@ -124,7 +117,6 @@ export default function BillingInvoiceViewPage() {
             </div>
           </div>
 
-          {/* Items Card */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
               Item Details ({invoice.items.length})
@@ -137,6 +129,12 @@ export default function BillingInvoiceViewPage() {
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
                       <p className="text-xs text-gray-500">Shelf: {item.shelf_location || "—"}</p>
+                      {item.company_name && (
+                        <p className="text-xs text-gray-500">Company: {item.company_name}</p>
+                      )}
+                      {item.packing && (
+                        <p className="text-xs text-gray-500">Pack: {item.packing}</p>
+                      )}
                     </div>
                     <span className="text-sm font-bold text-teal-600">Qty: {item.quantity}</span>
                   </div>
@@ -163,7 +161,6 @@ export default function BillingInvoiceViewPage() {
               ))}
             </div>
 
-            {/* Mobile Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
                 <button
@@ -197,7 +194,6 @@ export default function BillingInvoiceViewPage() {
             )}
           </div>
 
-          {/* Total Amount Card */}
           <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-4 text-center shadow-md">
             <p className="text-sm font-bold tracking-wider mb-1">Total Amount</p>
             <p className="text-2xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
@@ -208,10 +204,8 @@ export default function BillingInvoiceViewPage() {
         <div className="hidden lg:block bg-white rounded-lg shadow-md">
           <div className="grid grid-cols-5 min-h-[calc(100vh-180px)]">
 
-            {/* LEFT COLUMN */}
             <div className="col-span-2 border-r border-gray-200 p-6 space-y-6">
 
-              {/* Invoice Information */}
               <div>
                 <div className="border-b-2 border-teal-500 pb-2 mb-4">
                   <h2 className="text-xl font-bold text-gray-900">Invoice Information</h2>
@@ -226,7 +220,6 @@ export default function BillingInvoiceViewPage() {
                 </div>
               </div>
 
-              {/* Customer Information */}
               <div>
                 <div className="border-b-2 border-teal-500 pb-2 mb-4">
                   <h2 className="text-xl font-bold text-gray-900">Customer Information</h2>
@@ -256,7 +249,6 @@ export default function BillingInvoiceViewPage() {
               </div>
             </div>
 
-            {/* RIGHT COLUMN */}
             <div className="col-span-3 p-8">
 
               <div className="h-full flex flex-col">
@@ -265,60 +257,60 @@ export default function BillingInvoiceViewPage() {
                   <h2 className="text-xl font-bold text-gray-900">Item Details</h2>
                 </div>
 
-                {/* Table */}
                 <div className="flex-1 flex flex-col border border-gray-300 rounded-lg overflow-hidden">
 
-                  {/* Header */}
                   <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white flex-shrink-0">
                     <div className="grid grid-cols-12 gap-3 px-4 py-3 text-xs font-bold uppercase">
                       <div className="col-span-1 text-center">Shelf</div>
-                      <div className="col-span-3">Item Name</div>
+                      <div className="col-span-2">Item Name</div>
+                      <div className="col-span-1">Company</div>
+                      <div className="col-span-1">Packing</div>
                       <div className="col-span-1 text-right">Qty</div>
-                      <div className="col-span-2 text-right">MRP</div>
+                      <div className="col-span-1 text-right">MRP</div>
                       <div className="col-span-2 text-center">Batch No</div>
                       <div className="col-span-1 text-center">Exp Date</div>
                       <div className="col-span-2 text-center">Remarks</div>
                     </div>
                   </div>
 
-                  {/* Body */}
                   <div className="flex-1 divide-y divide-gray-200 overflow-y-auto">
                     {currentItems.map((item, index) => (
                       <div
                         key={index}
                         className="grid grid-cols-12 gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                       >
-                        {/* Shelf */}
                         <div className="col-span-1 text-sm text-center font-semibold text-gray-700">
                           {item.shelf_location || "—"}
                         </div>
 
-                        {/* Item Name */}
-                        <div className="col-span-3 text-sm font-medium text-gray-900">
+                        <div className="col-span-2 text-sm font-medium text-gray-900">
                           {item.name}
                         </div>
 
-                        {/* Qty */}
+                        <div className="col-span-1 text-xs text-gray-600">
+                          {item.company_name || "—"}
+                        </div>
+
+                        <div className="col-span-1 text-xs text-gray-600">
+                          {item.packing || "—"}
+                        </div>
+
                         <div className="col-span-1 text-sm text-right font-semibold text-gray-800">
                           {item.quantity}
                         </div>
 
-                        {/* MRP */}
-                        <div className="col-span-2 text-sm font-semibold text-gray-900 text-right">
+                        <div className="col-span-1 text-sm font-semibold text-gray-900 text-right">
                           ₹{item.mrp?.toFixed(2)}
                         </div>
 
-                        {/* Batch No */}
                         <div className="col-span-2 text-sm text-center text-gray-700">
                           {item.batch_no || "—"}
                         </div>
 
-                        {/* Exp Date */}
                         <div className="col-span-1 text-xs text-center text-gray-600">
                           {item.expiry_date || "—"}
                         </div>
 
-                        {/* Remarks */}
                         <div className="col-span-2 text-xs text-center text-gray-500 truncate">
                           {item.remarks || "—"}
                         </div>
@@ -326,7 +318,6 @@ export default function BillingInvoiceViewPage() {
                     ))}
                   </div>
 
-                  {/* Pagination */}
                   <div className="flex items-center justify-between mt-3 px-4 pb-3">
                     <p className="text-sm text-gray-600">
                       Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, invoice.items.length)} of {invoice.items.length} items
@@ -371,7 +362,6 @@ export default function BillingInvoiceViewPage() {
                   </div>
                 </div>
 
-                {/* Total Amount */}
                 <div className="mt-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg px-6 py-4 text-center shadow-md flex-shrink-0">
                   <p className="text-m font-bold tracking-wider mb-1">Total Amount</p>
                   <p className="text-3xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
@@ -388,7 +378,6 @@ export default function BillingInvoiceViewPage() {
   );
 }
 
-// Helper function for status labels
 const getStatusLabel = (status) => {
   switch (status) {
     case "PACKED":
@@ -404,7 +393,6 @@ const getStatusLabel = (status) => {
   }
 };
 
-// Components
 function InfoRow({ label, value }) {
   return (
     <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
