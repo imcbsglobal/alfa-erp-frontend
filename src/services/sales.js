@@ -12,10 +12,6 @@ export const getPackingHistory = (params = {}) => {
   return api.get("/sales/packing/history/", { params });
 };
 
-export const getDeliveryHistory = (params = {}) => {
-  return api.get("/sales/delivery/history/", { params });
-};
-
 export const getInvoiceById = (id) => {
   return api.get(`/sales/invoices/${id}/`);
 };
@@ -33,10 +29,18 @@ export const getActivePackingTask = (params = {}) =>
 export const getPackedInvoices = (params = {}) =>
   api.get("/sales/invoices/", { params: { status: "PACKED", ...params } });
 
-// Add at the end of the file
-export const startDelivery = (data) =>
-  api.post("/sales/delivery/start/", data);
+// Get delivery history
+  export const getDeliveryHistory = (params) => {
+    return api.get("/sales/delivery/history/", { params });
+  };
 
-export const completeDelivery = (data) =>
-  api.post("/sales/delivery/complete/", data);
+  // Start delivery
+  export const startDelivery = (data) => {
+    return api.post("/sales/delivery/start/", data);
+  };
+
+  // Complete delivery
+  export const completeDelivery = (data) => {
+    return api.post("/sales/delivery/complete/", data);
+  };
 

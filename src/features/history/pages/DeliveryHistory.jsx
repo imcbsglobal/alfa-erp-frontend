@@ -12,6 +12,7 @@ export default function DeliveryHistory() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [expandedRow, setExpandedRow] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -44,8 +45,9 @@ export default function DeliveryHistory() {
     }
   };
 
-  const handleViewInvoice = (invoiceId) => {
-    navigate(`/invoices/${invoiceId}`);
+  const handleViewInvoice = (invoiceNo) => {
+    // Navigate to invoice view page
+    navigate(`/invoices/${invoiceNo}`);
   };
 
   const formatDuration = (minutes) => {
@@ -56,7 +58,18 @@ export default function DeliveryHistory() {
     return `${hours}h ${mins}m`;
   };
 
-  // Badge formatter for delivery type
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   const typeBadge = (type) => {
     const styles = {
       DIRECT: "bg-blue-100 text-blue-700 border-blue-200",
@@ -65,17 +78,13 @@ export default function DeliveryHistory() {
     };
 
     const labels = {
-      DIRECT: "Self Pickup",
+      DIRECT: "Counter Pickup",
       COURIER: "Courier",
       INTERNAL: "Company Delivery",
     };
 
     return (
-      <span
-        className={`px-3 py-1 rounded-full text-xs font-bold border ${
-          styles[type] || "bg-gray-100 text-gray-700"
-        }`}
-      >
+      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[type] || "bg-gray-100 text-gray-700"}`}>
         {labels[type] || type}
       </span>
     );
@@ -95,24 +104,23 @@ export default function DeliveryHistory() {
     };
 
     return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-medium border ${
-          styles[status] || "bg-gray-100 text-gray-700"
-        }`}
-      >
+      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${styles[status] || "bg-gray-100 text-gray-700"}`}>
         {labels[status] || status}
       </span>
     );
   };
 
+  const toggleExpand = (id) => {
+    setExpandedRow(expandedRow === id ? null : id);
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
-      {/* HEADER + FILTERS ROW  */}
+      {/* HEADER + FILTERS */}
       <div className="flex flex-col sm:flex-row sm:justify-between mb-4 gap-3 sm:items-center">
         <h2 className="text-xl font-bold text-gray-800">Delivery History</h2>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          {/* Search Invoice / Details */}
           <input
             type="text"
             placeholder="Search invoice or details..."
@@ -124,7 +132,6 @@ export default function DeliveryHistory() {
             className="border px-3 py-2 rounded-lg sm:w-64 w-full"
           />
 
-          {/* Type Filter */}
           <select
             value={filterType}
             onChange={(e) => {
@@ -134,12 +141,11 @@ export default function DeliveryHistory() {
             className="border px-3 py-2 rounded-lg w-full sm:w-auto"
           >
             <option value="">All Types</option>
-            <option value="DIRECT">Self Pickup</option>
+            <option value="DIRECT">Counter Pickup</option>
             <option value="COURIER">Courier</option>
             <option value="INTERNAL">Company Delivery</option>
           </select>
 
-          {/* Status Filter */}
           <select
             value={filterStatus}
             onChange={(e) => {
@@ -154,7 +160,6 @@ export default function DeliveryHistory() {
             <option value="DELIVERED">Delivered</option>
           </select>
 
-          {/* Date Filter */}
           <input
             type="date"
             value={filterDate}
@@ -167,92 +172,177 @@ export default function DeliveryHistory() {
         </div>
       </div>
 
-      {/* Table */}
       {loading ? (
         <div className="text-center py-8 text-gray-500">Loading...</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gradient-to-r from-teal-500 to-cyan-600">
-                <th className="px-3 sm:px-6 py-4 text-white text-left">Invoice</th>
-                <th className="px-3 sm:px-6 py-4 text-white text-left">Customer</th>
-                <th className="px-3 sm:px-6 py-4 text-white text-left">Type</th>
-                <th className="px-3 sm:px-6 py-4 text-white text-left">Details</th>
-                <th className="px-3 sm:px-6 py-4 text-white text-left">Status</th>
-                <th className="px-3 sm:px-6 py-4 text-white text-left">Duration</th>
-              </tr>
-            </thead>
+        <>
+          {/* DESKTOP TABLE */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gradient-to-r from-teal-500 to-cyan-600">
+                  <th className="px-6 py-4 text-white text-left">Invoice</th>
+                  <th className="px-6 py-4 text-white text-left">Customer</th>
+                  <th className="px-6 py-4 text-white text-left">Type</th>
+                  <th className="px-6 py-4 text-white text-left">Details</th>
+                  <th className="px-6 py-4 text-white text-left">Status</th>
+                  <th className="px-6 py-4 text-white text-left">Duration</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {history.map((h) => (
-                <tr key={h.id} className="border-b hover:bg-gray-50">
-                  <td className="px-3 sm:px-6 py-3">
-                    <button
-                      onClick={() => handleViewInvoice(h.id)}
-                      className="text-teal-600 hover:text-teal-800 font-medium hover:underline"
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-b hover:bg-gray-50">
+                    <td className="px-6 py-3">
+                      <button
+                        onClick={() => handleViewInvoice(h.invoice_no)}
+                        className="text-teal-600 hover:text-teal-800 font-medium hover:underline"
+                      >
+                        {h.invoice_no}
+                      </button>
+                    </td>
+
+                    <td className="px-6 py-3">
+                      <p className="font-medium">{h.customer_name}</p>
+                      <p className="text-xs text-gray-500">{h.customer_email}</p>
+                    </td>
+
+                    <td className="px-6 py-3">{typeBadge(h.delivery_type)}</td>
+
+                    <td className="px-6 py-3 text-gray-700">
+                      {h.delivery_type === "DIRECT" && (
+                        <p className="text-xs text-gray-500">Customer collected</p>
+                      )}
+
+                      {h.delivery_type === "COURIER" && (
+                        <>
+                          <p className="font-medium">{h.courier_name}</p>
+                          <p className="text-xs text-gray-500">Track: {h.tracking_no}</p>
+                        </>
+                      )}
+
+                      {h.delivery_type === "INTERNAL" && (
+                        <>
+                          <p className="font-medium">{h.delivery_user_name}</p>
+                          <p className="text-xs text-gray-500">{h.delivery_user_email}</p>
+                        </>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-3">{statusBadge(h.delivery_status)}</td>
+
+                    <td className="px-6 py-3">
+                      {h.duration ? (
+                        <span className="text-gray-700 font-medium">{formatDuration(h.duration)}</span>
+                      ) : (
+                        <span className="text-gray-400">In Progress</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+
+                {history.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-center py-8 text-gray-500">
+                      No delivery records found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* MOBILE CARDS */}
+          <div className="lg:hidden space-y-4">
+            {history.map((h) => (
+              <div key={h.id} className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                <div
+                  className="p-4 cursor-pointer"
+                  onClick={() => toggleExpand(h.id)}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewInvoice(h.invoice_no);
+                        }}
+                        className="font-bold text-teal-600 hover:underline"
+                      >
+                        {h.invoice_no}
+                      </button>
+                      <p className="text-sm text-gray-600">{h.customer_name}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {typeBadge(h.delivery_type)}
+                      {statusBadge(h.delivery_status)}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <p>📅 {formatDateTime(h.start_time)}</p>
+                    <p>⏱️ {formatDuration(h.duration)}</p>
+                  </div>
+
+                  <div className="mt-2 text-right">
+                    <svg
+                      className={`w-5 h-5 inline text-gray-400 transition-transform ${
+                        expandedRow === h.id ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      {h.invoice_no}
-                    </button>
-                  </td>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
 
-                  <td className="px-3 sm:px-6 py-3">
-                    <p className="font-medium">{h.customer_name}</p>
-                    <p className="text-xs text-gray-500">{h.customer_email}</p>
-                  </td>
-
-                  <td className="px-3 sm:px-6 py-3">{typeBadge(h.delivery_type)}</td>
-
-                  <td className="px-3 sm:px-6 py-3 text-gray-700">
-                    {h.delivery_type === "DIRECT" && (
-                      <p className="text-xs text-gray-500">Customer collected the order</p>
-                    )}
+                {expandedRow === h.id && (
+                  <div className="px-4 pb-4 border-t pt-3 space-y-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">Customer:</span>
+                      <p className="font-medium">{h.customer_name}</p>
+                      <p className="text-xs text-gray-500">{h.customer_phone}</p>
+                    </div>
 
                     {h.delivery_type === "COURIER" && (
-                      <>
+                      <div>
+                        <span className="text-gray-500">Courier:</span>
                         <p className="font-medium">{h.courier_name}</p>
                         <p className="text-xs text-gray-500">Tracking: {h.tracking_no}</p>
-                      </>
+                      </div>
                     )}
 
                     {h.delivery_type === "INTERNAL" && (
-                      <>
+                      <div>
+                        <span className="text-gray-500">Delivered by:</span>
                         <p className="font-medium">{h.delivery_user_name}</p>
                         <p className="text-xs text-gray-500">{h.delivery_user_email}</p>
-                      </>
+                      </div>
                     )}
-                  </td>
 
-                  <td className="px-3 sm:px-6 py-3">{statusBadge(h.delivery_status)}</td>
-
-                  <td className="px-3 sm:px-6 py-3">
-                    {h.duration ? (
-                      <button
-                        onClick={() => handleViewInvoice(h.id)}
-                        className="text-teal-600 hover:text-teal-800 font-medium hover:underline"
-                      >
-                        {formatDuration(h.duration)}
-                      </button>
-                    ) : (
-                      <span className="text-gray-400">In Progress</span>
+                    {h.notes && (
+                      <div>
+                        <span className="text-gray-500">Notes:</span>
+                        <p className="text-gray-700">{h.notes}</p>
+                      </div>
                     )}
-                  </td>
-                </tr>
-              ))}
+                  </div>
+                )}
+              </div>
+            ))}
 
-              {history.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="text-center py-4 text-gray-500">
-                    No delivery records found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            {history.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No delivery records found
+              </div>
+            )}
+          </div>
+        </>
       )}
 
-      {/* Pagination Component */}
+      {/* Pagination */}
       <Pagination
         currentPage={currentPage}
         totalItems={totalCount}

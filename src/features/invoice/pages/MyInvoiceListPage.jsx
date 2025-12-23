@@ -317,9 +317,6 @@ export default function MyInvoiceListPage() {
                               <p className="font-semibold text-sm text-gray-900">
                                 {item.name}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                {item.shelf_location && `📍 ${item.shelf_location}`}
-                              </p>
                             </div>
                             <div className="text-right ml-2">
                               <span className="font-bold text-gray-900">
@@ -329,18 +326,31 @@ export default function MyInvoiceListPage() {
                             </div>
                           </div>
                           
-                          {/* Compact Details */}
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600">
-                            {item.batch_no && <span>Batch: {item.batch_no}</span>}
-                            {item.expiry_date && (
-                              <span>
-                                Exp: {new Date(item.expiry_date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  year: 'numeric'
-                                })}
-                              </span>
-                            )}
-                            {item.mrp && <span>MRP: ₹{item.mrp}</span>}
+                          {/* Ultra-compact meta row */}
+                          <div className="mt-1 text-[11px] text-gray-600 flex flex-wrap gap-x-3 gap-y-1">
+                            <span>
+                              📍 <b>{item.shelf_location || "—"}</b>
+                            </span>
+                            <span>
+                              Pack: <b>{item.packing || "—"}</b>
+                            </span>
+                            <span>
+                              Qty: <b>{item.quantity}</b>
+                            </span>
+                            <span>
+                              MRP: <b>₹{item.mrp || "—"}</b>
+                            </span>
+                            <span>
+                              Batch: <b>{item.batch_no || "—"}</b>
+                            </span>
+                            <span>
+                              Exp:{" "}
+                              <b>
+                                {item.expiry_date
+                                  ? new Date(item.expiry_date).toLocaleDateString("en-GB")
+                                  : "—"}
+                              </b>
+                            </span>
                           </div>
                         </div>
 

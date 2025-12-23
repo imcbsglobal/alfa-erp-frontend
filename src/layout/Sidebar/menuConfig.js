@@ -86,11 +86,10 @@ export const MENU_CONFIG = [
     isActive: (pathname) =>
       pathname.startsWith("/packing") || pathname.startsWith("/ops/packing"),
   },
-
   {
     id: "delivery",
     label: "Delivery",
-    icon: TruckIcon, // or your icon component
+    icon: TruckIcon,
     type: "dropdown",
     hasAccess: (user) => ["SUPERADMIN", "ADMIN", "DELIVERY"].includes(user?.role),
     submenu: [
@@ -99,12 +98,20 @@ export const MENU_CONFIG = [
         icon: ListIcon,
         path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/dispatch" : "/delivery/dispatch",
         hasAccess: (user) => ["SUPERADMIN", "ADMIN", "DELIVERY"].includes(user?.role),
-      }
+      },
+      {
+        label: "My Assigned Delivery",
+        icon: PlusCircleIcon,
+        path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/my" : "/delivery/my",
+        hasAccess: (user, permissions) =>
+          user?.role === "DELIVERY" || 
+          user?.role === "SUPERADMIN" || 
+          permissions["my-delivery"]?.view === true,
+      },
     ],
     isActive: (pathname) =>
       pathname.startsWith("/delivery") || pathname.startsWith("/ops/delivery"),
   },
-
   {
     id: "history",
     label: "History",
@@ -173,8 +180,10 @@ export const PAGE_TITLES = {
   "/billing/my": "My Assigned Billing",
   "/ops/billing/invoices": "Billing Management",
   "/ops/billing/my": "My Assigned Billing",
-  "/delivery/dispatch": "Delivery Dispatch", // ← ADD THIS
-  "/ops/delivery/dispatch": "Delivery Dispatch", // ← ADD THIS
+  "/delivery/dispatch": "Delivery Dispatch",
+  "/ops/delivery/dispatch": "Delivery Dispatch",
+  "/delivery/my": "My Assigned Delivery",
+  "/ops/delivery/my": "My Assigned Delivery",
   "/user-management": "User Management",
   "/add-user": "Add User",
   "/user-control": "User Control",

@@ -30,7 +30,9 @@ import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
 import BillingInvoiceListPage from "../features/billing/pages/BillingInvoiceListPage";
 import BillingInvoiceViewPage from "../features/billing/pages/BillingInvoiceViewPage";
 
+// Import Delivery Pages
 import DeliveryDispatchPage from "../features/delivery/pages/DeliveryDispatchPage";
+import MyDeliveryListPage from "../features/delivery/pages/MyDeliveryListPage";
 
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
@@ -53,6 +55,8 @@ export default function AppRouter() {
                 : <UserDashboard />
             }
           />
+          
+          {/* Picking routes */}
           <Route path="/invoices" element={<InvoiceListPage />} />
           <Route path="/invoices/view/:id" element={<InvoiceViewPage />} />
           <Route path="/invoices/my" element={<MyInvoiceListPage />} />
@@ -66,18 +70,23 @@ export default function AppRouter() {
           <Route path="/billing/invoices" element={<BillingInvoiceListPage />} />
           <Route path="/billing/invoices/view/:id" element={<BillingInvoiceViewPage />} />
 
+          {/* Delivery routes for SUPERADMIN/ADMIN */}
           <Route path="/delivery/dispatch" element={<DeliveryDispatchPage />} />
+          <Route path="/delivery/my" element={<MyDeliveryListPage />} />
 
+          {/* User Management */}
           <Route path="/user-management" element={<UserListPage />} />
           <Route path="/user-control" element={<UserControlPage />} />
           <Route path="/add-user" element={<AddUserPage />} />
           <Route path="/users/:id/edit" element={<AddUserPage />} />
 
+          {/* Master Data */}
           <Route path="/master/job-title" element={<JobTitleListPage />} />
           <Route path="/master/job-title/add" element={<AddJobTitlePage />} />
           <Route path="/master/department" element={<DepartmentListPage />} />
           <Route path="/master/department/add" element={<AddDepartmentPage />} />
 
+          {/* History */}
           <Route path="/history" element={<HistoryPage />} />
         </Route>
       </Route>
@@ -102,8 +111,9 @@ export default function AppRouter() {
           <Route path="/ops/billing/invoices" element={<BillingInvoiceListPage />} />
           <Route path="/ops/billing/invoices/view/:id" element={<BillingInvoiceViewPage />} />
 
-          {/* Delivery (future) */}
+          {/* Delivery */}
           <Route path="/ops/delivery/dispatch" element={<DeliveryDispatchPage />} />
+          <Route path="/ops/delivery/my" element={<MyDeliveryListPage />} />
         </Route>
       </Route>
 

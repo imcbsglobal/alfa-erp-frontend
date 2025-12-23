@@ -3,6 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}-${m}-${y}`;
+}
+
 export default function BillingInvoiceViewPage() {
   const { user } = useAuth();
   const [invoice, setInvoice] = useState(null);
@@ -93,7 +99,10 @@ export default function BillingInvoiceViewPage() {
             </h2>
             <div className="space-y-2">
               <MobileInfoRow label="Invoice Number" value={invoice.invoice_no} />
-              <MobileInfoRow label="Invoice Date" value={invoice.invoice_date} />
+              <MobileInfoRow
+                label="Invoice Date"
+                value={formatDate(invoice.invoice_date)}
+              />
               <MobileInfoRow label="Salesman" value={invoice.salesman?.name} />
               <MobileInfoRow label="Created By" value={invoice.created_by} />
             </div>
@@ -147,7 +156,7 @@ export default function BillingInvoiceViewPage() {
                     </div>
                     <div>
                       <span className="text-gray-500">Exp Date:</span>
-                      <span className="ml-1 text-gray-700">{item.expiry_date || "—"}</span>
+                      <span className="ml-1 text-gray-700">{formatDate(item.expiry_date)}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Remarks:</span>
@@ -210,7 +219,7 @@ export default function BillingInvoiceViewPage() {
                   <h2 className="text-sm font-bold text-gray-900">Invoice Info</h2>
                 </div>
                 <div className="space-y-2">
-                  <CompactInfoRowInline label1="Invoice No" value1={invoice.invoice_no} label2="Date" value2={invoice.invoice_date} />
+                  <CompactInfoRowInline label1="Invoice No"value1={invoice.invoice_no}label2="Date"value2={formatDate(invoice.invoice_date)}/>
                   <CompactInfoRowInline label1="Salesman" value1={invoice.salesman?.name} label2="Created By" value2={invoice.created_by} />
                 </div>
               </div>
@@ -292,7 +301,7 @@ export default function BillingInvoiceViewPage() {
                       </div>
 
                       <div className="col-span-2 text-xs text-center text-gray-600">
-                        {item.expiry_date || "—"}
+                        {formatDate(item.expiry_date)}
                       </div>
 
                       <div className="col-span-1 text-xs text-center text-gray-500 overflow-hidden">

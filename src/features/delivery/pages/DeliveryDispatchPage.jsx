@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Truck, Package, Building2, User, Search, X } from 'lucide-react';
+import { Eye, Truck, Package, Search, X } from 'lucide-react';
 import api from '../../../services/api';
+import DeliveryModal from '../components/DeliveryModal';
+import DeliveryStatusBadge, { DeliveryBadgeGroup } from '../components/DeliveryStatusBadge';
 
 const DeliveryDispatchPage = () => {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
-  const [deliveryMode, setDeliveryMode] = useState('');
-  const [formData, setFormData] = useState({
-    userEmail: '',
-    courierName: '',
-    trackingNo: '',
-    notes: ''
-  });
   const [submitting, setSubmitting] = useState(false);
 
   // Filters
@@ -21,18 +16,8 @@ const DeliveryDispatchPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 10;
 
-  // Stats
-  const [stats, setStats] = useState({
-    pending: 0,
-    counterPickup: 0,
-    courierDispatched: 0,
-    companyDelivery: 0,
-    total: 0
-  });
-
   useEffect(() => {
     loadPackedInvoices();
-    loadStats();
   }, [currentPage, searchTerm]);
 
   const loadPackedInvoices = async () => {
@@ -51,9 +36,6 @@ const DeliveryDispatchPage = () => {
       const response = await api.get('/sales/invoices/', { params });
       setBills(response.data.results || []);
       setTotalCount(response.data.count || 0);
-      
-      // Update pending count in stats
-      setStats(prev => ({ ...prev, pending: response.data.count || 0 }));
     } catch (error) {
       console.error('Failed to load packed invoices:', error);
     } finally {
@@ -61,107 +43,17 @@ const DeliveryDispatchPage = () => {
     }
   };
 
-  const loadStats = async () => {
-    try {
-      // Get delivery history for stats
-      const response = await api.get('/sales/delivery/history/', {
-        params: {
-          start_date: new Date().toISOString().split('T')[0],
-          page_size: 100
-        }
-      });
-
-      const deliveries = response.data.results || [];
-      
-      setStats(prev => ({
-        ...prev,
-        counterPickup: deliveries.filter(d => d.delivery_type === 'DIRECT').length,
-        courierDispatched: deliveries.filter(d => d.delivery_type === 'COURIER').length,
-        companyDelivery: deliveries.filter(d => d.delivery_type === 'INTERNAL').length,
-        total: deliveries.length
-      }));
-    } catch (error) {
-      console.error('Failed to load stats:', error);
-    }
-  };
-
   const handleDeliveryClick = (bill) => {
     setSelectedBill(bill);
-    setDeliveryMode('');
-    setFormData({
-      userEmail: '',
-      courierName: '',
-      trackingNo: '',
-      notes: ''
-    });
   };
 
-  const handleClose = () => {
-    setSelectedBill(null);
-    setDeliveryMode('');
-    setFormData({
-      userEmail: '',
-      courierName: '',
-      trackingNo: '',
-      notes: ''
-    });
-  };
-
-  const handleDeliveryModeSelect = (mode) => {
-    setDeliveryMode(mode);
-  };
-
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleConfirmDelivery = async () => {
-    if (!selectedBill || !deliveryMode) return;
-
+  const handleConfirmDelivery = async (payload) => {
     setSubmitting(true);
     try {
-      let payload = {
-        invoice_no: selectedBill.invoice_no,
-        delivery_type: deliveryMode === 'counter' ? 'DIRECT' : 
-                       deliveryMode === 'courier' ? 'COURIER' : 'INTERNAL',
-        notes: formData.notes || ''
-      };
-
-      // Add fields based on delivery mode
-      if (deliveryMode === 'counter' || deliveryMode === 'company') {
-        if (!formData.userEmail) {
-          alert('User email is required');
-          setSubmitting(false);
-          return;
-        }
-        payload.user_email = formData.userEmail;
-      }
-
-      if (deliveryMode === 'courier') {
-        if (!formData.courierName) {
-          alert('Courier name is required');
-          setSubmitting(false);
-          return;
-        }
-        payload.courier_name = formData.courierName;
-        if (formData.trackingNo) {
-          payload.tracking_no = formData.trackingNo;
-        }
-        if (formData.userEmail) {
-          payload.user_email = formData.userEmail;
-        }
-      }
-
-      // Start delivery
       await api.post('/sales/delivery/start/', payload);
-
       alert('Delivery started successfully!');
-      handleClose();
+      setSelectedBill(null);
       loadPackedInvoices();
-      loadStats();
     } catch (error) {
       console.error('Failed to start delivery:', error);
       alert(error.response?.data?.detail || 'Failed to start delivery');
@@ -184,81 +76,6 @@ const DeliveryDispatchPage = () => {
       minute: '2-digit',
       hour12: true
     });
-  };
-
-  const renderDeliveryForm = () => {
-    if (!deliveryMode) return null;
-
-    return (
-      <div className="mt-6 space-y-4 animate-fadeIn">
-        {/* User Email - for all modes */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            <User className="inline w-4 h-4 mr-1" />
-            User Email {(deliveryMode === 'counter' || deliveryMode === 'company') && <span className="text-red-500">*</span>}
-          </label>
-          <input
-            type="email"
-            name="userEmail"
-            value={formData.userEmail}
-            onChange={handleInputChange}
-            placeholder="Enter user email"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            required={deliveryMode === 'counter' || deliveryMode === 'company'}
-          />
-          <p className="text-xs text-gray-500 mt-1">Scan or enter the delivery person's email</p>
-        </div>
-
-        {/* Courier Delivery specific fields */}
-        {deliveryMode === 'courier' && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Truck className="inline w-4 h-4 mr-1" />
-                Courier Service Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="courierName"
-                value={formData.courierName}
-                onChange={handleInputChange}
-                placeholder="e.g., BlueDart, Delhivery, DTDC"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tracking Number (Optional)
-              </label>
-              <input
-                type="text"
-                name="trackingNo"
-                value={formData.trackingNo}
-                onChange={handleInputChange}
-                placeholder="Enter tracking number"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-              />
-            </div>
-          </>
-        )}
-
-        {/* Notes - for all modes */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Delivery Notes
-          </label>
-          <textarea
-            name="notes"
-            value={formData.notes}
-            onChange={handleInputChange}
-            placeholder="Add any delivery notes..."
-            rows={3}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -335,9 +152,7 @@ const DeliveryDispatchPage = () => {
                         {formatDateTime(bill.packer_info?.end_time)}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                          {bill.status}
-                        </span>
+                        <DeliveryStatusBadge status={bill.status} showIcon={false} />
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
@@ -399,138 +214,13 @@ const DeliveryDispatchPage = () => {
       </div>
 
       {/* Delivery Modal */}
-      {selectedBill && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Process Delivery</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Invoice #{selectedBill.invoice_no} for {selectedBill.customer?.name || 'Customer'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Amount: ₹{selectedBill.total_amount?.toFixed(2)} • Items: {selectedBill.items?.length || 0}
-                </p>
-              </div>
-              <button
-                onClick={handleClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6 text-gray-600" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Select Delivery Mode</h3>
-              
-              {/* Delivery Mode Options */}
-              <div className="space-y-3">
-                {/* Counter Pickup - DIRECT */}
-                <button
-                  onClick={() => handleDeliveryModeSelect('counter')}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                    deliveryMode === 'counter'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-lg ${deliveryMode === 'counter' ? 'bg-green-500' : 'bg-gray-100'}`}>
-                      <Building2 className={`w-6 h-6 ${deliveryMode === 'counter' ? 'text-white' : 'text-gray-600'}`} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">Counter Pickup</p>
-                      <p className="text-sm text-gray-600">Customer collects medicine directly from counter</p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Courier Delivery - COURIER */}
-                <button
-                  onClick={() => handleDeliveryModeSelect('courier')}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                    deliveryMode === 'courier'
-                      ? 'border-orange-500 bg-orange-50'
-                      : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-lg ${deliveryMode === 'courier' ? 'bg-orange-500' : 'bg-gray-100'}`}>
-                      <Truck className={`w-6 h-6 ${deliveryMode === 'courier' ? 'text-white' : 'text-gray-600'}`} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">Courier Delivery</p>
-                      <p className="text-sm text-gray-600">Hand over to courier service for delivery</p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Company Delivery - INTERNAL */}
-                <button
-                  onClick={() => handleDeliveryModeSelect('company')}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                    deliveryMode === 'company'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-lg ${deliveryMode === 'company' ? 'bg-blue-500' : 'bg-gray-100'}`}>
-                      <Package className={`w-6 h-6 ${deliveryMode === 'company' ? 'text-white' : 'text-gray-600'}`} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">Company Delivery</p>
-                      <p className="text-sm text-gray-600">Deliver via company's own delivery staff</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Dynamic Form */}
-              {renderDeliveryForm()}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex gap-3 p-6 border-t border-gray-200">
-              <button
-                onClick={handleClose}
-                disabled={submitting}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelivery}
-                disabled={!deliveryMode || submitting || 
-                  (deliveryMode === 'counter' && !formData.userEmail) ||
-                  (deliveryMode === 'company' && !formData.userEmail) ||
-                  (deliveryMode === 'courier' && !formData.courierName)}
-                className="flex-1 px-6 py-3 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                {submitting ? 'Processing...' : 'Confirm Delivery'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-      `}</style>
+      <DeliveryModal
+        isOpen={!!selectedBill}
+        onClose={() => setSelectedBill(null)}
+        onConfirm={handleConfirmDelivery}
+        invoice={selectedBill}
+        submitting={submitting}
+      />
     </div>
   );
 };

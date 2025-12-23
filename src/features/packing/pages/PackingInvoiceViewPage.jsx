@@ -3,6 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}-${m}-${y}`;
+}
+
 export default function InvoiceViewPage() {
   const { user } = useAuth();
   const [invoice, setInvoice] = useState(null);
@@ -97,7 +103,7 @@ export default function InvoiceViewPage() {
             </h2>
             <div className="space-y-2">
               <MobileInfoRow label="Invoice Number" value={invoice.invoice_no} />
-              <MobileInfoRow label="Invoice Date" value={invoice.invoice_date} />
+              <MobileInfoRow label="Invoice Date" value={formatDate(invoice.invoice_date)} />
               <MobileInfoRow label="Salesman" value={invoice.salesman?.name} />
               <MobileInfoRow label="Created By" value={invoice.created_by} />
             </div>
@@ -126,37 +132,40 @@ export default function InvoiceViewPage() {
             <div className="space-y-3">
               {currentItems.map((item, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
-                      <p className="text-xs text-gray-500">Shelf: {item.shelf_location || "—"}</p>
-                      {item.company_name && (
-                        <p className="text-xs text-gray-500">Company: {item.company_name}</p>
-                      )}
-                      {item.packing && (
-                        <p className="text-xs text-gray-500">Pack: {item.packing}</p>
-                      )}
-                    </div>
-                    <span className="text-sm font-bold text-teal-600">Qty: {item.quantity}</span>
+                  {/* Ultra compact single-line row */}
+                  <div className="text-[11px] text-gray-700 flex items-center gap-3 whitespace-nowrap overflow-x-auto">
+                    <span>📍 <b>{item.shelf_location || "—"}</b></span>
+                    <span><b>{item.name}</b></span>
+                    <span>Pack: <b>{item.packing || "—"}</b></span>
+                    <span>Qty: <b>{item.quantity}</b></span>
+                    <span>MRP: <b>₹{item.mrp}</b></span>
+                    <span>Batch: <b>{item.batch_no || "—"}</b></span>
+                    <span>
+                      Exp:{" "}
+                      <b>
+                        {item.expiry_date
+                          ? new Date(item.expiry_date).toLocaleDateString("en-GB")
+                          : "—"}
+                      </b>
+                    </span>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-gray-500">MRP:</span>
-                      <span className="ml-1 font-semibold text-gray-900">₹{item.mrp?.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Batch:</span>
-                      <span className="ml-1 text-gray-700">{item.batch_no || "—"}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Exp Date:</span>
-                      <span className="ml-1 text-gray-700">{item.exp_date || "—"}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Remarks:</span>
-                      <span className="ml-1 text-gray-700">{item.remarks || "—"}</span>
-                    </div>
+                  {/* Compact item details row */}
+                  <div className="mt-1 text-[11px] text-gray-600 flex flex-wrap gap-x-3 gap-y-1">
+                    <span>📍 <b>{item.shelf_location || "—"}</b></span>
+                    <span><b>{item.name}</b></span>
+                    <span>Pack: <b>{item.packing || "—"}</b></span>
+                    <span>Qty: <b>{item.quantity}</b></span>
+                    <span>MRP: <b>₹{item.mrp}</b></span>
+                    <span>Batch: <b>{item.batch_no || "—"}</b></span>
+                    <span>
+                      Exp:{" "}
+                      <b>
+                        {item.expiry_date
+                          ? new Date(item.expiry_date).toLocaleDateString("en-GB")
+                          : "—"}
+                      </b>
+                    </span>
                   </div>
                 </div>
               ))}
@@ -214,7 +223,7 @@ export default function InvoiceViewPage() {
                   <h2 className="text-sm font-bold text-gray-900">Invoice Info</h2>
                 </div>
                 <div className="space-y-2">
-                  <CompactInfoRowInline label1="Invoice No" value1={invoice.invoice_no} label2="Date" value2={invoice.invoice_date} />
+                  <CompactInfoRowInline label1="Invoice No" value1={invoice.invoice_no} label2="Date" value2={formatDate(invoice.invoice_date)} />
                   <CompactInfoRowInline label1="Salesman" value1={invoice.salesman?.name} label2="Created By" value2={invoice.created_by} />
                 </div>
               </div>
@@ -296,7 +305,7 @@ export default function InvoiceViewPage() {
                       </div>
 
                       <div className="col-span-2 text-xs text-center text-gray-600">
-                        {item.exp_date || "—"}
+                        {formatDate(item.expiry_date)}
                       </div>
 
                       <div className="col-span-1 text-xs text-center text-gray-500 overflow-hidden">
