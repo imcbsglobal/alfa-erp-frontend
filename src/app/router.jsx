@@ -30,6 +30,8 @@ import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
 import BillingInvoiceListPage from "../features/billing/pages/BillingInvoiceListPage";
 import BillingInvoiceViewPage from "../features/billing/pages/BillingInvoiceViewPage";
 
+import DeliveryDispatchPage from "../features/delivery/pages/DeliveryDispatchPage";
+
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
   
@@ -63,6 +65,8 @@ export default function AppRouter() {
           {/* Billing routes for SUPERADMIN */}
           <Route path="/billing/invoices" element={<BillingInvoiceListPage />} />
           <Route path="/billing/invoices/view/:id" element={<BillingInvoiceViewPage />} />
+
+          <Route path="/delivery/dispatch" element={<DeliveryDispatchPage />} />
 
           <Route path="/user-management" element={<UserListPage />} />
           <Route path="/user-control" element={<UserControlPage />} />
@@ -99,7 +103,7 @@ export default function AppRouter() {
           <Route path="/ops/billing/invoices/view/:id" element={<BillingInvoiceViewPage />} />
 
           {/* Delivery (future) */}
-          {/* <Route path="/ops/delivery/..." /> */}
+          <Route path="/ops/delivery/dispatch" element={<DeliveryDispatchPage />} />
         </Route>
       </Route>
 

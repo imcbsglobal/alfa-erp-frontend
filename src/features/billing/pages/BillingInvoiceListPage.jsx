@@ -33,30 +33,27 @@ export default function BillingInvoiceListPage() {
         const data = JSON.parse(event.data);
 
         // Returned event - invoice sent to review
-        if (data.type === "invoice_review") {
-            setInvoices((prev) =>
-                prev.map((inv) =>
-                inv.invoice_no === data.invoice_no
-                    ? {
-                        ...inv,
-                        billing_status: "REVIEW",
-                        return_info: {
-                        ...(inv.return_info || {}),
-                        return_reason: data.review_reason,
-                        },
-                        current_handler: {
-                        status: "REVIEW",
-                        name: data.sent_by,
-                        },
-                    }
-                    : inv
-                )
-            );
+        es.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
 
-            toast.success(`Invoice ${data.invoice_no} sent to review`);
-            return;
+            setInvoices((prev) => {
+            const idx = prev.findIndex((i) => i.id === data.id);
+            if (idx !== -1) {
+                const copy = [...prev];
+                copy[idx] = { ...copy[idx], ...data };
+                return copy;
             }
+            return [data, ...prev];
+            });
 
+            if (data.billing_status === "REVIEW") {
+            toast.success(`Invoice ${data.invoice_no} sent to review`);
+            }
+        } catch (e) {
+            console.error("Bad SSE data", e);
+        }
+        };
         // Normal invoice update/add
         setInvoices((prev) => {
           const idx = prev.findIndex((i) => i.id === data.id);
@@ -281,27 +278,13 @@ export default function BillingInvoiceListPage() {
                           <p className="font-semibold">{inv.invoice_no}</p>
                           
                           {/* Show current handler info */}
-                          {inv.current_handler && (
+                          {inv.current_handler?.status === "REVIEW" && (
                             <div className="text-xs mt-1">
-                              {inv.current_handler?.status === "PICKED" && (
-                                <p className="text-blue-600 font-medium">
-                                    ✓ Picked by: {inv.current_handler.name}
-                                </p>
-                                )}
-
-                                {inv.current_handler?.status === "PACKED" && (
-                                <p className="text-green-600 font-medium">
-                                    ✓ Packed by: {inv.current_handler.name}
-                                </p>
-                                )}
-
-                                {inv.current_handler?.status === "REVIEW" && (
                                 <p className="text-orange-600 font-medium">
-                                    ⚠ Review by: {inv.current_handler.name}
+                                ⚠ Review by: {inv.current_handler.name}
                                 </p>
-                                )}
                             </div>
-                          )}
+                            )}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {inv.invoice_date}
@@ -375,22 +358,27 @@ export default function BillingInvoiceListPage() {
             </div>
 
             {/* Body */}
-                <div className="p-4 space-y-3 text-sm text-gray-700">
-                {/* Review by */}
+            <div className="p-4 space-y-3 text-sm text-gray-700">
                 {reviewModal.invoice.current_handler?.name && (
                     <p className="text-orange-600 font-semibold">
                     ⚠ Review by: {reviewModal.invoice.current_handler.name}
                     </p>
                 )}
 
-                {/* Reason */}
                 {reviewModal.invoice.return_info?.return_reason ? (
-                <p className="text-orange-700">
+                    <p className="text-orange-700">
                     <span className="font-semibold">Reason:</span>{" "}
                     {reviewModal.invoice.return_info.return_reason}
-                </p>
+                    </p>
                 ) : (
-                <p>No issues reported.</p>
+                    <p>No issues reported.</p>
+                )}
+
+                {reviewModal.invoice.return_info?.returned_from_section && (
+                    <p className="text-xs text-gray-500">
+                    Returned from: {" "}
+                    {reviewModal.invoice.return_info.returned_from_section}
+                    </p>
                 )}
                 </div>
 

@@ -32,3 +32,11 @@ export const getActivePackingTask = (params = {}) =>
 
 export const getPackedInvoices = (params = {}) =>
   api.get("/sales/invoices/", { params: { status: "PACKED", ...params } });
+
+// Add at the end of the file
+export const startDelivery = (data) =>
+  api.post("/sales/delivery/start/", data);
+
+export const completeDelivery = (data) =>
+  api.post("/sales/delivery/complete/", data);
+

@@ -1,4 +1,5 @@
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+import { Truck as TruckIcon } from "lucide-react";
 import { 
   HomeIcon, 
   UsersIcon, 
@@ -85,6 +86,25 @@ export const MENU_CONFIG = [
     isActive: (pathname) =>
       pathname.startsWith("/packing") || pathname.startsWith("/ops/packing"),
   },
+
+  {
+    id: "delivery",
+    label: "Delivery",
+    icon: TruckIcon, // or your icon component
+    type: "dropdown",
+    hasAccess: (user) => ["SUPERADMIN", "ADMIN", "DELIVERY"].includes(user?.role),
+    submenu: [
+      {
+        label: "Dispatch Orders",
+        icon: ListIcon,
+        path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/dispatch" : "/delivery/dispatch",
+        hasAccess: (user) => ["SUPERADMIN", "ADMIN", "DELIVERY"].includes(user?.role),
+      }
+    ],
+    isActive: (pathname) =>
+      pathname.startsWith("/delivery") || pathname.startsWith("/ops/delivery"),
+  },
+
   {
     id: "history",
     label: "History",
@@ -153,6 +173,8 @@ export const PAGE_TITLES = {
   "/billing/my": "My Assigned Billing",
   "/ops/billing/invoices": "Billing Management",
   "/ops/billing/my": "My Assigned Billing",
+  "/delivery/dispatch": "Delivery Dispatch", // ← ADD THIS
+  "/ops/delivery/dispatch": "Delivery Dispatch", // ← ADD THIS
   "/user-management": "User Management",
   "/add-user": "Add User",
   "/user-control": "User Control",
