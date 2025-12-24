@@ -153,6 +153,19 @@ export default function BillingInvoiceListPage() {
     }
   };
 
+  const getPriorityBadgeColor = (priority) => {
+    switch (priority) {
+      case "HIGH":
+        return "bg-red-100 text-red-700 border-red-300";
+      case "MEDIUM":
+        return "bg-yellow-100 text-yellow-700 border-yellow-300";
+      case "LOW":
+          return "bg-gray-100 text-gray-600 border-gray-300";
+      default:
+        return "bg-gray-100 text-gray-600 border-gray-300";
+    }
+  };
+
   const getStatusLabel = (status) => {
     switch (status) {
       case "INVOICED":
@@ -268,12 +281,18 @@ export default function BillingInvoiceListPage() {
                       <th className="px-4 py-3 text-left">Salesman</th>
                       <th className="px-4 py-3 text-right">Amount</th>
                       <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-left">Priority</th>
                       <th className="px-4 py-3 text-left">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {currentItems.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-gray-50 transition">
+                      <tr
+                          key={inv.id}
+                          className={`transition hover:bg-grey-50 ${
+                            inv.priority === "HIGH" ? "bg-red-50" : ""
+                          }`}
+                        >
                         <td className="px-4 py-3">
                           <p className="font-semibold">{inv.invoice_no}</p>
                           
@@ -285,6 +304,15 @@ export default function BillingInvoiceListPage() {
                                 </p>
                             </div>
                             )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getPriorityBadgeColor(
+                              inv.priority
+                            )}`}
+                          >
+                            {inv.priority || "—"}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {inv.invoice_date}

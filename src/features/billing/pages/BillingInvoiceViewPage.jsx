@@ -60,6 +60,40 @@ export default function BillingInvoiceViewPage() {
     );
   }
 
+  const getWorkflowInfo = (inv) => {
+    const rows = [];
+
+    if (inv.picker_info) {
+      rows.push({
+        label: "Picked By",
+        value: `${inv.picker_info.name} (${inv.picker_info.email})`,
+      });
+    }
+
+    if (inv.packer_info) {
+      rows.push({
+        label: "Packed By",
+        value: `${inv.packer_info.name} (${inv.packer_info.email})`,
+      });
+    }
+
+    if (inv.delivery_info) {
+      let v = inv.delivery_info.name || inv.delivery_info.email || "—";
+      if (inv.delivery_info.delivery_type) {
+        v += ` • ${inv.delivery_info.delivery_type}`;
+      }
+      if (inv.delivery_info.courier_name) {
+        v += ` (${inv.delivery_info.courier_name})`;
+      }
+      rows.push({
+        label: "Dispatched By",
+        value: v,
+      });
+    }
+
+    return rows;
+  };
+
   if (!invoice) {
     return (
       <div className="flex items-center justify-center h-full min-h-screen">
@@ -122,6 +156,19 @@ export default function BillingInvoiceViewPage() {
               <MobileInfoRow label="Email" value={invoice.customer?.email} />
             </div>
           </div>
+
+          {getWorkflowInfo(invoice).length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
+                Workflow Details
+              </h2>
+              <div className="space-y-2">
+                {getWorkflowInfo(invoice).map((r, i) => (
+                  <MobileInfoRow key={i} label={r.label} value={r.value} />
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
@@ -235,6 +282,28 @@ export default function BillingInvoiceViewPage() {
                   <CompactInfoRowInline label1="Phone" value1={invoice.customer?.phone1} label2="Email" value2={invoice.customer?.email} />
                 </div>
               </div>
+
+              {/* Workflow Details */}
+              {getWorkflowInfo(invoice).length > 0 && (
+                <div>
+                  <div className="border-b border-teal-500 pb-1 mb-3">
+                    <h2 className="text-sm font-bold text-gray-900">
+                      Workflow Details
+                    </h2>
+                  </div>
+                  <div className="space-y-2">
+                    {getWorkflowInfo(invoice).map((r, i) => (
+                      <CompactInfoRowInline
+                        key={i}
+                        label1={r.label}
+                        value1={r.value}
+                        label2=""
+                        value2=""
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Total Amount */}
               <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-3 text-center">
