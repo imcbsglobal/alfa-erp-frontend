@@ -11,6 +11,7 @@ export default function MyPackingListPage() {
   const [completedInvoices, setCompletedInvoices] = useState([]);
   const [reviewPopup, setReviewPopup] = useState({ open: false, item: null });
   const [reviewChecks, setReviewChecks] = useState({});
+  const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
   
   const { user } = useAuth();
@@ -79,13 +80,16 @@ export default function MyPackingListPage() {
       batchMatch: false,
       expiryCheck: false,
       quantityCorrect: false,
-      packagingGood: false
+      packagingGood: false,
+      other: false
     });
+    setOtherIssueNotes("");
   };
 
   const closeReviewPopup = () => {
     setReviewPopup({ open: false, item: null });
     setReviewChecks({});
+    setOtherIssueNotes("");
   };
 
   const handleSaveIssue = () => {
@@ -96,6 +100,9 @@ export default function MyPackingListPage() {
     if (reviewChecks.expiryCheck) issues.push("Expiry issue");
     if (reviewChecks.quantityCorrect) issues.push("Quantity incorrect");
     if (reviewChecks.packagingGood) issues.push("Damaged packaging");
+    if (reviewChecks.other && otherIssueNotes.trim()) {
+      issues.push(`Other: ${otherIssueNotes.trim()}`);
+    }
 
     if (!issues.length) {
       toast.error("Select at least one issue");
@@ -514,7 +521,13 @@ export default function MyPackingListPage() {
                         {formatTime(inv.end_time)}
                       </div>
                       <div className="col-span-2 text-gray-600">
-                        {inv.duration ? `${inv.duration} min` : "0.27 min"}
+                        {inv.duration != null
+                          ? (() => {
+                              const mins = Math.floor(inv.duration);
+                              const secs = Math.round((inv.duration - mins) * 60);
+                              return `${mins} min ${secs} sec`;
+                            })()
+                          : "-"}
                       </div>
                       <div className="col-span-2 flex items-center justify-end gap-2">
                         <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold uppercase tracking-wide">
@@ -747,6 +760,36 @@ export default function MyPackingListPage() {
                     Packaging is damaged
                   </span>
                 </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reviewChecks.other}
+                    onChange={(e) =>
+                      setReviewChecks({
+                        ...reviewChecks,
+                        other: e.target.checked,
+                      })
+                    }
+                    className="mt-1 w-4 h-4 text-orange-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Other
+                  </span>
+                </label>
+
+                {/* Notes field - shows when Other is checked */}
+                {reviewChecks.other && (
+                  <div className="ml-7">
+                    <textarea
+                      value={otherIssueNotes}
+                      onChange={(e) => setOtherIssueNotes(e.target.value)}
+                      placeholder="Describe the issue..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                      rows={3}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,5 +1,5 @@
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
-import { Truck as TruckIcon } from "lucide-react";
+import { Truck as TruckIcon, AlertCircle as AlertCircleIcon } from "lucide-react";
 import { 
   HomeIcon, 
   UsersIcon, 
@@ -30,6 +30,12 @@ export const MENU_CONFIG = [
         label: "Invoice List",
         icon: ListIcon,
         path: (user) => user?.role === "BILLER" ? "/ops/billing/invoices" : "/billing/invoices",
+        hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+      },
+      {
+        label: "Reviewed Bills",
+        icon: AlertCircleIcon,
+        path: (user) => user?.role === "BILLER" ? "/ops/billing/reviewed" : "/billing/reviewed",
         hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
       },
     ],
@@ -177,8 +183,10 @@ export const PAGE_TITLES = {
   "/ops/packing/invoices": "Packing Management",
   "/ops/packing/my": "My Assigned Packing",
   "/billing/invoices": "Billing Management",
+  "/billing/reviewed": "Reviewed Bills",
   "/billing/my": "My Assigned Billing",
   "/ops/billing/invoices": "Billing Management",
+  "/ops/billing/reviewed": "Reviewed Bills",
   "/ops/billing/my": "My Assigned Billing",
   "/delivery/dispatch": "Delivery Dispatch",
   "/ops/delivery/dispatch": "Delivery Dispatch",

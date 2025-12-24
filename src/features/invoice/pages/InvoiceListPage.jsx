@@ -5,38 +5,36 @@ import api from "../../../services/api";
 import { getActivePickingTask } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
+}
 
 export default function InvoiceListPage() {
   const { user } = useAuth();
-  
   const navigate = useNavigate();
   const location = useLocation();
 
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [activePicking, setActivePicking] = useState(null);
-
-  // Modal state
   const [showPickModal, setShowPickModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
-  
-  // Ongoing work modal state
   const [showOngoingModal, setShowOngoingModal] = useState(false);
   const [ongoingTasks, setOngoingTasks] = useState([]);
   const [loadingOngoing, setLoadingOngoing] = useState(false);
-
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const itemsPerPage = 10;
 
-  // Load invoices
   useEffect(() => {
     loadInvoices();
   }, []);
 
-  // 🔥 SSE Live Updates
+  // SSE Live Updates
   useEffect(() => {
     const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
@@ -52,7 +50,6 @@ export default function InvoiceListPage() {
             return [invoice, ...prev];
           });
         } else {
-          // remove when it moves to PICKING, PICKED, etc.
           setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
         }
       } catch (e) {
@@ -83,7 +80,6 @@ export default function InvoiceListPage() {
     }
   };
 
-  // Load ongoing picking tasks
   const loadOngoingTasks = async () => {
     setLoadingOngoing(true);
     try {
@@ -97,25 +93,22 @@ export default function InvoiceListPage() {
       }
       setLoadingOngoing(false);
     } catch (err) {
-        console.error("Failed to load ongoing tasks:", err);
-        toast.error("Failed to load ongoing tasks");
-        setOngoingTasks([]);
-      }
+      console.error("Failed to load ongoing tasks:", err);
+      toast.error("Failed to load ongoing tasks");
+      setOngoingTasks([]);
+    }
   };
 
-  // Handle showing ongoing work
   const handleShowOngoingWork = () => {
     setShowOngoingModal(true);
     loadOngoingTasks();
   };
 
-  // Handle refresh
   const handleRefresh = async () => {
     await loadInvoices();
     toast.success("Invoices refreshed");
   };
 
-  // Calculate progress percentage
   const calculateProgress = (task) => {
     if (!task.invoice?.items) return 0;
     const totalItems = task.invoice.items.length;
@@ -124,7 +117,6 @@ export default function InvoiceListPage() {
     return Math.round((pickedItems / totalItems) * 100);
   };
 
-  // Format time duration
   const formatDuration = (startTime) => {
     if (!startTime) return "N/A";
     const start = new Date(startTime);
@@ -140,9 +132,8 @@ export default function InvoiceListPage() {
     return `${mins}m`;
   };
 
-  // Handle Pick Invoice
   const handlePickClick = async (invoice) => {
-    await loadInvoices(); // force fresh data
+    await loadInvoices();
 
     if (invoice.status !== "INVOICED") {
       toast.error("This invoice is no longer available for picking");
@@ -155,7 +146,6 @@ export default function InvoiceListPage() {
 
   const handlePickInvoice = async (employeeEmail) => {
     try {
-      // 1. Check if user already has active picking
       const activeRes = await api.get("/sales/picking/active/");
       if (activeRes.data?.data) {
         const activeInvoice = activeRes.data.data.invoice;
@@ -165,7 +155,6 @@ export default function InvoiceListPage() {
         return;
       }
 
-      // 2. Try to start picking
       await api.post("/sales/picking/start/", {
         invoice_no: selectedInvoice.invoice_no,
         user_email: employeeEmail,
@@ -183,7 +172,6 @@ export default function InvoiceListPage() {
       if (msg?.includes("already exists")) {
         toast("Picking already started. Redirecting…");
 
-        // fetch active and redirect
         const activeRes = await api.get("/sales/picking/active/");
         if (activeRes.data?.data) {
           const inv = activeRes.data.data.invoice;
@@ -196,7 +184,6 @@ export default function InvoiceListPage() {
     }
   };
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = invoices.slice(indexOfFirstItem, indexOfLastItem);
@@ -215,258 +202,176 @@ export default function InvoiceListPage() {
     navigate(`/invoices/view/${id}`);
   };
 
+  const getPriorityBadgeColor = (priority) => {
+    switch (priority) {
+      case "HIGH":
+        return "bg-red-100 text-red-700 border-red-300";
+      case "MEDIUM":
+        return "bg-yellow-100 text-yellow-700 border-yellow-300";
+      case "LOW":
+        return "bg-gray-100 text-gray-600 border-gray-300";
+      default:
+        return "bg-gray-100 text-gray-600 border-gray-300";
+    }
+  };
+
   const getStatusBadgeColor = (status) => {
     switch (status) {
       case "INVOICED":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+        return "bg-yellow-100 text-yellow-700 border-yellow-300";
       case "PICKING":
-        return "bg-blue-100 text-blue-700 border-blue-200";
+        return "bg-blue-100 text-blue-700 border-blue-300";
       case "PICKED":
-        return "bg-green-100 text-green-700 border-green-200";
+        return "bg-green-100 text-green-700 border-green-300";
       case "PACKING":
-        return "bg-purple-100 text-purple-700 border-purple-200";
+        return "bg-purple-100 text-purple-700 border-purple-300";
       case "PACKED":
-        return "bg-emerald-100 text-emerald-700 border-emerald-200";
+        return "bg-emerald-100 text-emerald-700 border-emerald-300";
       case "DISPATCHED":
-        return "bg-teal-100 text-teal-700 border-teal-200";
+        return "bg-teal-100 text-teal-700 border-teal-300";
       case "DELIVERED":
         return "bg-gray-200 text-gray-700 border-gray-300";
       case "REVIEW":
-        return "bg-red-100 text-red-700 border-red-200";
+        return "bg-red-100 text-red-700 border-red-300";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-300";
     }
   };
 
   const getStatusLabel = (status) => status || "INVOICED";
 
-  // Pagination UI renderer
   const renderPagination = () => {
     if (totalPages <= 1) return null;
-
-    const pageNumbers = [];
-    const maxVisiblePages = 5;
-
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-    if (endPage - startPage < maxVisiblePages - 1) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pageNumbers.push(i);
-    }
-
     return (
-      <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-200">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs sm:text-sm text-gray-600">
-            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, invoices.length)} of {invoices.length} invoices
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
-                currentPage === 1
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300"
-              }`}
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            {startPage > 1 && (
-              <>
-                <button
-                  onClick={() => handlePageChange(1)}
-                  className="hidden sm:block px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300 transition-all text-sm"
-                >
-                  1
-                </button>
-                {startPage > 2 && <span className="hidden sm:inline text-gray-400">...</span>}
-              </>
-            )}
-
-            {pageNumbers.map((number) => (
-              <button
-                key={number}
-                onClick={() => handlePageChange(number)}
-                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm ${
-                  currentPage === number
-                    ? "bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-md"
-                    : "bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300"
-                }`}
-              >
-                {number}
-              </button>
-            ))}
-
-            {endPage < totalPages && (
-              <>
-                {endPage < totalPages - 1 && <span className="hidden sm:inline text-gray-400">...</span>}
-                <button
-                  onClick={() => handlePageChange(totalPages)}
-                  className="hidden sm:block px-3 sm:px-4 py-2 rounded-lg font-medium bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300 transition-all text-sm"
-                >
-                  {totalPages}
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${
-                currentPage === totalPages
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-300"
-              }`}
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </div>
+      <div className="flex justify-center gap-2 py-4">
+        {[...Array(totalPages)].map((_, i) => (
+          <button
+            key={i}
+            onClick={() => handlePageChange(i + 1)}
+            className={`px-3 py-1 rounded ${
+              currentPage === i + 1
+                ? "bg-teal-600 text-white"
+                : "bg-white border hover:bg-teal-50"
+            }`}
+          >
+            {i + 1}
+          </button>
+        ))}
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
-
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-6 gap-4">
-          <div>
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
-              Invoice Management
-            </h1>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">
+            Invoice Management
+          </h1>
+          <div className="flex gap-2">
             <button
               onClick={handleShowOngoingWork}
-              className="flex-1 sm:flex-initial px-3 sm:px-5 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"
+              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
             >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-              <span className="hidden sm:inline">Ongoing Work</span>
-              <span className="sm:hidden">Ongoing</span>
+              Ongoing Work
             </button>
-
             <button
               onClick={handleRefresh}
-              className="flex-1 sm:flex-initial px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"
+              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
             >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
               Refresh
             </button>
           </div>
         </div>
 
-        {/* Table - Desktop View */}
-        <div className="hidden lg:block bg-white rounded-xl shadow-md overflow-hidden">
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="text-center">
-                <svg className="animate-spin h-10 w-10 text-cyan-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p className="text-gray-600">Loading invoices...</p>
-              </div>
+            <div className="py-20 text-center text-gray-500">
+              Loading invoices...
             </div>
           ) : invoices.length === 0 ? (
-            <div className="text-center py-20">
-              <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No invoices found</h3>
-              <p className="text-gray-500">No pending invoices at the moment</p>
+            <div className="py-20 text-center text-gray-500">
+              No invoices found
             </div>
           ) : (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
+                  <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">Invoice Number</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">Date</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">Customer</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">Sales Person</th>
-                      <th className="px-6 py-4 text-center text-sm font-bold text-white">Amount</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">Status</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">Actions</th>
+                      <th className="px-4 py-3 text-left">Invoice</th>
+                      <th className="px-4 py-3 text-left">Priority</th>
+                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Customer</th>
+                      <th className="px-4 py-3 text-left">Salesman</th>
+                      <th className="px-4 py-3 text-right">Amount</th>
+                      <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-left">Actions</th>
                     </tr>
                   </thead>
-
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {currentItems.map((invoice) => (
-                      <tr key={invoice.id} className="hover:bg-gray-50 transition">
-                        <td className="px-6 py-4">
-                          <p className="font-semibold text-gray-800">{invoice.invoice_no}</p>
-                          <p className="text-xs text-gray-500">{invoice.customer?.code}</p>
-                        </td>
-
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {invoice.invoice_date}
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <p className="font-medium text-gray-800">
-                            {invoice.customer?.name}
-                          </p>
+                  <tbody className="divide-y">
+                    {currentItems.map((inv) => (
+                      <tr
+                        key={inv.id}
+                        className={`transition hover:bg-grey-50 ${
+                          inv.priority === "HIGH" ? "bg-red-50" : ""
+                        }`}
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-semibold">{inv.invoice_no}</p>
                           <p className="text-xs text-gray-500">
-                            {invoice.customer?.area}
+                            {inv.customer?.code}
                           </p>
                         </td>
-
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {invoice.salesman?.name}
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <p className="font-semibold text-right text-gray-800">
-                            ₹{invoice.total_amount}
-                          </p>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(invoice.status)}`}>
-                            {getStatusLabel(invoice.status)}
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getPriorityBadgeColor(
+                              inv.priority
+                            )}`}
+                          >
+                            {inv.priority || "—"}
                           </span>
                         </td>
-
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3 text-sm">
+                          {formatDate(inv.invoice_date)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p>{inv.customer?.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {inv.customer?.area}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {inv.salesman?.name}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold">
+                          ₹{inv.total_amount}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
+                              inv.status
+                            )}`}
+                          >
+                            {getStatusLabel(inv.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            {invoice.status === "INVOICED" && (
+                            {inv.status === "INVOICED" && (
                               <button
-                                onClick={() => handlePickClick(invoice)}
+                                onClick={() => handlePickClick(inv)}
                                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                                </svg>
                                 Pick
                               </button>
                             )}
-                            
                             <button
-                              onClick={() => handleViewInvoice(invoice.id)}
+                              onClick={() => handleViewInvoice(inv.id)}
                               className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
                               View
                             </button>
                           </div>
@@ -476,109 +381,6 @@ export default function InvoiceListPage() {
                   </tbody>
                 </table>
               </div>
-
-              {renderPagination()}
-            </>
-          )}
-        </div>
-
-        {/* Card View - Mobile/Tablet */}
-        <div className="lg:hidden space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="text-center">
-                <svg className="animate-spin h-10 w-10 text-cyan-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p className="text-gray-600 text-sm">Loading invoices...</p>
-              </div>
-            </div>
-          ) : invoices.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-xl shadow-md">
-              <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No invoices found</h3>
-              <p className="text-gray-500 text-sm">No pending invoices at the moment</p>
-            </div>
-          ) : (
-            <>
-              {currentItems.map((invoice) => (
-                <div key={invoice.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-                  <div className="p-4">
-                    {/* Invoice Header */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <p className="font-bold text-gray-900 text-base mb-1">{invoice.invoice_no}</p>
-                        <p className="text-xs text-gray-500">{invoice.customer?.code}</p>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(invoice.status)}`}>
-                        {getStatusLabel(invoice.status)}
-                      </span>
-                    </div>
-
-                    {/* Customer Info */}
-                    <div className="space-y-2 mb-3 pb-3 border-b border-gray-200">
-                      <div className="flex items-center gap-2 text-sm">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        <span className="text-gray-700 font-medium">{invoice.customer?.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        </svg>
-                        <span>{invoice.customer?.area}</span>
-                      </div>
-                    </div>
-
-                    {/* Details Grid */}
-                    <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
-                      <div>
-                        <p className="text-gray-500 mb-1">Date</p>
-                        <p className="text-gray-800 font-medium">{invoice.invoice_date}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 mb-1">Amount</p>
-                        <p className="text-gray-800 font-bold">₹{invoice.total_amount}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-gray-500 mb-1">Sales Person</p>
-                        <p className="text-gray-800 font-medium">{invoice.salesman?.name}</p>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                      {invoice.status === "INVOICED" && (
-                        <button
-                          onClick={() => handlePickClick(invoice)}
-                          className="flex-1 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                          </svg>
-                          Pick
-                        </button>
-                      )}
-                      
-                      <button
-                        onClick={() => handleViewInvoice(invoice.id)}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        View
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
               {renderPagination()}
             </>
           )}
@@ -596,109 +398,92 @@ export default function InvoiceListPage() {
       {/* Ongoing Work Modal */}
       {showOngoingModal && (
         <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
             onClick={() => setShowOngoingModal(false)}
           />
-
-          {/* Modal Wrapper */}
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-[9998] flex items-center justify-center p-2 sm:p-4">
-            <div 
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <h2 className="text-base sm:text-xl font-bold text-white">
-                    Ongoing Picking Tasks
-                  </h2>
-                </div>
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">
+                  Ongoing Picking Tasks
+                </h2>
                 <button
                   onClick={() => setShowOngoingModal(false)}
-                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1.5 sm:p-2 transition-all"
+                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition"
                 >
                   ✕
                 </button>
               </div>
 
-            {/* Modal Body */}
-            <div className="p-3 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              {loadingOngoing ? (
-                <div className="flex items-center justify-center py-20">
-                  <div className="text-center">
-                    <svg className="animate-spin h-10 w-10 text-teal-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p className="text-gray-600 text-sm">Loading ongoing tasks...</p>
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                {loadingOngoing ? (
+                  <div className="py-20 text-center text-gray-500">
+                    Loading ongoing tasks...
                   </div>
-                </div>
-              ) : ongoingTasks.length === 0 ? (
-                <div className="text-center py-20">
-                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                  </svg>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-2">No Ongoing Tasks</h3>
-                  <p className="text-gray-500 text-sm">There are no active picking tasks at the moment</p>
-                </div>
-              ) : (
-                <>
-                  {/* Desktop Table View */}
-                  <div className="hidden lg:block overflow-x-auto">
+                ) : ongoingTasks.length === 0 ? (
+                  <div className="py-20 text-center text-gray-500">
+                    No ongoing tasks
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
+                      <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                         <tr>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Invoice No</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Date</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Start Time</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Duration</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Employee ID</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-white">Employee Name</th>
-                          <th className="px-4 py-3 text-center text-sm font-bold text-white">Progress</th>
+                          <th className="px-4 py-3 text-left">Invoice</th>
+                          <th className="px-4 py-3 text-left">Date</th>
+                          <th className="px-4 py-3 text-left">Start Time</th>
+                          <th className="px-4 py-3 text-left">Duration</th>
+                          <th className="px-4 py-3 text-left">Employee</th>
+                          <th className="px-4 py-3 text-left">Progress</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {ongoingTasks.map((task, index) => {
+                      <tbody className="divide-y">
+                        {ongoingTasks.map((task, i) => {
                           const progress = calculateProgress(task);
-                          const totalItems = task.invoice?.items?.length || 0;
-                          const pickedItems = task.invoice?.items?.filter(item => item.picked)?.length || 0;
-                          
+                          const total = task.invoice?.items?.length || 0;
+                          const picked =
+                            task.invoice?.items?.filter((item) => item.picked)
+                              ?.length || 0;
+
                           return (
-                            <tr key={index} className="hover:bg-purple-50 transition">
-                              <td className="px-4 py-4">
-                                <p className="font-semibold text-gray-800">{task.invoice_no}</p>
+                            <tr key={i} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-semibold">
+                                {task.invoice_no}
                               </td>
-                              <td className="px-4 py-4 text-sm text-gray-600">
+                              <td className="px-4 py-3 text-sm">
                                 {task?.invoice_date || "N/A"}
                               </td>
-                              <td className="px-4 py-4 text-sm text-gray-600">
-                                {task.start_time ? new Date(task.start_time).toLocaleTimeString() : "N/A"}
+                              <td className="px-4 py-3 text-sm">
+                                {task.start_time
+                                  ? new Date(
+                                      task.start_time
+                                    ).toLocaleTimeString()
+                                  : "N/A"}
                               </td>
-                              <td className="px-4 py-4 text-sm text-gray-600">
+                              <td className="px-4 py-3 text-sm">
                                 {formatDuration(task.start_time)}
                               </td>
-                              <td className="px-4 py-4 text-sm text-gray-600">
-                                {task.invoice?.customer?.code || "N/A"}
-                              </td>
-                              <td className="px-4 py-4 text-sm font-medium text-gray-800">
+                              <td className="px-4 py-3 text-sm font-medium">
                                 {task?.picker_name || "Current User"}
                               </td>
-                              <td className="px-4 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                                    <div 
-                                      className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className="bg-teal-600 h-2 rounded-full"
                                       style={{ width: `${progress}%` }}
                                     ></div>
                                   </div>
-                                  <span className="text-sm font-semibold text-gray-700 min-w-[45px]">
+                                  <span className="text-sm font-semibold min-w-[45px]">
                                     {progress}%
                                   </span>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">
-                                  {pickedItems} / {totalItems} items
+                                  {picked} / {total} items
                                 </p>
                               </td>
                             </tr>
@@ -707,69 +492,12 @@ export default function InvoiceListPage() {
                       </tbody>
                     </table>
                   </div>
-
-                  {/* Mobile Card View */}
-                  <div className="lg:hidden space-y-3">
-                    {ongoingTasks.map((task, index) => {
-                      const progress = calculateProgress(task);
-                      const totalItems = task.invoice?.items?.length || 0;
-                      const pickedItems = task.invoice?.items?.filter(item => item.picked)?.length || 0;
-                      
-                      return (
-                        <div key={index} className="bg-white rounded-lg border-2 border-purple-200 p-4 shadow-sm">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <p className="font-bold text-gray-900 mb-1">{task.invoice_no}</p>
-                              <p className="text-xs text-gray-500">{task?.invoice_date || "N/A"}</p>
-                            </div>
-                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
-                              {progress}%
-                            </span>
-                          </div>
-
-                          <div className="space-y-2 mb-3 text-xs">
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Employee:</span>
-                              <span className="font-medium text-gray-800">{task?.picker_name || "Current User"}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Employee ID:</span>
-                              <span className="font-medium text-gray-800">{task.invoice?.customer?.code || "N/A"}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Start Time:</span>
-                              <span className="font-medium text-gray-800">
-                                {task.start_time ? new Date(task.start_time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : "N/A"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Duration:</span>
-                              <span className="font-medium text-gray-800">{formatDuration(task.start_time)}</span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                              <div 
-                                className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2.5 rounded-full transition-all"
-                                style={{ width: `${progress}%` }}
-                              ></div>
-                            </div>
-                            <p className="text-xs text-gray-500 text-center">
-                              {pickedItems} / {totalItems} items picked
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </>
-    )}
+        </>
+      )}
     </div>
   );
 }

@@ -13,12 +13,13 @@ function formatDate(dateStr) {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
-export default function BillingInvoiceListPage() {
+export default function BillingReviewedListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reviewModal, setReviewModal] = useState({ open: false, invoice: null });
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,20 +39,24 @@ export default function BillingInvoiceListPage() {
         const data = JSON.parse(event.data);
 
         setInvoices((prev) => {
-          // Remove if status is REVIEW (moved to reviewed list)
+          // Only add/update if billing_status is REVIEW
           if (data.billing_status === "REVIEW") {
+            const idx = prev.findIndex((i) => i.id === data.id);
+            if (idx !== -1) {
+              const copy = [...prev];
+              copy[idx] = { ...copy[idx], ...data };
+              return copy;
+            }
+            return [data, ...prev];
+          } else {
+            // Remove from list if status changed from REVIEW
             return prev.filter(i => i.id !== data.id);
           }
-
-          // Normal update/add for non-REVIEW invoices
-          const idx = prev.findIndex((i) => i.id === data.id);
-          if (idx !== -1) {
-            const copy = [...prev];
-            copy[idx] = { ...copy[idx], ...data };
-            return copy;
-          }
-          return [data, ...prev];
         });
+
+        if (data.billing_status === "REVIEW") {
+          toast.success(`Invoice ${data.invoice_no} sent to review`);
+        }
       } catch (e) {
         console.error("Bad SSE data", e);
       }
@@ -71,14 +76,14 @@ export default function BillingInvoiceListPage() {
       const res = await api.get("/sales/billing/invoices/");
       const list = res.data.results || [];
 
-      // 🔴 Filter out REVIEW status invoices
-      const nonReviewedInvoices = list.filter(
-        inv => inv.billing_status !== "REVIEW" && inv.status !== "REVIEW"
+      // 🔴 Filter only REVIEW status invoices
+      const reviewedInvoices = list.filter(
+        inv => inv.billing_status === "REVIEW" || inv.status === "REVIEW"
       );
 
-      setInvoices(nonReviewedInvoices);
+      setInvoices(reviewedInvoices);
     } catch {
-      toast.error("Failed to load invoices");
+      toast.error("Failed to load reviewed invoices");
     } finally {
       setLoading(false);
     }
@@ -86,7 +91,11 @@ export default function BillingInvoiceListPage() {
 
   const handleRefresh = async () => {
     await loadInvoices();
-    toast.success("Invoices refreshed");
+    toast.success("Reviewed invoices refreshed");
+  };
+
+  const handleReview = (invoice) => {
+    setReviewModal({ open: true, invoice });
   };
 
   const handleViewInvoice = (id) => {
@@ -158,10 +167,6 @@ export default function BillingInvoiceListPage() {
     }
   };
 
-  const getDisplayStatus = (inv) => {
-    return inv.status;
-  };
-
   // Pagination calc
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -200,11 +205,11 @@ export default function BillingInvoiceListPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">
-            Invoice Management
+            Reviewed Bills
           </h1>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+            className="px-4 py-2 bg-cyan-600 text-white rounded-lg font-semibold shadow hover:bg-cyan-700 transition"
           >
             Refresh
           </button>
@@ -213,17 +218,17 @@ export default function BillingInvoiceListPage() {
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {loading ? (
             <div className="py-20 text-center text-gray-500">
-              Loading invoices...
+              Loading reviewed invoices...
             </div>
           ) : invoices.length === 0 ? (
             <div className="py-20 text-center text-gray-500">
-              No invoices found
+              No reviewed invoices found
             </div>
           ) : (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
+                  <thead className="bg-orange-600 text-white">
                     <tr>
                       <th className="px-4 py-3 text-left">Invoice</th>
                       <th className="px-4 py-3 text-left">Priority</th>
@@ -239,12 +244,19 @@ export default function BillingInvoiceListPage() {
                     {currentItems.map((inv) => (
                       <tr
                         key={inv.id}
-                        className={`transition hover:bg-grey-50 ${
-                          inv.priority === "HIGH" ? "bg-red-50" : ""
-                        }`}
+                        className="transition hover:bg-orange-50 bg-red-50"
                       >
                         <td className="px-4 py-3">
                           <p className="font-semibold">{inv.invoice_no}</p>
+                          
+                          {/* Show current handler info */}
+                          {inv.current_handler?.status === "REVIEW" && (
+                            <div className="text-xs mt-1">
+                              <p className="text-orange-600 font-medium">
+                                ⚠ Review by: {inv.current_handler.name}
+                              </p>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -256,7 +268,7 @@ export default function BillingInvoiceListPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm">
-                        {formatDate(inv.invoice_date)}
+                          {formatDate(inv.invoice_date)}
                         </td>
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
@@ -272,18 +284,23 @@ export default function BillingInvoiceListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
-                              getDisplayStatus(inv)
-                            )}`}
+                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor("REVIEW")}`}
                           >
-                            {getStatusLabel(getDisplayStatus(inv))}
+                            {getStatusLabel("REVIEW")}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <button
+                              onClick={() => handleReview(inv)}
+                              className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition font-medium"
+                            >
+                              Review
+                            </button>
+                            
+                            <button
                               onClick={() => handleViewInvoice(inv.id)}
-                              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                              className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition font-medium"
                             >
                               View
                             </button>
@@ -299,6 +316,60 @@ export default function BillingInvoiceListPage() {
           )}
         </div>
       </div>
+
+      {reviewModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* Header */}
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-bold text-gray-900">
+                Invoice #{reviewModal.invoice.invoice_no} - Issues
+              </h3>
+              <button
+                onClick={() => setReviewModal({ open: false, invoice: null })}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-3 text-sm text-gray-700">
+              {reviewModal.invoice.current_handler?.name && (
+                <p className="text-orange-600 font-semibold">
+                  ⚠ Review by: {reviewModal.invoice.current_handler.name}
+                </p>
+              )}
+
+              {reviewModal.invoice.return_info?.return_reason ? (
+                <p className="text-orange-700">
+                  <span className="font-semibold">Reason:</span>{" "}
+                  {reviewModal.invoice.return_info.return_reason}
+                </p>
+              ) : (
+                <p>No issues reported.</p>
+              )}
+
+              {reviewModal.invoice.return_info?.returned_from_section && (
+                <p className="text-xs text-gray-500">
+                  Returned from:{" "}
+                  {reviewModal.invoice.return_info.returned_from_section}
+                </p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t flex justify-end">
+              <button
+                onClick={() => setReviewModal({ open: false, invoice: null })}
+                className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

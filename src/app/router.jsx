@@ -29,6 +29,7 @@ import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
 // Import Billing Pages
 import BillingInvoiceListPage from "../features/billing/pages/BillingInvoiceListPage";
 import BillingInvoiceViewPage from "../features/billing/pages/BillingInvoiceViewPage";
+import BillingReviewedListPage from "../features/billing/pages/BillingReviewedListPage";
 
 // Import Delivery Pages
 import DeliveryDispatchPage from "../features/delivery/pages/DeliveryDispatchPage";
@@ -69,6 +70,7 @@ export default function AppRouter() {
           {/* Billing routes for SUPERADMIN */}
           <Route path="/billing/invoices" element={<BillingInvoiceListPage />} />
           <Route path="/billing/invoices/view/:id" element={<BillingInvoiceViewPage />} />
+          <Route path="/billing/reviewed" element={<BillingReviewedListPage />} />
 
           {/* Delivery routes for SUPERADMIN/ADMIN */}
           <Route path="/delivery/dispatch" element={<DeliveryDispatchPage />} />
@@ -110,6 +112,7 @@ export default function AppRouter() {
           {/* Billing */}
           <Route path="/ops/billing/invoices" element={<BillingInvoiceListPage />} />
           <Route path="/ops/billing/invoices/view/:id" element={<BillingInvoiceViewPage />} />
+          <Route path="/ops/billing/reviewed" element={<BillingReviewedListPage />} />
 
           {/* Delivery */}
           <Route path="/ops/delivery/dispatch" element={<DeliveryDispatchPage />} />

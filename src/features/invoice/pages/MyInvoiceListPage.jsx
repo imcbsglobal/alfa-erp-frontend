@@ -12,6 +12,7 @@ export default function MyInvoiceListPage() {
   const [completedInvoices, setCompletedInvoices] = useState([]);
   const [reviewPopup, setReviewPopup] = useState({ open: false, item: null });
   const [reviewChecks, setReviewChecks] = useState({});
+  const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
 
   const { user } = useAuth();
@@ -61,13 +62,16 @@ export default function MyInvoiceListPage() {
       batchMatch: false,
       expiryCheck: false,
       quantityCorrect: false,
-      packagingGood: false
+      packagingGood: false,
+      other: false
     });
+    setOtherIssueNotes("");
   };
 
   const closeReviewPopup = () => {
     setReviewPopup({ open: false, item: null });
     setReviewChecks({});
+    setOtherIssueNotes("");
   };
 
   const handleSaveIssue = () => {
@@ -78,6 +82,9 @@ export default function MyInvoiceListPage() {
     if (reviewChecks.expiryCheck) issues.push("Expiry issue");
     if (reviewChecks.quantityCorrect) issues.push("Quantity incorrect");
     if (reviewChecks.packagingGood) issues.push("Damaged packaging");
+    if (reviewChecks.other && otherIssueNotes.trim()) {
+      issues.push(`Other: ${otherIssueNotes.trim()}`);
+    }
 
     if (!issues.length) {
       alert("Select at least one issue");
@@ -458,14 +465,14 @@ export default function MyInvoiceListPage() {
           ) : (
             <>
               {/* Table Header */}
-              <div className="bg-teal-600 text-white">
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                 <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
                   <div className="col-span-2">Invoice Number</div>
                   <div className="col-span-2">Date</div>
                   <div className="col-span-2">Start Time</div>
                   <div className="col-span-2">End Time</div>
                   <div className="col-span-2">Duration</div>
-                  <div className="col-span-2 text-right"></div>
+                  <div className="col-span-2">Status</div>
                 </div>
               </div>
 
@@ -491,9 +498,15 @@ export default function MyInvoiceListPage() {
                         {formatTime(inv.end_time)}
                       </div>
                       <div className="col-span-2 text-gray-600">
-                        {inv.duration ? `${inv.duration} min` : "0.27 min"}
+                        {inv.duration != null
+                          ? (() => {
+                              const mins = Math.floor(inv.duration);
+                              const secs = Math.round((inv.duration - mins) * 60);
+                              return `${mins} min ${secs} sec`;
+                            })()
+                          : "-"}
                       </div>
-                      <div className="col-span-2 flex items-center justify-end gap-2">
+                      <div className="col-span-2 flex items-center justify-center gap-2">
                         <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold uppercase tracking-wide">
                           PICKED
                         </span>
@@ -724,6 +737,36 @@ export default function MyInvoiceListPage() {
                     Packaging is damaged
                   </span>
                 </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reviewChecks.other}
+                    onChange={(e) =>
+                      setReviewChecks({
+                        ...reviewChecks,
+                        other: e.target.checked,
+                      })
+                    }
+                    className="mt-1 w-4 h-4 text-orange-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Other
+                  </span>
+                </label>
+
+                {/* Notes field - shows when Other is checked */}
+                {reviewChecks.other && (
+                  <div className="ml-7">
+                    <textarea
+                      value={otherIssueNotes}
+                      onChange={(e) => setOtherIssueNotes(e.target.value)}
+                      placeholder="Describe the issue..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                      rows={3}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
