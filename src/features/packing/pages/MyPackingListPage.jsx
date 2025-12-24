@@ -75,15 +75,34 @@ export default function MyPackingListPage() {
   };
 
   const openReviewPopup = (item) => {
+    const existing = savedIssues.find((i) => i.item === item.name);
+
+    if (existing) {
+      const checks = {
+        batchMatch: existing.issues.some(i => i.includes("Batch")),
+        expiryCheck: existing.issues.some(i => i.includes("Expiry")),
+        quantityCorrect: existing.issues.some(i => i.includes("Quantity")),
+        packagingGood: existing.issues.some(i => i.includes("Damaged")),
+        other: existing.issues.some(i => i.startsWith("Other:")),
+      };
+
+      const otherNote =
+        existing.issues.find(i => i.startsWith("Other:"))?.replace("Other: ", "") || "";
+
+      setReviewChecks(checks);
+      setOtherIssueNotes(otherNote);
+    } else {
+      setReviewChecks({
+        batchMatch: false,
+        expiryCheck: false,
+        quantityCorrect: false,
+        packagingGood: false,
+        other: false
+      });
+      setOtherIssueNotes("");
+    }
+
     setReviewPopup({ open: true, item });
-    setReviewChecks({
-      batchMatch: false,
-      expiryCheck: false,
-      quantityCorrect: false,
-      packagingGood: false,
-      other: false
-    });
-    setOtherIssueNotes("");
   };
 
   const closeReviewPopup = () => {
@@ -109,13 +128,16 @@ export default function MyPackingListPage() {
       return;
     }
 
-    setSavedIssues((prev) => [
-      ...prev,
-      {
-        item: reviewPopup.item.name,
-        issues,
-      },
-    ]);
+    setSavedIssues((prev) => {
+      const idx = prev.findIndex(i => i.item === reviewPopup.item.name);
+      if (idx !== -1) {
+        const copy = [...prev];
+        copy[idx] = { item: reviewPopup.item.name, issues };
+        return copy;
+      }
+      return [...prev, { item: reviewPopup.item.name, issues }];
+    });
+
 
     toast.success("Issue saved");
     closeReviewPopup();
