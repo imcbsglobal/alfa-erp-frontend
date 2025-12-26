@@ -185,10 +185,15 @@ export default function PackingInvoiceListPage() {
     }
   };
 
+  // 🔽 Sort by invoice_date (latest first) + paginate
+  const sortedInvoices = [...invoices].sort(
+    (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
+  );
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = invoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(invoices.length / itemsPerPage);
+  const currentItems = sortedInvoices.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);

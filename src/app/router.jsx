@@ -14,6 +14,8 @@ import JobTitleListPage from "../features/master/pages/JobTitleListPage";
 import AddJobTitlePage from "../features/master/pages/AddJobTitlePage";
 import DepartmentListPage from "../features/master/pages/DepartmentListPage";
 import AddDepartmentPage from "../features/master/pages/AddDepartmentPage";
+import CourierListPage from "../features/master/pages/CourierListPage";
+import AddCourierPage from "../features/master/pages/AddCourierPage";
 
 import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
 import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
@@ -34,6 +36,8 @@ import BillingReviewedListPage from "../features/billing/pages/BillingReviewedLi
 // Import Delivery Pages
 import DeliveryDispatchPage from "../features/delivery/pages/DeliveryDispatchPage";
 import MyDeliveryListPage from "../features/delivery/pages/MyDeliveryListPage";
+import CourierDeliveryListPage from "../features/delivery/pages/CourierDeliveryListPage";
+import CompanyDeliveryListPage from "../features/delivery/pages/CompanyDeliveryListPage";
 
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
@@ -87,6 +91,11 @@ export default function AppRouter() {
           <Route path="/master/job-title/add" element={<AddJobTitlePage />} />
           <Route path="/master/department" element={<DepartmentListPage />} />
           <Route path="/master/department/add" element={<AddDepartmentPage />} />
+          <Route path="/master/courier" element={<CourierListPage />} />
+          <Route path="/master/courier/add" element={<AddCourierPage />} />
+
+          <Route path="/delivery/courier-list" element={<CourierDeliveryListPage />} />
+          <Route path="/delivery/company-list" element={<CompanyDeliveryListPage />} />
 
           {/* History */}
           <Route path="/history" element={<HistoryPage />} />
@@ -117,6 +126,8 @@ export default function AppRouter() {
           {/* Delivery */}
           <Route path="/ops/delivery/dispatch" element={<DeliveryDispatchPage />} />
           <Route path="/ops/delivery/my" element={<MyDeliveryListPage />} />
+          <Route path="/ops/delivery/courier-list" element={<CourierDeliveryListPage />} />
+          <Route path="/ops/delivery/company-list" element={<CompanyDeliveryListPage />} />
         </Route>
       </Route>
 

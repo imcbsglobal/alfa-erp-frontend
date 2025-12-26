@@ -184,10 +184,14 @@ export default function InvoiceListPage() {
     }
   };
 
+  const sortedInvoices = [...invoices].sort(
+    (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
+  );
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = invoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(invoices.length / itemsPerPage);
+  const currentItems = sortedInvoices.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -267,7 +271,7 @@ export default function InvoiceListPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">
-            Invoice Management
+            Picking Management
           </h1>
           <div className="flex gap-2">
             <button

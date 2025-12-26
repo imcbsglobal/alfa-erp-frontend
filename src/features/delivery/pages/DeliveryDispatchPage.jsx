@@ -26,7 +26,8 @@ const DeliveryDispatchPage = () => {
       const params = {
         status: 'PACKED',
         page: currentPage,
-        page_size: itemsPerPage
+        page_size: itemsPerPage,
+        ordering: '-packer_info__end_time' // latest packed first
       };
 
       if (searchTerm.trim()) {

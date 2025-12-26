@@ -1,5 +1,5 @@
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
-import { Truck as TruckIcon, AlertCircle as AlertCircleIcon } from "lucide-react";
+import { Truck as TruckIcon, AlertCircle as AlertCircleIcon, Package as PackageIcon } from "lucide-react";
 import { 
   HomeIcon, 
   UsersIcon, 
@@ -103,16 +103,21 @@ export const MENU_CONFIG = [
         label: "Dispatch Orders",
         icon: ListIcon,
         path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/dispatch" : "/delivery/dispatch",
-        hasAccess: (user) => ["SUPERADMIN", "ADMIN", "DELIVERY"].includes(user?.role),
+      },
+      {
+        label: "Courier List",
+        icon: TruckIcon,
+        path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/courier-list" : "/delivery/courier-list",
+      },
+      {
+        label: "Company Delivery List",
+        icon: TruckIcon,
+        path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/company-list" : "/delivery/company-list",
       },
       {
         label: "My Assigned Delivery",
         icon: PlusCircleIcon,
         path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/my" : "/delivery/my",
-        hasAccess: (user, permissions) =>
-          user?.role === "DELIVERY" || 
-          user?.role === "SUPERADMIN" || 
-          permissions["my-delivery"]?.view === true,
       },
     ],
     isActive: (pathname) =>
@@ -168,6 +173,11 @@ export const MENU_CONFIG = [
         icon: BuildingIcon,
         path: "/master/department",
       },
+      {
+        label: "Courier",
+        icon: PackageIcon,
+        path: "/master/courier",
+      },
     ],
     isActive: (pathname) => pathname.includes("/master/"),
   },
@@ -192,12 +202,18 @@ export const PAGE_TITLES = {
   "/ops/delivery/dispatch": "Delivery Dispatch",
   "/delivery/my": "My Assigned Delivery",
   "/ops/delivery/my": "My Assigned Delivery",
+  "/delivery/courier-list": "Courier Delivery List",
+  "/ops/delivery/courier-list": "Courier Delivery List",
+  "/delivery/company-list": "Company Delivery List",
+  "/ops/delivery/company-list": "Company Delivery List",
   "/user-management": "User Management",
   "/add-user": "Add User",
   "/user-control": "User Control",
   "/master/job-title": "Job Titles",
-  "/master/job-title/add": "Add Job Title",
+  "/master/job-title/add": "Add Job Title", 
   "/master/department": "Departments",
   "/master/department/add": "Add Department",
+  "/master/courier": "Couriers",
+  "/master/courier/add": "Add Courier",
   "/history": "History",
 };

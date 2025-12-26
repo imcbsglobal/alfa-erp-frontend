@@ -167,11 +167,15 @@ export default function BillingReviewedListPage() {
     }
   };
 
-  // Pagination calc
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = invoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(invoices.length / itemsPerPage);
+  // 🔽 Sort by invoice_date (latest first) + pagination
+    const sortedInvoices = [...invoices].sort(
+    (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
+    );
+
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = sortedInvoices.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
 
   const handlePageChange = (n) => {
     setCurrentPage(n);

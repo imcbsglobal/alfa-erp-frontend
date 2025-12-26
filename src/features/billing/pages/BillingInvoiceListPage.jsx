@@ -162,11 +162,16 @@ export default function BillingInvoiceListPage() {
     return inv.status;
   };
 
+  // Pagination calc + 🔽 sort latest first
+  const sortedInvoices = [...invoices].sort(
+    (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
+  );
+
   // Pagination calc
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = invoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(invoices.length / itemsPerPage);
+  const currentItems = sortedInvoices.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
 
   const handlePageChange = (n) => {
     setCurrentPage(n);
