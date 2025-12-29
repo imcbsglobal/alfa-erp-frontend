@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
-import { createCourier } from "../../../services/auth";
+import { createCourier } from "../../../services/sales";
 
 export default function AddCourierPage() {
   const navigate = useNavigate();
@@ -100,7 +100,11 @@ export default function AddCourierPage() {
 
       navigate("/master/courier");
     } catch (error) {
-      console.error("Create courier error:", error);
+      console.error(
+        "Create courier error:",
+        error.response?.status,
+        error.response?.data
+      );
       toast.error("Failed to create courier");
       setErrors((prev) => ({
         ...prev,

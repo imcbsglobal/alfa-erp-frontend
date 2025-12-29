@@ -44,3 +44,22 @@ export const getPackedInvoices = (params = {}) =>
     return api.post("/sales/delivery/complete/", data);
   };
 
+export const getCouriers = async () => {
+  return api.get("/sales/couriers/");
+};
+
+export const getCourierById = (id) => {
+  return api.get(`/sales/couriers/${id}/`);
+};
+
+export const createCourier = async (courierData) => {
+  return api.post("/sales/couriers/", courierData);
+};
+
+export const updateCourier = (id, courierData) => {
+  return api.patch(`/sales/couriers/${id}/`, courierData);
+};
+
+export const deleteCourier = async (id) => {
+  return api.delete(`/sales/couriers/${id}/`);
+};

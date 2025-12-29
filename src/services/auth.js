@@ -66,22 +66,3 @@ export const deleteDepartment = (id) =>
 
 // Add these functions to your existing services/auth.js file
 
-export const getCouriers = async () => {
-  return api.get("/auth/couriers/");
-};
-
-export const getCourierById = async (id) => {
-  return api.get(`/auth/couriers/${id}/`);
-};
-
-export const createCourier = async (courierData) => {
-  return api.post("/auth/couriers/", courierData);
-};
-
-export const updateCourier = async (id, courierData) => {
-  return api.put(`/auth/couriers/${id}/`, courierData);
-};
-
-export const deleteCourier = async (id) => {
-  return api.delete(`/auth/couriers/${id}/`);
-};
