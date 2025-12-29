@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
-import { getCouriers, updateCourier, deleteCourier } from "../../../services/auth";
+import { getCouriers, updateCourier, deleteCourier } from "../../../services/sales";
 
 export default function CourierListPage() {
   const navigate = useNavigate();
@@ -34,14 +34,10 @@ export default function CourierListPage() {
       let courierArray = [];
       const apiData = response?.data;
 
-      if (Array.isArray(apiData?.data?.results)) {
-        courierArray = apiData.data.results;
-      } else if (Array.isArray(apiData?.results)) {
-        courierArray = apiData.results;
-      } else if (Array.isArray(apiData?.data)) {
+      if (Array.isArray(apiData?.data)) {
         courierArray = apiData.data;
-      } else if (Array.isArray(apiData)) {
-        courierArray = apiData;
+      } else {
+        courierArray = [];
       }
 
       setCouriers(courierArray);
