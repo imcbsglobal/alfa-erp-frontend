@@ -34,32 +34,10 @@ export default function BillingReviewedListPage() {
   useEffect(() => {
     const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        setInvoices((prev) => {
-          // Only add/update if billing_status is REVIEW
-          if (data.billing_status === "REVIEW") {
-            const idx = prev.findIndex((i) => i.id === data.id);
-            if (idx !== -1) {
-              const copy = [...prev];
-              copy[idx] = { ...copy[idx], ...data };
-              return copy;
-            }
-            return [data, ...prev];
-          } else {
-            // Remove from list if status changed from REVIEW
-            return prev.filter(i => i.id !== data.id);
-          }
-        });
-
-        if (data.billing_status === "REVIEW") {
-          toast.success(`Invoice ${data.invoice_no} sent to review`);
-        }
-      } catch (e) {
-        console.error("Bad SSE data", e);
-      }
+    es.onmessage = () => {
+      // Do NOT trust SSE payload shape
+      // Always refetch reviewed invoices
+      loadInvoices();
     };
 
     es.onerror = () => {
@@ -73,16 +51,26 @@ export default function BillingReviewedListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/billing/invoices/");
-      const list = res.data.results || [];
+      let allInvoices = [];
+      let url = "/sales/billing/invoices/";
 
-      // 🔴 Filter only REVIEW status invoices
-      const reviewedInvoices = list.filter(
-        inv => inv.billing_status === "REVIEW" || inv.status === "REVIEW"
+      // 🔁 Fetch ALL pages
+      while (url) {
+        const res = await api.get(url);
+        allInvoices = allInvoices.concat(res.data.results || []);
+        url = res.data.next
+          ? res.data.next.replace(API_BASE_URL, "")
+          : null;
+      }
+
+      // ✅ Only billing REVIEW invoices
+      const reviewedInvoices = allInvoices.filter(
+        inv => inv.billing_status === "REVIEW"
       );
 
       setInvoices(reviewedInvoices);
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to load reviewed invoices");
     } finally {
       setLoading(false);
@@ -248,7 +236,7 @@ export default function BillingReviewedListPage() {
                     {currentItems.map((inv) => (
                       <tr
                         key={inv.id}
-                        className="transition hover:bg-orange-50 bg-red-50"
+                        className="transition hover:bg-orange-50"
                       >
                         <td className="px-4 py-3">
                           <p className="font-semibold">{inv.invoice_no}</p>
@@ -288,20 +276,23 @@ export default function BillingReviewedListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor("REVIEW")}`}
+                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
+                              inv.billing_status
+                            )}`}
                           >
-                            {getStatusLabel("REVIEW")}
+                            {getStatusLabel(inv.billing_status)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => handleReview(inv)}
-                              className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition font-medium"
-                            >
-                              Review
-                            </button>
-                            
+                            {inv.billing_status === "REVIEW" && (
+                              <button
+                                onClick={() => handleReview(inv)}
+                                className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition font-medium"
+                              >
+                                Review
+                              </button>
+                            )} 
                             <button
                               onClick={() => handleViewInvoice(inv.id)}
                               className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition font-medium"

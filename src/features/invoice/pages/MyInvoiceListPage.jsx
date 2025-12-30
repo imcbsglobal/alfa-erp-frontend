@@ -14,6 +14,7 @@ export default function MyInvoiceListPage() {
   const [reviewChecks, setReviewChecks] = useState({});
   const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
+  const isReviewInvoice = activeInvoice?.status === "REVIEW";
 
   const { user } = useAuth();
 
@@ -29,6 +30,9 @@ export default function MyInvoiceListPage() {
       if (res.data?.data) {
         const task = res.data.data;
         setActiveInvoice({ ...task.invoice, created_at: task.start_time });
+        if (task.invoice.status === "REVIEW") {
+          setPickedItems({});
+        }
       } else {
         setActiveInvoice(null);
       }
@@ -245,14 +249,24 @@ export default function MyInvoiceListPage() {
               <h2 className="text-lg font-semibold text-gray-700">Active Bill</h2>
               <span className="text-sm text-gray-500">Currently in progress</span>
             </div>
-            <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
+            <div
+              className={`rounded-lg border-2 shadow overflow-hidden transition
+                ${
+                  isReviewInvoice
+                    ? "bg-gray-100 border-gray-400 opacity-70 cursor-not-allowed"
+                    : "bg-white border-teal-500"
+                }
+              `}
+            >
               {/* Compact Header */}
               <div
-                onClick={() =>
-                  setExpandedInvoice(
-                    expandedInvoice === activeInvoice.id ? null : activeInvoice.id
-                  )
-                }
+                onClick={() => {
+                  if (!isReviewInvoice) {
+                    setExpandedInvoice(
+                      expandedInvoice === activeInvoice.id ? null : activeInvoice.id
+                    );
+                  }
+                }}
                 className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer"
               >
                 <div className="flex items-center justify-between">
@@ -298,10 +312,26 @@ export default function MyInvoiceListPage() {
               {/* Expanded Details */}
               {expandedInvoice === activeInvoice.id && (
                 <div className="p-4 space-y-3">
+                  {isReviewInvoice && activeInvoice.return_info && (
+                    <div className="p-3 mb-3 rounded-lg bg-orange-50 border border-orange-300">
+                      <p className="font-semibold text-orange-800">
+                        Invoice Sent to Billing Review
+                      </p>
+                      <p className="text-sm text-orange-700 mt-1">
+                        <b>Reason:</b> {activeInvoice.return_info.return_reason}
+                      </p>
+                      <p className="text-xs text-orange-600 mt-1">
+                        Returned at{" "}
+                        {new Date(activeInvoice.return_info.returned_at).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
                   {activeInvoice.items.map((item) => (
                     <div
                       key={item.id}
-                      onClick={() => toggleItemPicked(item.id)}
+                      onClick={() => {
+                        if (!isReviewInvoice) toggleItemPicked(item.id);
+                      }}
                       className={`p-3 rounded-lg border cursor-pointer transition-all ${
                         pickedItems[item.id]
                           ? "bg-teal-50 border-teal-300"
@@ -311,7 +341,9 @@ export default function MyInvoiceListPage() {
                       <div className="flex items-center justify-between gap-3">
                         {/* Checkbox */}
                         <div
-                          onClick={() => toggleItemPicked(item.id)}
+                          onClick={() => {
+                            if (!isReviewInvoice) toggleItemPicked(item.id);
+                          }}
                           className="cursor-pointer"
                         >
                           <div
@@ -385,9 +417,19 @@ export default function MyInvoiceListPage() {
 
                         {/* Report Issue Button */}
                         <button
-                          onClick={(e) => {e.stopPropagation();openReviewPopup(item);}}
-                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition"
-                          title="Report Issue"
+                          disabled={isReviewInvoice}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isReviewInvoice) openReviewPopup(item);
+                          }}
+                          className={`p-2 rounded-lg transition
+                            ${
+                              isReviewInvoice
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-orange-600 hover:bg-orange-50"
+                            }
+                          `}
+                          title={isReviewInvoice ? "Invoice under review" : "Report Issue"}
                         >
                           <svg
                             className="w-5 h-5"
@@ -411,7 +453,7 @@ export default function MyInvoiceListPage() {
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleSendInvoiceToReview}
-                      disabled={!hasIssues}
+                      disabled={!hasIssues || isReviewInvoice}
                       className={`flex-1 py-3 font-semibold rounded-lg transition-all ${
                         hasIssues
                           ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300"
@@ -422,18 +464,20 @@ export default function MyInvoiceListPage() {
                     </button>
                     <button
                       onClick={handleCompletePicking}
-                      disabled={!allItemsPicked || hasIssues}
+                      disabled={!allItemsPicked || hasIssues || isReviewInvoice}
                       className={`flex-1 py-3 font-semibold rounded-lg transition-all ${
                         allItemsPicked && !hasIssues
                           ? "bg-teal-600 hover:bg-teal-700 text-white"
                           : "bg-gray-200 text-gray-400 cursor-not-allowed"
                       }`}
                     >
-                      {hasIssues
-                        ? "Resolve Issues First"
-                        : allItemsPicked
-                          ? "Complete Picking"
-                          : `Pick ${totalItems - pickedCount} More`}
+                      {isReviewInvoice
+                        ? "Invoice Under Review"
+                        : hasIssues
+                          ? "Resolve Issues First"
+                          : allItemsPicked
+                            ? "Complete Picking"
+                            : `Pick ${totalItems - pickedCount} More`}
                     </button>
                   </div>
                 </div>
