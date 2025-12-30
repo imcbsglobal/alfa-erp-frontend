@@ -14,25 +14,44 @@ export default function MyInvoiceListPage() {
   const [savedIssues, setSavedIssues] = useState([]);
   const [activePickingTask, setActivePickingTask] = useState(null);
   const [reInvoicedBill, setReInvoicedBill] = useState(null);
-  const activeInvoice = activePickingTask?.invoice || reInvoicedBill || null;
+  const [justCompletedInvoiceNo, setJustCompletedInvoiceNo] = useState(null);
+  const isInvoiceCompletedToday = (invoiceNo) =>
+  completedInvoices.some((inv) => inv.invoice_no === invoiceNo);
+  const activeInvoice = (() => {
+    // 1️⃣ Re-invoiced bill (if not just completed)
+    if (
+      reInvoicedBill &&
+      reInvoicedBill.invoice_no !== justCompletedInvoiceNo
+    ) {
+      return reInvoicedBill;
+    }
+
+    // 2️⃣ Active picking task (if not just completed)
+    if (
+      activePickingTask?.invoice &&
+      activePickingTask.invoice.invoice_no !== justCompletedInvoiceNo
+    ) {
+      return activePickingTask.invoice;
+    }
+
+    return null;
+  })();
 
   const { user } = useAuth();
 
   useEffect(() => {
-    loadActivePicking();
     loadTodayCompletedPicking();
+    loadActivePicking();
   }, []);
 
   const loadActivePicking = async () => {
     try {
       setLoading(true);
       
-      // First, check for RE_INVOICED bills (highest priority)
-      await checkForReInvoicedBills();
-      
-      // If no RE_INVOICED bill, check for active picking task
+      // Check for RE_INVOICED bills first (highest priority)
       const reInvoicedExists = await checkForReInvoicedBills();
       
+      // Only check for active picking task if no RE_INVOICED bill found
       if (!reInvoicedExists) {
         const res = await getActivePickingTask();
         if (res.data?.data) {
@@ -41,9 +60,11 @@ export default function MyInvoiceListPage() {
           setActivePickingTask(null);
         }
       } else {
+        // If RE_INVOICED bill exists, clear active picking task
         setActivePickingTask(null);
       }
     } catch (err) {
+      console.error("Error loading active picking:", err);
       setActivePickingTask(null);
     } finally {
       setLoading(false);
@@ -231,22 +252,28 @@ export default function MyInvoiceListPage() {
         notes: isReInvoiced 
           ? "Re-picked after billing correction" 
           : "Picked all items",
-        is_repick: isReInvoiced,  // ✅ THIS IS THE KEY FLAG
+        is_repick: isReInvoiced,
       };
       
       console.log('Completing picking with payload:', payload);
       
       await api.post("/sales/picking/complete/", payload);
       
-      // Clear states
+      // ✅ Clear states immediately
+      setJustCompletedInvoiceNo(invoiceNo); 
       setPickedItems({});
       setSavedIssues([]);
       setReInvoicedBill(null);
       setActivePickingTask(null);
       
-      // Reload data
-      await loadActivePicking();
-      await loadTodayCompletedPicking();
+      // ✅ Wait for backend to process and status to update
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // ✅ Reload data
+      await Promise.all([
+        loadActivePicking(),
+        loadTodayCompletedPicking()
+      ]);
       
       alert("Picking completed successfully!");
       
@@ -287,9 +314,10 @@ export default function MyInvoiceListPage() {
 
   if (loading) return <div className="p-6">Loading...</div>;
 
-  const canCompletePicking = 
-    (!!activePickingTask || !!reInvoicedBill) && 
-    allItemsPicked && 
+  const canCompletePicking =
+    activeInvoice &&
+    !isInvoiceCompletedToday(activeInvoice.invoice_no) &&
+    allItemsPicked &&
     !hasIssues;
 
   return (
@@ -421,6 +449,11 @@ export default function MyInvoiceListPage() {
                       <div className="col-span-2 text-gray-600">{inv.duration != null ? (() => { const mins = Math.floor(inv.duration); const secs = Math.round((inv.duration - mins) * 60); return `${mins} min ${secs} sec`; })() : "-"}</div>
                       <div className="col-span-2 flex items-center justify-center gap-2">
                         <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold uppercase tracking-wide">PICKED</span>
+                        {inv.notes && inv.notes.includes('[RE-PICK]') && (
+                          <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-md text-xs font-semibold">
+                            RE-PICKED
+                          </span>
+                        )}
                         <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedInvoice === inv.id ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
