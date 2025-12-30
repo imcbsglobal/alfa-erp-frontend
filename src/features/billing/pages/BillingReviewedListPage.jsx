@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
+import Pagination from "../../../components/Pagination"; 
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -25,7 +26,9 @@ export default function BillingReviewedListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Initial load
+  // ✅ statuses we consider as "Reviewed"
+  const REVIEW_STATUSES = ["REVIEW", "RE_INVOICED"];
+
   useEffect(() => {
     loadInvoices();
   }, []);
@@ -34,10 +37,30 @@ export default function BillingReviewedListPage() {
   useEffect(() => {
     const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
-    es.onmessage = () => {
-      // Do NOT trust SSE payload shape
-      // Always refetch reviewed invoices
-      loadInvoices();
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        setInvoices((prev) => {
+          if (REVIEW_STATUSES.includes(data.billing_status)) {
+            const idx = prev.findIndex((i) => i.id === data.id);
+            if (idx !== -1) {
+              const copy = [...prev];
+              copy[idx] = { ...copy[idx], ...data };
+              return copy;
+            }
+            return [data, ...prev];
+          } else {
+            return prev.filter((i) => i.id !== data.id);
+          }
+        });
+
+        if (REVIEW_STATUSES.includes(data.billing_status)) {
+          toast.success(`Invoice ${data.invoice_no} updated`);
+        }
+      } catch (e) {
+        console.error("Bad SSE data", e);
+      }
     };
 
     es.onerror = () => {
@@ -51,21 +74,11 @@ export default function BillingReviewedListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      let allInvoices = [];
-      let url = "/sales/billing/invoices/";
+      const res = await api.get("/sales/billing/invoices/");
+      const list = res.data.results || [];
 
-      // 🔁 Fetch ALL pages
-      while (url) {
-        const res = await api.get(url);
-        allInvoices = allInvoices.concat(res.data.results || []);
-        url = res.data.next
-          ? res.data.next.replace(API_BASE_URL, "")
-          : null;
-      }
-
-      // ✅ Only billing REVIEW invoices
-      const reviewedInvoices = allInvoices.filter(
-        inv => inv.billing_status === "REVIEW"
+      const reviewedInvoices = list.filter((inv) =>
+        REVIEW_STATUSES.includes(inv.billing_status)
       );
 
       setInvoices(reviewedInvoices);
@@ -96,24 +109,27 @@ export default function BillingReviewedListPage() {
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case "INVOICED":
-        return "bg-slate-100 text-slate-700 border-slate-300";
-      case "PICKING":
-      case "PACKING":
-        return "bg-blue-100 text-blue-700 border-blue-300";
-      case "PICKED":
-      case "PACKED":
-        return "bg-emerald-100 text-emerald-700 border-emerald-300";
-      case "DISPATCHED":
-        return "bg-cyan-100 text-cyan-700 border-cyan-300";
-      case "DELIVERED":
-        return "bg-green-100 text-green-700 border-green-300";
       case "REVIEW":
         return "bg-red-100 text-red-700 border-red-300";
+      case "RE_INVOICED":
+        return "bg-orange-100 text-orange-700 border-orange-300";
       case "BILLED":
         return "bg-slate-100 text-slate-700 border-slate-300";
       default:
         return "bg-gray-100 text-gray-700 border-gray-300";
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "REVIEW":
+        return "Under Review";
+      case "RE_INVOICED":
+        return "Re-Invoiced";
+      case "BILLED":
+        return "Billed";
+      default:
+        return status;
     }
   };
 
@@ -130,71 +146,27 @@ export default function BillingReviewedListPage() {
     }
   };
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case "INVOICED":
-        return "Invoiced";
-      case "PICKED":
-        return "Picked";
-      case "PICKING":
-        return "Picking";
-      case "PACKING":
-        return "Packing";
-      case "PACKED":
-        return "Packed";
-      case "DISPATCHED":
-        return "Dispatched";
-      case "DELIVERED":
-        return "Delivered";
-      case "BILLED":
-        return "Billed";
-      case "REVIEW":
-        return "Under Review";
-      default:
-        return status;
-    }
-  };
-
-  // 🔽 Sort by invoice_date (latest first) + pagination
-    const sortedInvoices = [...invoices].sort(
+  // 🔽 Sort + paginate
+  const sortedInvoices = [...invoices].sort(
     (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
-    );
+  );
 
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = sortedInvoices.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = sortedInvoices.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+  const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
 
   const handlePageChange = (n) => {
     setCurrentPage(n);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-    return (
-      <div className="flex justify-center gap-2 py-4">
-        {[...Array(totalPages)].map((_, i) => (
-          <button
-            key={i}
-            onClick={() => handlePageChange(i + 1)}
-            className={`px-3 py-1 rounded ${
-              currentPage === i + 1
-                ? "bg-cyan-600 text-white"
-                : "bg-white border"
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">
             Reviewed Bills
@@ -239,17 +211,17 @@ export default function BillingReviewedListPage() {
                         className="transition hover:bg-orange-50"
                       >
                         <td className="px-4 py-3">
-                          <p className="font-semibold">{inv.invoice_no}</p>
-                          
-                          {/* Show current handler info */}
-                          {inv.current_handler?.status === "REVIEW" && (
-                            <div className="text-xs mt-1">
-                              <p className="text-orange-600 font-medium">
-                                ⚠ Review by: {inv.current_handler.name}
-                              </p>
-                            </div>
+                          <p className="font-semibold">
+                            {inv.invoice_no}
+                          </p>
+                          {inv.return_info && (
+                            <p className="text-xs text-orange-600 mt-1">
+                              ⚠ Reviewed by:{" "}
+                              {inv.return_info.returned_by_name}
+                            </p>
                           )}
                         </td>
+
                         <td className="px-4 py-3">
                           <span
                             className={`px-3 py-1 rounded-full border text-xs font-bold ${getPriorityBadgeColor(
@@ -259,21 +231,26 @@ export default function BillingReviewedListPage() {
                             {inv.priority || "—"}
                           </span>
                         </td>
+
                         <td className="px-4 py-3 text-sm">
                           {formatDate(inv.invoice_date)}
                         </td>
+
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
                           <p className="text-xs text-gray-500">
                             {inv.customer?.area}
                           </p>
                         </td>
+
                         <td className="px-4 py-3 text-sm">
-                          {inv.salesman?.name}
+                          {inv.salesman?.name || "—"}
                         </td>
+
                         <td className="px-4 py-3 text-right font-semibold">
                           ₹{inv.total_amount}
                         </td>
+
                         <td className="px-4 py-3">
                           <span
                             className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
@@ -283,16 +260,15 @@ export default function BillingReviewedListPage() {
                             {getStatusLabel(inv.billing_status)}
                           </span>
                         </td>
+
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            {inv.billing_status === "REVIEW" && (
-                              <button
-                                onClick={() => handleReview(inv)}
-                                className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition font-medium"
-                              >
-                                Review
-                              </button>
-                            )} 
+                            <button
+                              onClick={() => handleReview(inv)}
+                              className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition font-medium"
+                            >
+                              Issues
+                            </button>
                             <button
                               onClick={() => handleViewInvoice(inv.id)}
                               className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition font-medium"
@@ -306,7 +282,13 @@ export default function BillingReviewedListPage() {
                   </tbody>
                 </table>
               </div>
-              {renderPagination()}
+              <Pagination
+                currentPage={currentPage}
+                totalItems={sortedInvoices.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                label="invoices"
+              />
             </>
           )}
         </div>
@@ -315,48 +297,45 @@ export default function BillingReviewedListPage() {
       {reviewModal.open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            {/* Header */}
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-bold text-gray-900">
                 Invoice #{reviewModal.invoice.invoice_no} - Issues
               </h3>
               <button
-                onClick={() => setReviewModal({ open: false, invoice: null })}
+                onClick={() =>
+                  setReviewModal({ open: false, invoice: null })
+                }
                 className="text-gray-400 hover:text-gray-600"
               >
                 ✕
               </button>
             </div>
 
-            {/* Body */}
             <div className="p-4 space-y-3 text-sm text-gray-700">
-              {reviewModal.invoice.current_handler?.name && (
-                <p className="text-orange-600 font-semibold">
-                  ⚠ Review by: {reviewModal.invoice.current_handler.name}
-                </p>
-              )}
-
-              {reviewModal.invoice.return_info?.return_reason ? (
-                <p className="text-orange-700">
-                  <span className="font-semibold">Reason:</span>{" "}
-                  {reviewModal.invoice.return_info.return_reason}
-                </p>
+              {reviewModal.invoice.return_info ? (
+                <>
+                  <p className="text-orange-700">
+                    <span className="font-semibold">Reason:</span>{" "}
+                    {reviewModal.invoice.return_info.return_reason}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Returned from:{" "}
+                    {
+                      reviewModal.invoice.return_info
+                        .returned_from_section
+                    }
+                  </p>
+                </>
               ) : (
                 <p>No issues reported.</p>
               )}
-
-              {reviewModal.invoice.return_info?.returned_from_section && (
-                <p className="text-xs text-gray-500">
-                  Returned from:{" "}
-                  {reviewModal.invoice.return_info.returned_from_section}
-                </p>
-              )}
             </div>
 
-            {/* Footer */}
             <div className="p-4 border-t flex justify-end">
               <button
-                onClick={() => setReviewModal({ open: false, invoice: null })}
+                onClick={() =>
+                  setReviewModal({ open: false, invoice: null })
+                }
                 className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"
               >
                 Close
