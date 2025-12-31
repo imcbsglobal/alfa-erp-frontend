@@ -13,31 +13,13 @@ export default function MyInvoiceListPage() {
   const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
   const [activePickingTask, setActivePickingTask] = useState(null);
-  const [reInvoicedBill, setReInvoicedBill] = useState(null);
-  const [justCompletedInvoiceNo, setJustCompletedInvoiceNo] = useState(null);
-  const isInvoiceCompletedToday = (invoiceNo) =>
-  completedInvoices.some((inv) => inv.invoice_no === invoiceNo);
-  const activeInvoice = (() => {
-    // 1️⃣ Re-invoiced bill (if not just completed)
-    if (
-      reInvoicedBill &&
-      reInvoicedBill.invoice_no !== justCompletedInvoiceNo
-    ) {
-      return reInvoicedBill;
-    }
-
-    // 2️⃣ Active picking task (if not just completed)
-    if (
-      activePickingTask?.invoice &&
-      activePickingTask.invoice.invoice_no !== justCompletedInvoiceNo
-    ) {
-      return activePickingTask.invoice;
-    }
-
-    return null;
-  })();
+  const activeInvoice = activePickingTask?.invoice || null;
 
   const { user } = useAuth();
+
+  const isReviewInvoice =
+  activeInvoice?.status === "REVIEW" &&
+  Boolean(activeInvoice?.return_info);
 
   useEffect(() => {
     loadTodayCompletedPicking();
@@ -47,51 +29,13 @@ export default function MyInvoiceListPage() {
   const loadActivePicking = async () => {
     try {
       setLoading(true);
-      
-      // Check for RE_INVOICED bills first (highest priority)
-      const reInvoicedExists = await checkForReInvoicedBills();
-      
-      // Only check for active picking task if no RE_INVOICED bill found
-      if (!reInvoicedExists) {
-        const res = await getActivePickingTask();
-        if (res.data?.data) {
-          setActivePickingTask(res.data.data);
-        } else {
-          setActivePickingTask(null);
-        }
-      } else {
-        // If RE_INVOICED bill exists, clear active picking task
-        setActivePickingTask(null);
-      }
+      const res = await getActivePickingTask();
+      setActivePickingTask(res.data?.data || null);
     } catch (err) {
       console.error("Error loading active picking:", err);
       setActivePickingTask(null);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const checkForReInvoicedBills = async () => {
-    try {
-      const res = await api.get("/sales/billing/invoices/", {
-        params: {
-          billing_status: "RE_INVOICED",
-        }
-      });
-      const list = res.data.results || [];
-
-      const myReInvoicedBill = list.find(
-        inv =>
-          inv.billing_status === "RE_INVOICED" &&
-          inv.return_info?.returned_by === user?.id
-      );
-
-      setReInvoicedBill(myReInvoicedBill || null);
-      return !!myReInvoicedBill; // Return true if found
-    } catch (err) {
-      console.error("Failed to check for re-invoiced bills", err);
-      setReInvoicedBill(null);
-      return false;
     }
   };
 
@@ -108,10 +52,12 @@ export default function MyInvoiceListPage() {
   };
 
   const toggleItemPicked = (itemId) => {
+    if (isReviewInvoice) return;
     setPickedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
   const openReviewPopup = (item) => {
+  if (isReviewInvoice) return;
     const existing = savedIssues.find((i) => i.item === item.name);
 
     if (existing) {
@@ -180,8 +126,13 @@ export default function MyInvoiceListPage() {
   };
 
   const handleSendInvoiceToReview = async () => {
-    if (!activePickingTask) {
-      alert("No active picking task found");
+    if (!activeInvoice) {
+      alert("No active invoice to complete.");
+      return;
+    }
+
+    if (isReviewInvoice) {
+      alert("Invoice already sent for review.");
       return;
     }
 
@@ -225,8 +176,13 @@ export default function MyInvoiceListPage() {
   const hasIssues = savedIssues.length > 0;
 
   const handleCompletePicking = async () => {
-    if (!activePickingTask && !reInvoicedBill) {
-      alert("No active picking task. Waiting for picking restart.");
+    if (!activePickingTask) {
+      alert("No active picking task.");
+      return;
+    }
+
+    if (isReviewInvoice) {
+      alert("This invoice is under billing review and cannot be modified.");
       return;
     }
     
@@ -243,28 +199,23 @@ export default function MyInvoiceListPage() {
     try {
       setLoading(true);
       
-      const invoiceNo = activePickingTask?.invoice.invoice_no || reInvoicedBill?.invoice_no;
-      const isReInvoiced = !!reInvoicedBill;
+      const invoiceNo = activeInvoice.invoice_no;
       
       const payload = {
         invoice_no: invoiceNo,
         user_email: user.email,
-        notes: isReInvoiced 
-          ? "Re-picked after billing correction" 
-          : "Picked all items",
-        is_repick: isReInvoiced,
+        notes: "Picked all items",
       };
       
       console.log('Completing picking with payload:', payload);
       
       await api.post("/sales/picking/complete/", payload);
       
-      // ✅ Clear states immediately
-      setJustCompletedInvoiceNo(invoiceNo); 
-      setPickedItems({});
-      setSavedIssues([]);
-      setReInvoicedBill(null);
-      setActivePickingTask(null);
+      useEffect(() => {
+        setPickedItems({});
+        setSavedIssues([]);
+        setExpandedInvoice(null);
+      }, [activeInvoice?.invoice_no]);
       
       // ✅ Wait for backend to process and status to update
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -316,7 +267,7 @@ export default function MyInvoiceListPage() {
 
   const canCompletePicking =
     activeInvoice &&
-    !isInvoiceCompletedToday(activeInvoice.invoice_no) &&
+    !isReviewInvoice &&
     allItemsPicked &&
     !hasIssues;
 
@@ -335,18 +286,19 @@ export default function MyInvoiceListPage() {
               </svg>
               <h2 className="text-lg font-semibold text-gray-700">Active Bill</h2>
             </div>
-            <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
+            <div
+              className={`rounded-lg shadow overflow-hidden border-2
+                ${isReviewInvoice
+                  ? "bg-gray-100 border-orange-400 opacity-70"
+                  : "bg-white border-teal-500"}
+              `}
+            >
               <div onClick={() => setExpandedInvoice(expandedInvoice === activeInvoice.id ? null : activeInvoice.id)} className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
                     <div>
                       <h3 className="font-bold text-gray-900">Invoice #{activeInvoice.invoice_no}</h3>
-                      {activeInvoice.billing_status === "RE_INVOICED" && (
-                        <p className="text-xs text-orange-600 font-semibold mt-1">
-                          ⚠ Returned from billing – corrected, please reprocess
-                        </p>
-                      )}
                       <p className="text-xs text-gray-600">
                         {activeInvoice.customer?.name} • {pickedCount}/{totalItems} picked
                       </p>
@@ -362,7 +314,7 @@ export default function MyInvoiceListPage() {
 
               {expandedInvoice === activeInvoice.id && (
                 <div className="p-4 space-y-3">
-                  {isReviewInvoice && activeInvoice.return_info && (
+                  {isReviewInvoice && (
                     <div className="p-3 mb-3 rounded-lg bg-orange-50 border border-orange-300">
                       <p className="font-semibold text-orange-800">
                         Invoice Sent to Billing Review
@@ -377,10 +329,24 @@ export default function MyInvoiceListPage() {
                     </div>
                   )}
                   {activeInvoice.items.map((item) => (
-                    <div key={item.id} onClick={() => toggleItemPicked(item.id)} className={`p-3 rounded-lg border cursor-pointer transition-all ${pickedItems[item.id] ? "bg-teal-50 border-teal-300" : "bg-white border-gray-200"}`}>
+                    <div key={item.id} onClick={() => {
+                        if (isReviewInvoice) return;
+                        toggleItemPicked(item.id);
+                      }} className={`p-3 rounded-lg border cursor-pointer transition-all ${pickedItems[item.id] ? "bg-teal-50 border-teal-300" : "bg-white border-gray-200"}`}>
                       <div className="flex items-center justify-between gap-3">
-                        <div onClick={() => toggleItemPicked(item.id)} className="cursor-pointer">
-                          <div className={`w-8 h-8 rounded flex items-center justify-center ${pickedItems[item.id] ? "bg-teal-600" : "bg-white border-2 border-gray-300"}`}>
+                        <div onClick={() => {
+                            if (isReviewInvoice) return;
+                            toggleItemPicked(item.id);
+                          }} className="cursor-pointer">
+                          <div
+                            className={`w-8 h-8 rounded flex items-center justify-center ${
+                              isReviewInvoice
+                                ? "bg-gray-300 cursor-not-allowed"
+                                : pickedItems[item.id]
+                                  ? "bg-teal-600"
+                                  : "bg-white border-2 border-gray-300"
+                            }`}
+                          >
                             <svg className={`w-4 h-4 ${pickedItems[item.id] ? "text-white" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
@@ -403,7 +369,19 @@ export default function MyInvoiceListPage() {
                             <span>Exp: <b>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString("en-GB") : "—"}</b></span>
                           </div>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); openReviewPopup(item); }} className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition" title="Report Issue">
+                        <button
+                          disabled={isReviewInvoice}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isReviewInvoice) return;
+                            openReviewPopup(item);
+                          }}
+                          className={`p-2 rounded-lg transition ${
+                            isReviewInvoice
+                              ? "text-gray-400 cursor-not-allowed"
+                              : "text-orange-600 hover:bg-orange-50"
+                          }`}
+                        >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
@@ -412,7 +390,7 @@ export default function MyInvoiceListPage() {
                     </div>
                   ))}
                   <div className="flex gap-3 pt-2">
-                    <button onClick={handleSendInvoiceToReview} disabled={!hasIssues} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${hasIssues ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
+                    <button onClick={handleSendInvoiceToReview} disabled={isReviewInvoice || !hasIssues} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${hasIssues ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
                       Send Invoice to Review
                     </button>
                     <button onClick={handleCompletePicking} disabled={!canCompletePicking} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${allItemsPicked && !hasIssues ? "bg-teal-600 hover:bg-teal-700 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
