@@ -64,7 +64,6 @@ export const updateDepartment = (id, data) =>
 export const deleteDepartment = (id) =>
   api.delete(`/auth/departments/${id}/`);
 
-// Add these functions to your existing services/auth.js file
 
 // ============= COURIER MANAGEMENT =============
 
