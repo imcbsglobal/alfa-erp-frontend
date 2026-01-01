@@ -32,7 +32,7 @@ export default function BillingReviewedListPage() {
 
   // SSE live updates
   useEffect(() => {
-    const es = new EventSource(`${API_BASE_URL}/api/sales/sse/invoices/`);
+    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
     es.onmessage = (event) => {
       try {
@@ -40,8 +40,12 @@ export default function BillingReviewedListPage() {
 
         if (!data.invoice_no) return;
 
-        // Only reload if it's a review-related event
-        if (data.type === 'invoice_review' || data.type === 'invoice_returned') {
+        // Reload if it's a review-related event
+        if (
+          data.type === "invoice_review" ||
+          data.type === "invoice_returned" ||
+          data.type === "invoice_updated"
+        ) {
           loadInvoices();
           toast.success(`Invoice ${data.invoice_no} updated`);
         }
@@ -61,26 +65,21 @@ export default function BillingReviewedListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      // ✅ FIXED: Use the correct API endpoint with billing_status filter
-      // According to API docs: GET /api/sales/billing/invoices/?billing_status=REVIEW
-      const res = await api.get("/sales/billing/invoices/", {
-        params: { 
-          billing_status: "REVIEW"  // ✅ Only get invoices in REVIEW status
-        },
-      });
+      const res = await api.get("/sales/billing/invoices/");
+      const list = res.data?.results || res.data || [];
 
-      console.log("API Response:", res.data);
-      
-      // Handle both response formats
-      const invoiceList = res.data?.results || res.data || [];
-      console.log("Loaded invoices:", invoiceList);
-      
-      setInvoices(invoiceList);
+      // ✅ ONLY invoices currently under review
+      const reviewedInvoices = list.filter(
+        inv => inv.billing_status === "REVIEW"
+      );
+
+      setInvoices(reviewedInvoices);
       setCurrentPage(1);
     } catch (err) {
       console.error("Error loading invoices:", err);
-      console.error("Error response:", err.response?.data);
-      toast.error(err.response?.data?.message || "Failed to load reviewed invoices");
+      toast.error(
+        err.response?.data?.message || "Failed to load reviewed invoices"
+      );
     } finally {
       setLoading(false);
     }
@@ -314,7 +313,6 @@ export default function BillingReviewedListPage() {
       {reviewModal.open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-            {/* Modal Header */}
             <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-orange-50">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,11 +332,9 @@ export default function BillingReviewedListPage() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 space-y-4">
               {reviewModal.invoice.return_info ? (
                 <>
-                  {/* Return Reason */}
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <h4 className="font-semibold text-red-900 mb-2">Return Reason:</h4>
                     <p className="text-red-800 whitespace-pre-wrap">
@@ -346,7 +342,6 @@ export default function BillingReviewedListPage() {
                     </p>
                   </div>
 
-                  {/* Return Details Grid */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-xs text-gray-500 mb-1">Returned By</p>

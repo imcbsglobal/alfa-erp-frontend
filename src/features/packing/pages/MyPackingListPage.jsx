@@ -16,38 +16,112 @@ export default function MyPackingListPage() {
   
   const { user } = useAuth();
 
+  const isReInvoiced =
+    activeInvoice?.billing_status === "RE_INVOICED";
+
+  const isLockedForReview =
+    activeInvoice?.billing_status === "REVIEW";  
+
+  const isAlreadyInReview =
+    activeInvoice?.billing_status === "REVIEW";
+
   useEffect(() => {
     loadActivePacking();
     loadTodayCompletedPacking();
   }, []);
 
+  // ⬇️⬇️⬇️ ADD THIS ENTIRE BLOCK RIGHT HERE ⬇️⬇️⬇️
+
+  useEffect(() => {
+    const es = new EventSource(
+      `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"}/sales/sse/invoices/`
+    );
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (!data.invoice_no) return;
+
+        // ✅ Listen ONLY for re-invoiced PATCH
+        if (
+          data.type === "invoice_updated" &&
+          data.billing_status === "RE_INVOICED"
+        ) {
+          console.log(
+            "📦 Packing page received re-invoiced invoice:",
+            data.invoice_no
+          );
+          loadActivePacking();
+        }
+      } catch (err) {
+        console.error("Packing SSE parse error", err);
+      }
+    };
+
+    es.onerror = () => {
+      console.error("Packing SSE connection error");
+      es.close();
+    };
+
+    return () => es.close();
+  }, []);
+
+  useEffect(() => {
+    if (isReInvoiced && activeInvoice?.invoice_no) {
+      setPackedItems({});
+      setSavedIssues([]);
+      setExpandedInvoice(activeInvoice.id);
+    }
+  }, [isReInvoiced, activeInvoice?.invoice_no]);
+
   const loadActivePacking = async () => {
     try {
       setLoading(true);
-      
-      if (!user?.email) {
-        console.warn("User email not found");
-        setActiveInvoice(null);
+
+      // 1️⃣ Check active packing task
+      const res = await api.get("/sales/packing/active/");
+      const task = res.data?.data || null;
+
+      if (task) {
+        setActiveInvoice({
+          ...task.invoice,
+          created_at: task.start_time,
+          session_id: task.session_id,
+        });
         return;
       }
 
-      const res = await api.get("/sales/packing/active/");
-      
-      if (res.data?.data) {
-        const task = res.data.data;
-        setActiveInvoice({ 
-          ...task.invoice, 
-          created_at: task.start_time,
-          session_id: task.session_id 
+      // 2️⃣ If no active task, check for RE-INVOICED bills
+      const reinvoicedRes = await api.get("/sales/billing/invoices/", {
+        params: { billing_status: "RE_INVOICED" },
+      });
+
+      const reinvoiced = reinvoicedRes.data?.results || [];
+
+      if (reinvoiced.length > 0) {
+        const invoice = reinvoiced[0];
+
+        // ✅ START PACKING SESSION (REQUIRED)
+        const startRes = await api.post("/sales/packing/start/", {
+          invoice_no: invoice.invoice_no,
+          user_email: user.email,
         });
+
+        const task = startRes.data?.data;
+
+        setActiveInvoice({
+          ...task.invoice,
+          created_at: task.start_time,
+          session_id: task.session_id,
+        });
+
+        return;
       } else {
         setActiveInvoice(null);
       }
     } catch (err) {
       console.error("Failed to load active packing task", err);
-      if (err.response?.status !== 404) {
-        toast.error("Failed to load active packing task");
-      }
       setActiveInvoice(null);
     } finally {
       setLoading(false);
@@ -71,11 +145,14 @@ export default function MyPackingListPage() {
   };
 
   const toggleItemPacked = (itemId) => {
+    if (isLockedForReview) return;
     setPackedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
   const openReviewPopup = (item) => {
-    const existing = savedIssues.find((i) => i.item === item.name);
+    if (isLockedForReview) return;
+
+  const existing = savedIssues.find((i) => i.item === item.name);
 
     if (existing) {
       const checks = {
@@ -146,6 +223,12 @@ export default function MyPackingListPage() {
   const handleSendInvoiceToReview = async () => {
     if (!activeInvoice) return;
 
+    // 🚫 HARD STOP — do NOT call backend again
+    if (activeInvoice.billing_status === "REVIEW") {
+      toast.error("Invoice is already under billing review");
+      return;
+    }
+
     if (!savedIssues.length) {
       toast.error("No saved issues to send");
       return;
@@ -166,12 +249,36 @@ export default function MyPackingListPage() {
 
       toast.success("Invoice sent to billing review");
 
+      // 🔥 CRITICAL: lock invoice immediately in UI
+      setActiveInvoice((prev) =>
+        prev
+          ? {
+              ...prev,
+              billing_status: "REVIEW",
+            }
+          : prev
+      );
+
       setSavedIssues([]);
-      await loadActivePacking();
+
       await loadTodayCompletedPacking();
-    } catch (err) {
+      } catch (err) {
       console.error("Return error:", err.response?.status, err.response?.data);
-      toast.error(err.response?.data?.message || "Failed to send invoice to review");
+
+      const error = err.response?.data;
+
+      // ✅ Backend says already sent → sync UI
+      if (error?.errors?.invoice_no?.includes("already been sent")) {
+        toast.error("Invoice is already under billing review");
+
+        // 🔒 Force UI lock
+        setActiveInvoice(prev =>
+          prev ? { ...prev, billing_status: "REVIEW" } : prev
+        );
+        return;
+      }
+
+      toast.error(error?.message || "Failed to send invoice to review");
     } finally {
       setLoading(false);
     }
@@ -186,6 +293,11 @@ export default function MyPackingListPage() {
   const hasIssues = savedIssues.length > 0;
 
   const handleCompletePacking = async () => {
+    if (isLockedForReview) {
+      toast.error("Invoice is under billing review and cannot be completed");
+      return;
+    }
+
     if (!allItemsPacked || !activeInvoice) {
       toast.error("Please pack all items first");
       return;
@@ -201,7 +313,9 @@ export default function MyPackingListPage() {
       await api.post("/sales/packing/complete/", {
         invoice_no: activeInvoice.invoice_no,
         user_email: user.email,
-        notes: "Packed all items",
+        notes: isReInvoiced
+        ? "[RE-PACK] Corrected invoice packed"
+        : "Packed all items",
       });
 
       setPackedItems({});
@@ -278,7 +392,15 @@ export default function MyPackingListPage() {
               <h2 className="text-lg font-semibold text-gray-700">Active Bill</h2>
               <span className="text-sm text-gray-500">Currently in progress</span>
             </div>
-            <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
+            <div
+              className={`rounded-lg shadow overflow-hidden border-2 transition
+                ${isLockedForReview
+                  ? "bg-gray-100 border-orange-400 opacity-70"
+                  : isReInvoiced
+                    ? "bg-blue-50 border-blue-500"
+                    : "bg-white border-teal-500"}
+              `}
+            >
               {/* Compact Header */}
               <div
                 onClick={() =>
@@ -331,10 +453,24 @@ export default function MyPackingListPage() {
               {/* Expanded Details */}
               {expandedInvoice === activeInvoice.id && (
                 <div className="p-4 space-y-3">
+                  {isLockedForReview && (
+                    <div className="p-3 rounded-lg bg-orange-50 border border-orange-300">
+                      <p className="font-semibold text-orange-800">
+                        Invoice sent to Billing Review
+                      </p>
+                      <p className="text-sm text-orange-700 mt-1">
+                        This invoice is locked and cannot be modified.
+                      </p>
+                    </div>
+                  )}
+
                   {activeInvoice.items.map((item) => (
                     <div
                       key={item.id}
-                      onClick={() => toggleItemPacked(item.id)}
+                      onClick={() => {
+                        if (isLockedForReview) return;
+                        toggleItemPacked(item.id);
+                      }}  
                       className={`p-3 rounded-lg border cursor-pointer transition-all ${
                         packedItems[item.id]
                           ? "bg-teal-50 border-teal-300"
@@ -344,7 +480,10 @@ export default function MyPackingListPage() {
                       <div className="flex items-center justify-between gap-3">
                         {/* Checkbox */}
                         <div
-                          onClick={() => toggleItemPacked(item.id)}
+                          onClick={() => {
+                            if (isLockedForReview) return;
+                            toggleItemPacked(item.id);
+                          }}
                           className="cursor-pointer"
                         >
                           <div
@@ -434,18 +573,20 @@ export default function MyPackingListPage() {
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleSendInvoiceToReview}
-                      disabled={!hasIssues}
+                      disabled={isLockedForReview || loading || !hasIssues}
                       className={`flex-1 py-3 font-semibold rounded-lg transition-all ${
-                        hasIssues
-                          ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300"
-                          : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        isLockedForReview
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : hasIssues
+                            ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300"
+                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
                       }`}
                     >
-                      Send Invoice to Review
+                      {isLockedForReview ? "Under Review" : "Send Invoice to Review"}
                     </button>
                     <button
                       onClick={handleCompletePacking}
-                      disabled={!allItemsPacked || hasIssues}
+                      disabled={isLockedForReview || !allItemsPacked || hasIssues}
                       className={`flex-1 py-3 font-semibold rounded-lg transition-all ${
                         allItemsPacked && !hasIssues
                           ? "bg-teal-600 hover:bg-teal-700 text-white"
