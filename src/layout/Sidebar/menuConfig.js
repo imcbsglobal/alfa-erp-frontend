@@ -127,9 +127,21 @@ export const MENU_CONFIG = [
     id: "history",
     label: "History",
     icon: ListIcon,
-    type: "single",
-    path: "/history",
+    type: "dropdown", // Changed from "single"
     hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
+    submenu: [
+      {
+        label: "History",
+        icon: ListIcon,
+        path: "/history",
+      },
+      {
+        label: "Consolidate",
+        icon: ListIcon,
+        path: "/history/consolidate",
+      },
+    ],
+    isActive: (pathname) => pathname.startsWith("/history"),
   },
   {
     id: "user-management",
@@ -216,4 +228,5 @@ export const PAGE_TITLES = {
   "/master/courier": "Couriers",
   "/master/courier/add": "Add Courier",
   "/history": "History",
+  "/history/consolidate": "Consolidate History",
 };
