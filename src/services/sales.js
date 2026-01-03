@@ -63,3 +63,7 @@ export const updateCourier = (id, courierData) => {
 export const deleteCourier = async (id) => {
   return api.delete(`/sales/couriers/${id}/`);
 };
+
+// Add this export for updating/patching invoices
+export const updateInvoice = (data) =>
+  api.patch("/sales/update/invoice/", data);

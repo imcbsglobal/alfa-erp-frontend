@@ -3,6 +3,9 @@ import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import { getActivePickingTask } from "../../../services/sales";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
 export default function MyInvoiceListPage() {
   const [loading, setLoading] = useState(false);
   const [expandedInvoice, setExpandedInvoice] = useState(null);
@@ -13,64 +16,114 @@ export default function MyInvoiceListPage() {
   const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
   const [activePickingTask, setActivePickingTask] = useState(null);
-  const [reInvoicedBill, setReInvoicedBill] = useState(null);
-  const activeInvoice = activePickingTask?.invoice || reInvoicedBill || null;
+  const activeInvoice = activePickingTask?.invoice || null;
 
   const { user } = useAuth();
 
+  // Check if invoice is RE_INVOICED (corrected and resent from billing)
+  const isReInvoiced =
+    activeInvoice?.billing_status === "RE_INVOICED";
+    
+
+  // Check if invoice is still under review (locked state) - should NOT happen anymore
+  const isReviewInvoice =
+    activeInvoice?.billing_status === "REVIEW" &&
+    Boolean(activeInvoice?.return_info);
+
   useEffect(() => {
-    loadActivePicking();
     loadTodayCompletedPicking();
+    loadActivePicking();
   }, []);
+
+  // SSE live updates - listen for re-invoiced bills
+  useEffect(() => {
+    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (!data.invoice_no) return;
+
+        // If invoice is RE_INVOICED and was returned by current user, reload active picking
+        if (data.billing_status === "RE_INVOICED" && 
+            data.return_info?.returned_by_email === user?.email) {
+          console.log("Re-invoiced bill received for current user:", data.invoice_no);
+          loadActivePicking();
+        }
+
+        // Also reload for other relevant events
+        if (data.type === 'invoice_review' || data.type === 'invoice_returned') {
+          loadActivePicking();
+        }
+      } catch (e) {
+        console.error("Bad SSE data", e);
+      }
+    };
+
+    es.onerror = () => {
+      console.error("SSE connection error");
+      es.close();
+    };
+
+    return () => es.close();
+  }, [user?.email]);
+
+  // Reset state when new invoice becomes active
+  useEffect(() => {
+    if (activeInvoice?.invoice_no) {
+      setPickedItems({});
+      setSavedIssues([]);
+      setExpandedInvoice(activeInvoice.id);
+    }
+  }, [activeInvoice?.invoice_no]);
 
   const loadActivePicking = async () => {
     try {
       setLoading(true);
+      const res = await getActivePickingTask();
+      const task = res.data?.data || null;
       
-      // First, check for RE_INVOICED bills (highest priority)
-      await checkForReInvoicedBills();
-      
-      // If no RE_INVOICED bill, check for active picking task
-      const reInvoicedExists = await checkForReInvoicedBills();
-      
-      if (!reInvoicedExists) {
-        const res = await getActivePickingTask();
-        if (res.data?.data) {
-          setActivePickingTask(res.data.data);
+      // If no active task, check for RE_INVOICED bills for current user
+      if (!task) {
+        const reInvoicedRes = await api.get("/sales/billing/invoices/", {
+          params: { 
+            billing_status: "RE_INVOICED",
+            returned_by_email: user?.email 
+          }
+        });
+        
+        const reInvoicedBills = reInvoicedRes.data?.results || [];
+        
+        if (reInvoicedBills.length > 0) {
+          // Auto-start picking for the first re-invoiced bill
+          const invoice = reInvoicedBills[0];
+          console.log("Auto-starting picking for re-invoiced bill:", invoice.invoice_no);
+          
+          try {
+            await api.post("/sales/picking/start/", {
+              invoice_no: invoice.invoice_no,
+              user_email: user.email
+            });
+            
+            // Reload to get the newly started task
+            const newRes = await getActivePickingTask();
+            setActivePickingTask(newRes.data?.data || null);
+          } catch (startErr) {
+            console.error("Error auto-starting re-invoiced bill:", startErr);
+            setActivePickingTask(null);
+          }
         } else {
           setActivePickingTask(null);
         }
       } else {
-        setActivePickingTask(null);
+        setActivePickingTask(task);
       }
     } catch (err) {
+      console.error("Error loading active picking:", err);
       setActivePickingTask(null);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const checkForReInvoicedBills = async () => {
-    try {
-      const res = await api.get("/sales/billing/invoices/", {
-        params: {
-          billing_status: "RE_INVOICED",
-        }
-      });
-      const list = res.data.results || [];
-
-      const myReInvoicedBill = list.find(
-        inv =>
-          inv.billing_status === "RE_INVOICED" &&
-          inv.return_info?.returned_by === user?.id
-      );
-
-      setReInvoicedBill(myReInvoicedBill || null);
-      return !!myReInvoicedBill; // Return true if found
-    } catch (err) {
-      console.error("Failed to check for re-invoiced bills", err);
-      setReInvoicedBill(null);
-      return false;
     }
   };
 
@@ -87,10 +140,12 @@ export default function MyInvoiceListPage() {
   };
 
   const toggleItemPicked = (itemId) => {
+    if (isReviewInvoice) return;
     setPickedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
   const openReviewPopup = (item) => {
+    if (isReviewInvoice) return;
     const existing = savedIssues.find((i) => i.item === item.name);
 
     if (existing) {
@@ -159,8 +214,13 @@ export default function MyInvoiceListPage() {
   };
 
   const handleSendInvoiceToReview = async () => {
-    if (!activePickingTask) {
-      alert("No active picking task found");
+    if (!activeInvoice) {
+      alert("No active invoice to complete.");
+      return;
+    }
+
+    if (isReviewInvoice) {
+      alert("Invoice already sent for review.");
       return;
     }
 
@@ -204,8 +264,13 @@ export default function MyInvoiceListPage() {
   const hasIssues = savedIssues.length > 0;
 
   const handleCompletePicking = async () => {
-    if (!activePickingTask && !reInvoicedBill) {
-      alert("No active picking task. Waiting for picking restart.");
+    if (!activePickingTask) {
+      alert("No active picking task.");
+      return;
+    }
+
+    if (isReviewInvoice) {
+      alert("This invoice is under billing review and cannot be modified.");
       return;
     }
     
@@ -222,31 +287,26 @@ export default function MyInvoiceListPage() {
     try {
       setLoading(true);
       
-      const invoiceNo = activePickingTask?.invoice.invoice_no || reInvoicedBill?.invoice_no;
-      const isReInvoiced = !!reInvoicedBill;
+      const invoiceNo = activeInvoice.invoice_no;
       
       const payload = {
         invoice_no: invoiceNo,
         user_email: user.email,
-        notes: isReInvoiced 
-          ? "Re-picked after billing correction" 
-          : "Picked all items",
-        is_repick: isReInvoiced,  // ✅ THIS IS THE KEY FLAG
+        notes: isReInvoiced ? "[RE-PICK] Corrected invoice picked" : "Picked all items",
       };
       
       console.log('Completing picking with payload:', payload);
       
       await api.post("/sales/picking/complete/", payload);
       
-      // Clear states
-      setPickedItems({});
-      setSavedIssues([]);
-      setReInvoicedBill(null);
-      setActivePickingTask(null);
+      // Wait for backend to process
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       // Reload data
-      await loadActivePicking();
-      await loadTodayCompletedPicking();
+      await Promise.all([
+        loadActivePicking(),
+        loadTodayCompletedPicking()
+      ]);
       
       alert("Picking completed successfully!");
       
@@ -287,9 +347,10 @@ export default function MyInvoiceListPage() {
 
   if (loading) return <div className="p-6">Loading...</div>;
 
-  const canCompletePicking = 
-    (!!activePickingTask || !!reInvoicedBill) && 
-    allItemsPicked && 
+  const canCompletePicking =
+    activeInvoice &&
+    !isReviewInvoice &&
+    allItemsPicked &&
     !hasIssues;
 
   return (
@@ -306,19 +367,27 @@ export default function MyInvoiceListPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
               <h2 className="text-lg font-semibold text-gray-700">Active Bill</h2>
+              {isReInvoiced && (
+                <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-300 animate-pulse">
+                  ✓ CORRECTED & RE-SENT
+                </span>
+              )}
             </div>
-            <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
-              <div onClick={() => setExpandedInvoice(expandedInvoice === activeInvoice.id ? null : activeInvoice.id)} className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer">
+            <div
+              className={`rounded-lg shadow overflow-hidden border-2
+                ${isReviewInvoice
+                  ? "bg-gray-100 border-orange-400 opacity-70"
+                  : isReInvoiced
+                    ? "bg-blue-50 border-blue-500 animate-border-pulse"
+                    : "bg-white border-teal-500"}
+              `}
+            >
+              <div onClick={() => setExpandedInvoice(expandedInvoice === activeInvoice.id ? null : activeInvoice.id)} className={`p-4 border-b cursor-pointer ${isReInvoiced ? 'bg-blue-100 border-blue-200' : 'bg-teal-50 border-teal-200'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
+                    <div className={`w-2 h-2 rounded-full animate-pulse ${isReInvoiced ? 'bg-blue-600' : 'bg-teal-500'}`}></div>
                     <div>
                       <h3 className="font-bold text-gray-900">Invoice #{activeInvoice.invoice_no}</h3>
-                      {activeInvoice.billing_status === "RE_INVOICED" && (
-                        <p className="text-xs text-orange-600 font-semibold mt-1">
-                          ⚠ Returned from billing – corrected, please reprocess
-                        </p>
-                      )}
                       <p className="text-xs text-gray-600">
                         {activeInvoice.customer?.name} • {pickedCount}/{totalItems} picked
                       </p>
@@ -334,11 +403,63 @@ export default function MyInvoiceListPage() {
 
               {expandedInvoice === activeInvoice.id && (
                 <div className="p-4 space-y-3">
+                  {/* Re-invoiced Banner */}
+                  {isReInvoiced && activeInvoice.resolution_notes && (
+                    <div className="p-4 mb-3 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-400 shadow-md">
+                      <div className="flex items-start gap-3">
+                        <svg className="w-6 h-6 text-blue-700 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="font-bold text-blue-900 text-lg mb-2">
+                            ✓ Invoice Corrected - Please Re-pick
+                          </p>
+                          <div className="bg-white rounded-md p-3 border border-blue-200">
+                            <p className="text-xs text-blue-600 font-semibold mb-1">Resolution Details:</p>
+                            <p className="text-sm text-blue-800">
+                              {activeInvoice.resolution_notes}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Review Banner (locked state - should not happen) */}
+                  {isReviewInvoice && (
+                    <div className="p-3 mb-3 rounded-lg bg-orange-50 border border-orange-300">
+                      <p className="font-semibold text-orange-800">
+                        Invoice Sent to Billing Review
+                      </p>
+                      <p className="text-sm text-orange-700 mt-1">
+                        <b>Reason:</b> {activeInvoice.return_info.return_reason}
+                      </p>
+                      <p className="text-xs text-orange-600 mt-1">
+                        Returned at{" "}
+                        {new Date(activeInvoice.return_info.returned_at).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+
                   {activeInvoice.items.map((item) => (
-                    <div key={item.id} onClick={() => toggleItemPicked(item.id)} className={`p-3 rounded-lg border cursor-pointer transition-all ${pickedItems[item.id] ? "bg-teal-50 border-teal-300" : "bg-white border-gray-200"}`}>
+                    <div key={item.id} onClick={() => {
+                        if (isReviewInvoice) return;
+                        toggleItemPicked(item.id);
+                      }} className={`p-3 rounded-lg border cursor-pointer transition-all ${pickedItems[item.id] ? "bg-teal-50 border-teal-300" : "bg-white border-gray-200"}`}>
                       <div className="flex items-center justify-between gap-3">
-                        <div onClick={() => toggleItemPicked(item.id)} className="cursor-pointer">
-                          <div className={`w-8 h-8 rounded flex items-center justify-center ${pickedItems[item.id] ? "bg-teal-600" : "bg-white border-2 border-gray-300"}`}>
+                        <div onClick={() => {
+                            if (isReviewInvoice) return;
+                            toggleItemPicked(item.id);
+                          }} className="cursor-pointer">
+                          <div
+                            className={`w-8 h-8 rounded flex items-center justify-center ${
+                              isReviewInvoice
+                                ? "bg-gray-300 cursor-not-allowed"
+                                : pickedItems[item.id]
+                                  ? "bg-teal-600"
+                                  : "bg-white border-2 border-gray-300"
+                            }`}
+                          >
                             <svg className={`w-4 h-4 ${pickedItems[item.id] ? "text-white" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
@@ -361,7 +482,19 @@ export default function MyInvoiceListPage() {
                             <span>Exp: <b>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString("en-GB") : "—"}</b></span>
                           </div>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); openReviewPopup(item); }} className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition" title="Report Issue">
+                        <button
+                          disabled={isReviewInvoice}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isReviewInvoice) return;
+                            openReviewPopup(item);
+                          }}
+                          className={`p-2 rounded-lg transition ${
+                            isReviewInvoice
+                              ? "text-gray-400 cursor-not-allowed"
+                              : "text-orange-600 hover:bg-orange-50"
+                          }`}
+                        >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
@@ -370,11 +503,11 @@ export default function MyInvoiceListPage() {
                     </div>
                   ))}
                   <div className="flex gap-3 pt-2">
-                    <button onClick={handleSendInvoiceToReview} disabled={!hasIssues} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${hasIssues ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
+                    <button onClick={handleSendInvoiceToReview} disabled={isReviewInvoice || !hasIssues} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${hasIssues ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
                       Send Invoice to Review
                     </button>
-                    <button onClick={handleCompletePicking} disabled={!canCompletePicking} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${allItemsPicked && !hasIssues ? "bg-teal-600 hover:bg-teal-700 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
-                      {hasIssues ? "Resolve Issues First" : allItemsPicked ? "Complete Picking" : `Pick ${totalItems - pickedCount} More`}
+                    <button onClick={handleCompletePicking} disabled={!canCompletePicking} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${allItemsPicked && !hasIssues ? (isReInvoiced ? "bg-blue-600 hover:bg-blue-700" : "bg-teal-600 hover:bg-teal-700") + " text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
+                      {hasIssues ? "Resolve Issues First" : allItemsPicked ? (isReInvoiced ? "✓ Complete Re-pick" : "Complete Picking") : `Pick ${totalItems - pickedCount} More`}
                     </button>
                   </div>
                 </div>
@@ -421,6 +554,11 @@ export default function MyInvoiceListPage() {
                       <div className="col-span-2 text-gray-600">{inv.duration != null ? (() => { const mins = Math.floor(inv.duration); const secs = Math.round((inv.duration - mins) * 60); return `${mins} min ${secs} sec`; })() : "-"}</div>
                       <div className="col-span-2 flex items-center justify-center gap-2">
                         <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold uppercase tracking-wide">PICKED</span>
+                        {inv.notes && inv.notes.includes('[RE-PICK]') && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-semibold">
+                            RE-PICKED
+                          </span>
+                        )}
                         <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedInvoice === inv.id ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
