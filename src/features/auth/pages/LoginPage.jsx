@@ -59,7 +59,7 @@ export default function LoginPage() {
             navigate("/ops/packing/invoices", { replace: true });
             break;
           case "DELIVERY":
-            navigate("/ops/delivery/invoices", { replace: true });
+            navigate("/ops/delivery/dispatch", { replace: true });
             break;
           case "STORE":
             navigate("/ops/store", { replace: true });

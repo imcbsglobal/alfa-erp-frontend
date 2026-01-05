@@ -1,40 +1,50 @@
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import { Truck as TruckIcon, AlertCircle as AlertCircleIcon, Package as PackageIcon } from "lucide-react";
 import { 
-  HomeIcon, 
-  UsersIcon, 
-  CogIcon,
-  BriefcaseIcon,
-  BuildingIcon,
-  InvoiceIcon,
   ListIcon,
-  PlusCircleIcon,
 } from "../Icons";
+
+import {
+    LayoutDashboard,
+    FileText,
+    ClipboardCheck,
+    Box,
+    Truck,
+    Clock,
+    Users,
+    UserCog,
+    ListChecks,
+    PlusCircle,
+    AlertCircle,
+    Briefcase,
+    Building,
+    Package,
+  } from "lucide-react";
 
 export const MENU_CONFIG = [
   {
     id: "dashboard",
     label: "Dashboard",
-    icon: HomeIcon,
+    icon: LayoutDashboard,
     path: "/dashboard",
     type: "single",
   },
   {
     id: "billing",
     label: "Invoice",
-    icon: InvoiceIcon,
+    icon: FileText,
     type: "dropdown",
     hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
     submenu: [
       {
         label: "Invoice List",
-        icon: ListIcon,
+        icon: ListChecks,
         path: (user) => user?.role === "BILLER" ? "/ops/billing/invoices" : "/billing/invoices",
         hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
       },
       {
         label: "Reviewed Bills",
-        icon: AlertCircleIcon,
+        icon: AlertCircle,
         path: (user) => user?.role === "BILLER" ? "/ops/billing/reviewed" : "/billing/reviewed",
         hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
       },
@@ -45,19 +55,19 @@ export const MENU_CONFIG = [
   {
     id: "invoices",
     label: "Picking",
-    icon: InvoiceIcon,
+    icon: ClipboardCheck,
     type: "dropdown",
     hasAccess: (user) =>
       !["PICKER", "PACKER", "BILLER", "DELIVERY"].includes(user?.role),
     submenu: [
       {
         label: "Picking List",
-        icon: ListIcon,
+        icon: ClipboardCheck,
         path: "/invoices",
       },
       {
         label: "My Assigned Picking",
-        icon: PlusCircleIcon,
+        icon: PlusCircle,
         path: "/invoices/my",
         hasAccess: (user, permissions) =>
           permissions["my-invoices"]?.view === true,
@@ -69,19 +79,19 @@ export const MENU_CONFIG = [
   {
     id: "packing",
     label: "Packing",
-    icon: InvoiceIcon,
+    icon: Box,
     type: "dropdown",
     hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
     submenu: [
       {
         label: "Packing List",
-        icon: ListIcon,
+        icon: Box,
         path: (user) => user?.role === "PACKER" ? "/ops/packing/invoices" : "/packing/invoices",
         hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
       },
       {
         label: "My Assigned Packing",
-        icon: PlusCircleIcon,
+        icon: PlusCircle,
         path: (user) => user?.role === "PACKER" ? "/ops/packing/my" : "/packing/my",
         hasAccess: (user, permissions) =>
           user?.role === "PACKER" || 
@@ -95,18 +105,18 @@ export const MENU_CONFIG = [
   {
     id: "delivery",
     label: "Delivery",
-    icon: TruckIcon,
+    icon: Truck,
     type: "dropdown",
     hasAccess: (user) => ["SUPERADMIN", "ADMIN", "DELIVERY"].includes(user?.role),
     submenu: [
       {
         label: "Dispatch Orders",
-        icon: ListIcon,
+        icon: Truck,
         path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/dispatch" : "/delivery/dispatch",
       },
       {
         label: "Courier List",
-        icon: TruckIcon,
+        icon: Package,
         path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/courier-list" : "/delivery/courier-list",
       },
       {
@@ -116,7 +126,7 @@ export const MENU_CONFIG = [
       },
       {
         label: "My Assigned Delivery",
-        icon: PlusCircleIcon,
+        icon: PlusCircle,
         path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/my" : "/delivery/my",
       },
     ],
@@ -126,7 +136,7 @@ export const MENU_CONFIG = [
   {
     id: "history",
     label: "History",
-    icon: ListIcon,
+    icon: Clock,
     type: "dropdown", // Changed from "single"
     hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
     submenu: [
@@ -146,7 +156,7 @@ export const MENU_CONFIG = [
   {
     id: "user-management",
     label: "User Management",
-    icon: UsersIcon,
+    icon: Users,
     type: "dropdown",
     hasAccess: (user, permissions) => {
       if (user?.role === "SUPERADMIN" || user?.role === "ADMIN") {
@@ -157,12 +167,12 @@ export const MENU_CONFIG = [
     submenu: [
       {
         label: "User List",
-        icon: UsersIcon,
+        icon: Users,
         path: "/user-management",
       },
       {
         label: "User Control",
-        icon: CogIcon,
+        icon: UserCog,
         path: "/user-control",
       },
     ],
@@ -177,17 +187,17 @@ export const MENU_CONFIG = [
     submenu: [
       {
         label: "Job Title",
-        icon: BriefcaseIcon,
+        icon: Briefcase,
         path: "/master/job-title",
       },
       {
         label: "Department",
-        icon: BuildingIcon,
+        icon: Building,
         path: "/master/department",
       },
       {
         label: "Courier",
-        icon: PackageIcon,
+        icon: Package,
         path: "/master/courier",
       },
     ],
