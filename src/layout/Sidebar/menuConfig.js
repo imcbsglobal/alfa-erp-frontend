@@ -1,7 +1,14 @@
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import { Truck as TruckIcon, AlertCircle as AlertCircleIcon, Package as PackageIcon } from "lucide-react";
 import { 
+  HomeIcon, 
+  UsersIcon, 
+  CogIcon,
+  BriefcaseIcon,
+  BuildingIcon,
+  InvoiceIcon,
   ListIcon,
+  PlusCircleIcon,
 } from "../Icons";
 
 import {
@@ -19,6 +26,10 @@ import {
     Briefcase,
     Building,
     Package,
+    Layers,
+    History,
+    Send,
+    Warehouse,
   } from "lucide-react";
 
 export const MENU_CONFIG = [
@@ -121,7 +132,7 @@ export const MENU_CONFIG = [
       },
       {
         label: "Company Delivery List",
-        icon: TruckIcon,
+         icon: Warehouse,
         path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/company-list" : "/delivery/company-list",
       },
       {
@@ -142,12 +153,12 @@ export const MENU_CONFIG = [
     submenu: [
       {
         label: "History",
-        icon: ListIcon,
+        icon: History,
         path: "/history",
       },
       {
         label: "Consolidate",
-        icon: ListIcon,
+        icon: Layers,
         path: "/history/consolidate",
       },
     ],
@@ -172,7 +183,7 @@ export const MENU_CONFIG = [
       },
       {
         label: "User Control",
-        icon: UserCog,
+        icon: CogIcon,
         path: "/user-control",
       },
     ],
@@ -192,12 +203,12 @@ export const MENU_CONFIG = [
       },
       {
         label: "Department",
-        icon: Building,
+        icon: BuildingIcon,
         path: "/master/department",
       },
       {
         label: "Courier",
-        icon: Package,
+        icon: Send,
         path: "/master/courier",
       },
     ],
