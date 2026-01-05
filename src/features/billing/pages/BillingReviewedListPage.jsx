@@ -68,9 +68,9 @@ export default function BillingReviewedListPage() {
       const res = await api.get("/sales/billing/invoices/");
       const list = res.data?.results || res.data || [];
 
-      // ✅ ONLY invoices currently under review
-      const reviewedInvoices = list.filter(
-        inv => inv.billing_status === "REVIEW"
+      // ✅ KEEP REVIEW + RE_INVOICED
+      const reviewedInvoices = list.filter(inv =>
+        ["REVIEW", "RE_INVOICED"].includes(inv.billing_status)
       );
 
       setInvoices(reviewedInvoices);

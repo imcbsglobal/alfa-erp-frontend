@@ -21,6 +21,7 @@ import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
 import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
 import MyInvoiceListPage from "../features/invoice/pages/MyInvoiceListPage";
 import HistoryPage from "../features/history/pages/HistoryPage";
+import InvoiceHistoryView from "../features/history/pages/InvoiceHistoryView";
 import { useAuth } from "../features/auth/AuthContext";
 
 import OperationsLayout from "../layout/OperationsLayout";
@@ -99,6 +100,7 @@ export default function AppRouter() {
 
           {/* History */}
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/history/consolidate" element={<InvoiceHistoryView />} />
         </Route>
       </Route>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -16,6 +16,7 @@ export default function BillingInvoiceViewPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
 
   useEffect(() => {
@@ -35,12 +36,15 @@ export default function BillingInvoiceViewPage() {
   };
 
   const handleBack = () => {
-    if (user?.role === "BILLER") {
-      navigate(`/ops/billing/invoices/`);
-      return;
+    const from = location.state?.from;
+
+    if (from) {
+      navigate(from);
+    } else {
+      // fallback if user refreshed or opened URL directly
+      navigate("/billing/invoices");
     }
-    navigate("/billing/invoices");
-  };
+  };  
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -191,7 +195,6 @@ export default function BillingInvoiceViewPage() {
                     </div>
                     <span className="text-sm font-bold text-teal-600">Qty: {item.quantity}</span>
                   </div>
-                  
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-gray-500">MRP:</span>
