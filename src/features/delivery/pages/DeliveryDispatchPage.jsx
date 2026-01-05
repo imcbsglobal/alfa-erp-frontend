@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Truck, Package, Search, X } from 'lucide-react';
+import { Eye, Truck, Package, Search } from 'lucide-react';
 import api from '../../../services/api';
 import DeliveryModal from '../components/DeliveryModal';
-import DeliveryStatusBadge, { DeliveryBadgeGroup } from '../components/DeliveryStatusBadge';
+import DeliveryStatusBadge from '../components/DeliveryStatusBadge';
+import toast from 'react-hot-toast';
 
 const DeliveryDispatchPage = () => {
   const [bills, setBills] = useState([]);
@@ -27,7 +28,7 @@ const DeliveryDispatchPage = () => {
         status: 'PACKED',
         page: currentPage,
         page_size: itemsPerPage,
-        ordering: '-packer_info__end_time' // latest packed first
+        ordering: '-packer_info__end_time'
       };
 
       if (searchTerm.trim()) {
@@ -39,6 +40,7 @@ const DeliveryDispatchPage = () => {
       setTotalCount(response.data.count || 0);
     } catch (error) {
       console.error('Failed to load packed invoices:', error);
+      toast.error('Failed to load packed invoices');
     } finally {
       setLoading(false);
     }
@@ -51,13 +53,57 @@ const DeliveryDispatchPage = () => {
   const handleConfirmDelivery = async (payload) => {
     setSubmitting(true);
     try {
-      await api.post('/sales/delivery/start/', payload);
-      alert('Delivery started successfully!');
+      if (payload.complete_immediately) {
+        // Counter Pickup - Start and Complete immediately
+        const startPayload = {
+          invoice_no: payload.invoice_no,
+          delivery_type: payload.delivery_type,
+          counter_sub_mode: payload.counter_sub_mode, // 'patient' or 'company'
+          notes: payload.notes
+        };
+
+        // Add sub-type specific fields
+        if (payload.counter_sub_mode === 'patient') {
+          startPayload.customer_phone = payload.customer_phone;
+        } else if (payload.counter_sub_mode === 'company') {
+          startPayload.person_name = payload.person_name;
+          startPayload.person_phone = payload.person_phone;
+          startPayload.company_name = payload.company_name;
+          startPayload.company_id = payload.company_id;
+        }
+
+        // Start delivery
+        await api.post('/sales/delivery/start/', startPayload);
+
+        // Immediately complete it
+        await api.post('/sales/delivery/complete/', {
+          invoice_no: payload.invoice_no,
+          delivery_status: 'DELIVERED',
+          notes: payload.notes || 'Counter pickup completed'
+        });
+
+        toast.success('Counter pickup completed successfully!');
+      } else if (payload.add_to_consider) {
+        // Courier or Company Delivery - Add to consider list
+        const considerPayload = {
+          invoice_no: payload.invoice_no,
+          delivery_type: payload.delivery_type,
+          notes: payload.notes
+        };
+
+        // Call the add-to-consider endpoint
+        await api.post('/sales/delivery/add-to-consider/', considerPayload);
+
+        const typeLabel = payload.delivery_type === 'COURIER' ? 'Courier' : 'Company';
+        toast.success(`✓ Moved to ${typeLabel} Delivery Consider List! Invoice removed from dispatch.`);
+      }
+
       setSelectedBill(null);
+      // Reload to show the invoice is gone from this page
       loadPackedInvoices();
     } catch (error) {
-      console.error('Failed to start delivery:', error);
-      alert(error.response?.data?.detail || 'Failed to start delivery');
+      console.error('Failed to process delivery:', error);
+      toast.error(error.response?.data?.detail || 'Failed to process delivery');
     } finally {
       setSubmitting(false);
     }

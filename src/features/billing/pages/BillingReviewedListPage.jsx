@@ -65,13 +65,67 @@ export default function BillingReviewedListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/billing/invoices/");
-      const list = res.data?.results || res.data || [];
+      let allInvoices = [];
+      let page = 1;
+      let hasMore = true;
+      
+      // Fetch all pages
+      while (hasMore) {
+        const res = await api.get("/sales/billing/invoices/", {
+          params: { page }
+        });
+        const data = res.data;
+        
+        // Add results from this page
+        const pageResults = data?.results || data || [];
+        allInvoices = [...allInvoices, ...pageResults];
+        
+        console.log(`📄 Loaded page ${page}: ${pageResults.length} invoices`);
+        
+        // Check if there's a next page
+        if (data?.next) {
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
 
-      // ✅ KEEP REVIEW + RE_INVOICED
-      const reviewedInvoices = list.filter(inv =>
-        ["REVIEW", "RE_INVOICED"].includes(inv.billing_status)
-      );
+      console.log("=== ALL INVOICES LOADED ===");
+      console.log("Total invoices:", allInvoices.length);
+      
+      // Debug: Check for INV-202601-76259
+      const targetInvoice = allInvoices.find(inv => inv.invoice_no === "INV-202601-76259");
+      if (targetInvoice) {
+        console.log("✅ FOUND INV-202601-76259:", {
+          billing_status: targetInvoice.billing_status,
+          has_return_info: !!targetInvoice.return_info,
+          return_reason: targetInvoice.return_info?.return_reason,
+          returned_by: targetInvoice.return_info?.returned_by_email
+        });
+      } else {
+        console.log("❌ INV-202601-76259 NOT FOUND in API response");
+      }
+
+      // Filter for reviewed invoices
+      const reviewedInvoices = allInvoices.filter(inv => {
+        // Include if status is REVIEW or RE_INVOICED
+        if (["REVIEW", "RE_INVOICED"].includes(inv.billing_status)) {
+          return true;
+        }
+        
+        // Also include BILLED invoices that have been returned for review
+        if (inv.billing_status === "BILLED" && inv.return_info && inv.return_info.return_reason) {
+          return true;
+        }
+        
+        return false;
+      });
+
+      console.log("=== FILTERED REVIEWED INVOICES ===");
+      console.log("Count:", reviewedInvoices.length);
+      reviewedInvoices.forEach(inv => {
+        console.log("✓", inv.invoice_no, "Status:", inv.billing_status);
+      });
 
       setInvoices(reviewedInvoices);
       setCurrentPage(1);
