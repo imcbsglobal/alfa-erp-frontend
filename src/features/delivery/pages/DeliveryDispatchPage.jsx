@@ -28,8 +28,7 @@ const DeliveryDispatchPage = () => {
         status: 'PACKED',
         page: currentPage,
         page_size: itemsPerPage,
-        ordering: '-packer_info__end_time',
-        delivery_type__isnull: true  // ✅ FIXED: Only show invoices without delivery_type set
+        ordering: '-packer_info__end_time'
       };
 
       if (searchTerm.trim()) {
@@ -37,7 +36,13 @@ const DeliveryDispatchPage = () => {
       }
 
       const response = await api.get('/sales/invoices/', { params });
-      setBills(response.data.results || []);
+      
+      // ✅ FIXED: Filter out invoices that have delivery sessions
+      const filteredResults = (response.data.results || []).filter(
+        bill => !bill.delivery_info || bill.delivery_info.delivery_status === 'PENDING'
+      );
+      
+      setBills(filteredResults);
       setTotalCount(response.data.count || 0);
     } catch (error) {
       console.error('Failed to load packed invoices:', error);
