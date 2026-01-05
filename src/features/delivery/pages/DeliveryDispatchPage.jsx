@@ -28,7 +28,8 @@ const DeliveryDispatchPage = () => {
         status: 'PACKED',
         page: currentPage,
         page_size: itemsPerPage,
-        ordering: '-packer_info__end_time'
+        ordering: '-packer_info__end_time',
+        delivery_type__isnull: true  // ✅ FIXED: Only show invoices without delivery_type set
       };
 
       if (searchTerm.trim()) {
@@ -53,57 +54,21 @@ const DeliveryDispatchPage = () => {
   const handleConfirmDelivery = async (payload) => {
     setSubmitting(true);
     try {
-      if (payload.complete_immediately) {
-        // Counter Pickup - Start and Complete immediately
-        const startPayload = {
-          invoice_no: payload.invoice_no,
-          delivery_type: payload.delivery_type,
-          counter_sub_mode: payload.counter_sub_mode, // 'patient' or 'company'
-          notes: payload.notes
-        };
+      // Call the single start delivery endpoint
+      const response = await api.post('/sales/delivery/start/', payload);
 
-        // Add sub-type specific fields
-        if (payload.counter_sub_mode === 'patient') {
-          startPayload.customer_phone = payload.customer_phone;
-        } else if (payload.counter_sub_mode === 'company') {
-          startPayload.person_name = payload.person_name;
-          startPayload.person_phone = payload.person_phone;
-          startPayload.company_name = payload.company_name;
-          startPayload.company_id = payload.company_id;
-        }
-
-        // Start delivery
-        await api.post('/sales/delivery/start/', startPayload);
-
-        // Immediately complete it
-        await api.post('/sales/delivery/complete/', {
-          invoice_no: payload.invoice_no,
-          delivery_status: 'DELIVERED',
-          notes: payload.notes || 'Counter pickup completed'
-        });
-
-        toast.success('Counter pickup completed successfully!');
-      } else if (payload.add_to_consider) {
-        // Courier or Company Delivery - Add to consider list
-        const considerPayload = {
-          invoice_no: payload.invoice_no,
-          delivery_type: payload.delivery_type,
-          notes: payload.notes
-        };
-
-        // Call the add-to-consider endpoint
-        await api.post('/sales/delivery/add-to-consider/', considerPayload);
-
-        const typeLabel = payload.delivery_type === 'COURIER' ? 'Courier' : 'Company';
-        toast.success(`✓ Moved to ${typeLabel} Delivery Consider List! Invoice removed from dispatch.`);
+      if (response.data.success) {
+        toast.success(response.data.message);
+        setSelectedBill(null);
+        // Reload to show the invoice is gone from this page
+        loadPackedInvoices();
       }
-
-      setSelectedBill(null);
-      // Reload to show the invoice is gone from this page
-      loadPackedInvoices();
     } catch (error) {
       console.error('Failed to process delivery:', error);
-      toast.error(error.response?.data?.detail || 'Failed to process delivery');
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.detail || 
+                          'Failed to process delivery';
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
