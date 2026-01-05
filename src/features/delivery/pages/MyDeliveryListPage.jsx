@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import { Truck, Package, CheckCircle, Clock } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function MyDeliveryListPage() {
   const [activeDelivery, setActiveDelivery] = useState(null);
@@ -11,6 +12,8 @@ export default function MyDeliveryListPage() {
   const [completeModal, setCompleteModal] = useState({ open: false, delivery: null });
   const [deliveryStatus, setDeliveryStatus] = useState("DELIVERED");
   const [notes, setNotes] = useState("");
+  const [courierName, setCourierName] = useState("");
+  const [trackingNo, setTrackingNo] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const { user } = useAuth();
@@ -23,17 +26,28 @@ export default function MyDeliveryListPage() {
   const loadActiveDelivery = async () => {
     try {
       setLoading(true);
-      // Get active delivery session for current user
+      // Get delivery sessions for current user
       const res = await api.get("/sales/delivery/history/", {
         params: {
-          delivery_user_email: user.email,
-          status: "PENDING,IN_TRANSIT",
-          page_size: 1
+          search: user.email, // Search by user email
+          page_size: 10 // Get more to filter properly
         }
       });
       
       if (res.data?.results && res.data.results.length > 0) {
-        setActiveDelivery(res.data.results[0]);
+        // Filter for truly active deliveries (not completed)
+        const activeDeliveries = res.data.results.filter(delivery => 
+          // Only show if delivery_status is PENDING or IN_TRANSIT
+          // AND end_time is null (not completed yet)
+          (delivery.delivery_status === 'PENDING' || delivery.delivery_status === 'IN_TRANSIT') &&
+          !delivery.end_time
+        );
+        
+        if (activeDeliveries.length > 0) {
+          setActiveDelivery(activeDeliveries[0]); // Get the first active one
+        } else {
+          setActiveDelivery(null);
+        }
       } else {
         setActiveDelivery(null);
       }
@@ -50,14 +64,19 @@ export default function MyDeliveryListPage() {
       const today = new Date().toISOString().split("T")[0];
       const res = await api.get("/sales/delivery/history/", {
         params: {
-          delivery_user_email: user.email,
-          status: "DELIVERED",
+          search: user.email,
           start_date: today,
           end_date: today,
           page_size: 50
         }
       });
-      setCompletedDeliveries(res.data?.results || []);
+      
+      // Filter for completed deliveries (has end_time)
+      const completed = (res.data?.results || []).filter(delivery => 
+        delivery.end_time && delivery.delivery_status === 'DELIVERED'
+      );
+      
+      setCompletedDeliveries(completed);
     } catch (err) {
       console.error("Failed to load completed deliveries", err);
     }
@@ -67,33 +86,57 @@ export default function MyDeliveryListPage() {
     setCompleteModal({ open: true, delivery });
     setDeliveryStatus("DELIVERED");
     setNotes("");
+    setCourierName(delivery.courier_name || "");
+    setTrackingNo(delivery.tracking_no || "");
   };
 
   const closeCompleteModal = () => {
     setCompleteModal({ open: false, delivery: null });
     setDeliveryStatus("DELIVERED");
     setNotes("");
+    setCourierName("");
+    setTrackingNo("");
   };
 
   const handleCompleteDelivery = async () => {
     if (!completeModal.delivery || !user?.email) return;
 
+    // Validation
+    if (completeModal.delivery.delivery_type === 'COURIER' && deliveryStatus === 'DELIVERED') {
+      if (!courierName.trim()) {
+        toast.error('Please enter courier name');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      await api.post("/sales/delivery/complete/", {
+      const payload = {
         invoice_no: completeModal.delivery.invoice_no,
         user_email: user.email,
         delivery_status: deliveryStatus,
         notes: notes || "Delivery completed"
-      });
+      };
 
-      alert("Delivery completed successfully!");
+      // Add courier details if it's a courier delivery
+      if (completeModal.delivery.delivery_type === 'COURIER') {
+        payload.courier_name = courierName.trim();
+        if (trackingNo.trim()) {
+          payload.tracking_no = trackingNo.trim();
+        }
+      }
+
+      await api.post("/sales/delivery/complete/", payload);
+
+      toast.success("Delivery completed successfully!");
       closeCompleteModal();
+      
+      // Reload both lists
       await loadActiveDelivery();
       await loadTodayCompletedDeliveries();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Failed to complete delivery");
+      toast.error(err.response?.data?.detail || err.response?.data?.message || "Failed to complete delivery");
     } finally {
       setSubmitting(false);
     }
@@ -138,39 +181,49 @@ export default function MyDeliveryListPage() {
     return <CheckCircle className="w-5 h-5" />;
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-2"></div>
+        <p className="text-gray-600">Loading deliveries...</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-800">My Delivery Tasks</h1>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">My Delivery Tasks</h1>
+          <p className="text-gray-600 mt-1">Manage your assigned deliveries</p>
         </div>
 
         {/* Active Delivery Section */}
-        {activeDelivery && (
+        {activeDelivery ? (
           <div className="mb-6">
             <div className="mb-3 flex items-center gap-2">
               <Truck className="w-6 h-6 text-teal-600" />
               <h2 className="text-lg font-semibold text-gray-700">Active Delivery</h2>
-              <span className="text-sm text-gray-500">Currently in progress</span>
+              <span className="px-2 py-1 bg-teal-100 text-teal-800 text-xs rounded-full">
+                In Progress
+              </span>
             </div>
 
             <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
               {/* Header */}
               <div
                 onClick={() => toggleExpand(activeDelivery.id)}
-                className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer"
+                className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer hover:bg-teal-100 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
+                    <div className="w-3 h-3 bg-teal-500 rounded-full animate-pulse"></div>
                     <div>
                       <h3 className="font-bold text-gray-900">
                         Invoice #{activeDelivery.invoice_no}
                       </h3>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-sm text-gray-600">
                         {activeDelivery.customer_name} • {getDeliveryTypeLabel(activeDelivery.delivery_type)}
                       </p>
                     </div>
@@ -242,14 +295,25 @@ export default function MyDeliveryListPage() {
 
                   {/* Complete Button */}
                   <button
-                    onClick={() => openCompleteModal(activeDelivery)}
-                    className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCompleteModal(activeDelivery);
+                    }}
+                    className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
                   >
                     Complete Delivery
                   </button>
                 </div>
               )}
             </div>
+          </div>
+        ) : (
+          <div className="mb-6 bg-white rounded-lg shadow p-8 text-center">
+            <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-600 text-lg font-medium">No Active Deliveries</p>
+            <p className="text-gray-400 text-sm mt-1">
+              You don't have any deliveries assigned at the moment
+            </p>
           </div>
         )}
 
@@ -260,6 +324,11 @@ export default function MyDeliveryListPage() {
             <h2 className="text-lg font-semibold text-gray-700">
               Completed Deliveries Today
             </h2>
+            {completedDeliveries.length > 0 && (
+              <span className="ml-auto px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                {completedDeliveries.length} completed
+              </span>
+            )}
           </div>
 
           {completedDeliveries.length === 0 ? (
@@ -273,7 +342,7 @@ export default function MyDeliveryListPage() {
           ) : (
             <>
               {/* Table Header */}
-              <div className="bg-teal-600 text-white">
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                 <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
                   <div className="col-span-2">Invoice</div>
                   <div className="col-span-2">Customer</div>
@@ -348,6 +417,9 @@ export default function MyDeliveryListPage() {
                             {del.tracking_no && (
                               <p className="text-xs text-gray-500">Tracking: {del.tracking_no}</p>
                             )}
+                            {del.notes && (
+                              <p className="text-xs text-gray-500">Notes: {del.notes}</p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -380,7 +452,39 @@ export default function MyDeliveryListPage() {
               <div className="bg-gray-50 p-3 rounded-lg">
                 <p className="font-semibold text-gray-900">{completeModal.delivery?.invoice_no}</p>
                 <p className="text-sm text-gray-600">{completeModal.delivery?.customer_name}</p>
+                <p className="text-xs text-gray-500 mt-1">{getDeliveryTypeLabel(completeModal.delivery?.delivery_type)}</p>
               </div>
+
+              {/* Courier Details - Only show for COURIER type */}
+              {completeModal.delivery?.delivery_type === 'COURIER' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Courier Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={courierName}
+                      onChange={(e) => setCourierName(e.target.value)}
+                      placeholder="e.g., DHL, FedEx, Blue Dart"
+                      className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tracking Number (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={trackingNo}
+                      onChange={(e) => setTrackingNo(e.target.value)}
+                      placeholder="Enter tracking number"
+                      className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -389,7 +493,7 @@ export default function MyDeliveryListPage() {
                 <select
                   value={deliveryStatus}
                   onChange={(e) => setDeliveryStatus(e.target.value)}
-                  className="w-full border px-3 py-2 rounded-lg"
+                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="DELIVERED">Delivered</option>
                   <option value="IN_TRANSIT">In Transit</option>
@@ -398,14 +502,14 @@ export default function MyDeliveryListPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes
+                  Notes (Optional)
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add delivery notes..."
                   rows={3}
-                  className="w-full border px-3 py-2 rounded-lg"
+                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -414,7 +518,7 @@ export default function MyDeliveryListPage() {
               <button
                 onClick={closeCompleteModal}
                 disabled={submitting}
-                className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -423,7 +527,7 @@ export default function MyDeliveryListPage() {
                 disabled={submitting}
                 className="flex-1 py-2 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
               >
-                {submitting ? "Completing..." : "Complete"}
+                {submitting ? "Completing..." : "Complete Delivery"}
               </button>
             </div>
           </div>
