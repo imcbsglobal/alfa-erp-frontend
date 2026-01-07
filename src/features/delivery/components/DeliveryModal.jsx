@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { X, Truck, Package, User, Phone, Building, Hash } from 'lucide-react';
 
 const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
-  const [step, setStep] = useState(1); // 1: Select type, 2: Enter details
+  const [step, setStep] = useState(1);
   const [deliveryType, setDeliveryType] = useState(null);
   const [subType, setSubType] = useState(null);
   
-  // Form states - CHANGED: Using pickup_person_username instead of customerPhone
+  // Form states - Updated for patient pickup
   const [pickupPersonUsername, setPickupPersonUsername] = useState('');
-  const [personName, setPersonName] = useState('');
-  const [personPhone, setPersonPhone] = useState('');
+  const [pickupPersonName, setPickupPersonName] = useState('');
+  const [pickupPersonPhone, setPickupPersonPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [notes, setNotes] = useState('');
@@ -21,8 +21,8 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
     setDeliveryType(null);
     setSubType(null);
     setPickupPersonUsername('');
-    setPersonName('');
-    setPersonPhone('');
+    setPickupPersonName('');
+    setPickupPersonPhone('');
     setCompanyName('');
     setCompanyId('');
     setNotes('');
@@ -36,16 +36,15 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
   const handleTypeSelect = (type) => {
     setDeliveryType(type);
     if (type === 'COUNTER_PICKUP') {
-      setStep(2); // Go to sub-selection
+      setStep(2);
     } else {
-      // For Courier and Company, directly proceed
       setStep(3);
     }
   };
 
   const handleSubTypeSelect = (sub) => {
     setSubType(sub);
-    setStep(3); // Go to form
+    setStep(3);
   };
 
   const handleBack = () => {
@@ -67,33 +66,34 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
 
     if (deliveryType === 'COUNTER_PICKUP') {
       payload.delivery_type = 'DIRECT';
-      payload.complete_immediately = true;
 
       if (subType === 'PATIENT') {
-        // FIXED: Send pickup_person_username instead of customer_phone
-        if (!pickupPersonUsername.trim()) {
-          alert('Please enter pickup person username/phone');
+        // ✅ FIXED: Send all required fields for patient pickup
+        if (!pickupPersonUsername.trim() || !pickupPersonName.trim() || !pickupPersonPhone.trim()) {
+          alert('Please fill all required fields');
           return;
         }
         payload.counter_sub_mode = 'patient';
         payload.pickup_person_username = pickupPersonUsername.trim();
+        payload.pickup_person_name = pickupPersonName.trim();
+        payload.pickup_person_phone = pickupPersonPhone.trim();
       } else if (subType === 'COMPANY') {
-        if (!personName.trim() || !personPhone.trim() || !companyName.trim() || !companyId.trim()) {
+        if (!pickupPersonUsername.trim() || !pickupPersonName.trim() || 
+            !pickupPersonPhone.trim() || !companyName.trim() || !companyId.trim()) {
           alert('Please fill all company details');
           return;
         }
         payload.counter_sub_mode = 'company';
-        payload.person_name = personName.trim();
-        payload.person_phone = personPhone.trim();
-        payload.company_name = companyName.trim();
-        payload.company_id = companyId.trim();
+        payload.pickup_person_username = pickupPersonUsername.trim();
+        payload.pickup_person_name = pickupPersonName.trim();
+        payload.pickup_person_phone = pickupPersonPhone.trim();
+        payload.pickup_company_name = companyName.trim();
+        payload.pickup_company_id = companyId.trim();
       }
     } else if (deliveryType === 'COURIER') {
       payload.delivery_type = 'COURIER';
-      payload.add_to_consider = true;
     } else if (deliveryType === 'COMPANY') {
       payload.delivery_type = 'INTERNAL';
-      payload.add_to_consider = true;
     }
 
     onConfirm(payload);
@@ -102,9 +102,10 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
   const isFormValid = () => {
     if (deliveryType === 'COUNTER_PICKUP') {
       if (subType === 'PATIENT') {
-        return pickupPersonUsername.trim().length > 0;
+        return pickupPersonUsername.trim() && pickupPersonName.trim() && pickupPersonPhone.trim();
       } else if (subType === 'COMPANY') {
-        return personName.trim() && personPhone.trim() && companyName.trim() && companyId.trim();
+        return pickupPersonUsername.trim() && pickupPersonName.trim() && 
+               pickupPersonPhone.trim() && companyName.trim() && companyId.trim();
       }
     }
     return true;
@@ -136,7 +137,6 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
               <h4 className="text-lg font-semibold text-gray-800 mb-4">Select Delivery Type</h4>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Counter Pickup */}
                 <button
                   onClick={() => handleTypeSelect('COUNTER_PICKUP')}
                   className="p-6 border-2 border-gray-300 rounded-lg hover:border-teal-500 hover:bg-teal-50 transition-all group"
@@ -152,7 +152,6 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                   </div>
                 </button>
 
-                {/* Courier Delivery */}
                 <button
                   onClick={() => handleTypeSelect('COURIER')}
                   className="p-6 border-2 border-gray-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all group"
@@ -168,7 +167,6 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                   </div>
                 </button>
 
-                {/* Company Delivery */}
                 <button
                   onClick={() => handleTypeSelect('COMPANY')}
                   className="p-6 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all group"
@@ -200,7 +198,6 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
               <h4 className="text-lg font-semibold text-gray-800 mb-4">Select Pickup Type</h4>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Direct Patient */}
                 <button
                   onClick={() => handleSubTypeSelect('PATIENT')}
                   className="p-6 border-2 border-gray-300 rounded-lg hover:border-teal-500 hover:bg-teal-50 transition-all group"
@@ -216,7 +213,6 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                   </div>
                 </button>
 
-                {/* Direct Company */}
                 <button
                   onClick={() => handleSubTypeSelect('COMPANY')}
                   className="p-6 border-2 border-gray-300 rounded-lg hover:border-teal-500 hover:bg-teal-50 transition-all group"
@@ -251,30 +247,21 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                 <>
                   <h4 className="text-lg font-semibold text-gray-800 mb-4">Direct Patient Pickup</h4>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Phone className="inline w-4 h-4 mr-1" />
-                      Pickup Person Username/Phone <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={pickupPersonUsername}
-                      onChange={(e) => setPickupPersonUsername(e.target.value)}
-                      placeholder="Enter username or phone number"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Enter the username or phone number of the person picking up
-                    </p>
-                  </div>
-                </>
-              )}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <User className="inline w-4 h-4 mr-1" />
+                        Username/ID <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={pickupPersonUsername}
+                        onChange={(e) => setPickupPersonUsername(e.target.value)}
+                        placeholder="Enter username or ID"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
 
-              {deliveryType === 'COUNTER_PICKUP' && subType === 'COMPANY' && (
-                <>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Direct Company Pickup</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <User className="inline w-4 h-4 mr-1" />
@@ -282,8 +269,8 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                       </label>
                       <input
                         type="text"
-                        value={personName}
-                        onChange={(e) => setPersonName(e.target.value)}
+                        value={pickupPersonName}
+                        onChange={(e) => setPickupPersonName(e.target.value)}
                         placeholder="Enter person name"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                       />
@@ -292,43 +279,97 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <Phone className="inline w-4 h-4 mr-1" />
-                        Person Phone <span className="text-red-500">*</span>
+                        Phone Number <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="tel"
-                        value={personPhone}
-                        onChange={(e) => setPersonPhone(e.target.value)}
+                        value={pickupPersonPhone}
+                        onChange={(e) => setPickupPersonPhone(e.target.value)}
                         placeholder="Enter phone number"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                       />
                     </div>
+                  </div>
+                </>
+              )}
 
+              {deliveryType === 'COUNTER_PICKUP' && subType === 'COMPANY' && (
+                <>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Direct Company Pickup</h4>
+                  
+                  <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Building className="inline w-4 h-4 mr-1" />
-                        Company Name <span className="text-red-500">*</span>
+                        <User className="inline w-4 h-4 mr-1" />
+                        Username/ID <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        placeholder="Enter company name"
+                        value={pickupPersonUsername}
+                        onChange={(e) => setPickupPersonUsername(e.target.value)}
+                        placeholder="Enter username or ID"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Hash className="inline w-4 h-4 mr-1" />
-                        Company ID <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={companyId}
-                        onChange={(e) => setCompanyId(e.target.value)}
-                        placeholder="Enter company ID"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <User className="inline w-4 h-4 mr-1" />
+                          Person Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={pickupPersonName}
+                          onChange={(e) => setPickupPersonName(e.target.value)}
+                          placeholder="Enter person name"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <Phone className="inline w-4 h-4 mr-1" />
+                          Person Phone <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          value={pickupPersonPhone}
+                          onChange={(e) => setPickupPersonPhone(e.target.value)}
+                          placeholder="Enter phone number"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <Building className="inline w-4 h-4 mr-1" />
+                          Company Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={companyName}
+                          onChange={(e) => setCompanyName(e.target.value)}
+                          placeholder="Enter company name"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <Hash className="inline w-4 h-4 mr-1" />
+                          Company ID <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={companyId}
+                          onChange={(e) => setCompanyId(e.target.value)}
+                          placeholder="Enter company ID"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </>
