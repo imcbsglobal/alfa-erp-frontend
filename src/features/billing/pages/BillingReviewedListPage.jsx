@@ -151,9 +151,9 @@ export default function BillingReviewedListPage() {
   const handleViewInvoice = (id) => {
     if (user?.role === "BILLER") {
       navigate(`/ops/billing/invoices/view/${id}`);
-    } else {
-      navigate(`/billing/invoices/view/${id}`);
+      return;
     }
+    navigate(`/billing/invoices/view/${id}/billing-review`);
   };
 
   const getStatusBadgeColor = (status) => {
@@ -219,13 +219,10 @@ export default function BillingReviewedListPage() {
             <h1 className="text-2xl font-bold text-gray-800">
               Reviewed Bills
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Invoices returned for review and corrections
-            </p>
           </div>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-cyan-600 text-white rounded-lg font-semibold shadow hover:bg-cyan-700 transition flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-orange-600 hover:to-red-700 transition-all"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -271,7 +268,11 @@ export default function BillingReviewedListPage() {
                     {currentItems.map((inv) => (
                       <tr
                         key={inv.id}
-                        className="transition hover:bg-orange-50"
+                        className={`transition ${
+                          inv.priority === "HIGH" 
+                            ? "bg-red-50 hover:bg-red-50" 
+                            : "hover:bg-gray-50"
+                        }`}
                       >
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-900">
@@ -332,14 +333,14 @@ export default function BillingReviewedListPage() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleReview(inv)}
-                              className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition font-medium text-sm"
+                              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                               title="View Issues"
                             >
                               Issues
                             </button>
                             <button
                               onClick={() => handleViewInvoice(inv.id)}
-                              className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition font-medium text-sm"
+                              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-orange-600 hover:to-red-700 transition-all"
                               title="View Details"
                             >
                               View
@@ -357,6 +358,7 @@ export default function BillingReviewedListPage() {
                 itemsPerPage={itemsPerPage}
                 onPageChange={handlePageChange}
                 label="invoices"
+                colorScheme="orange"
               />
             </>
           )}

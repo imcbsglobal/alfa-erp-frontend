@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
 import { getCouriers, updateCourier, deleteCourier } from "../../../services/sales";
+import Pagination from "../../../components/Pagination";
 
 export default function CourierListPage() {
   const navigate = useNavigate();
@@ -276,8 +277,8 @@ export default function CourierListPage() {
                         {canManageCouriers && (
                           <td className="px-3 py-2">
                             <div className="flex gap-2">
-                              <button onClick={() => openEdit(c)} className="text-blue-600 hover:underline">Edit</button>
-                              <button onClick={() => setDeleteTarget(c)} className="text-red-600 hover:underline">Delete</button>
+                              <button onClick={() => openEdit(c)} className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all">Edit</button>
+                              <button onClick={() => setDeleteTarget(c)} className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all">Delete</button>
                             </div>
                           </td>
                         )}
@@ -286,7 +287,14 @@ export default function CourierListPage() {
                   </tbody>
                 </table>
               </div>
-              {renderPagination()}
+              <Pagination
+                currentPage={safePage}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                label="couriers"
+                colorScheme="teal"
+              />
             </>
           )}
         </div>

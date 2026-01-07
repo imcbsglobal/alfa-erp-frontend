@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import Pagination from "../../../components/Pagination";
 import {
   getJobTitles,
   getUsers,
@@ -124,11 +125,17 @@ export default function UserListPage() {
     setCurrentPage(1);
   }, [users, searchTerm, filterRole, filterStatus, filterJobTitle]);
 
-  // Calculate pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const totalItems = filteredUsers.length;
+
+  const safePage = Math.min(
+    Math.max(currentPage, 1),
+    Math.max(1, Math.ceil(totalItems / itemsPerPage))
+  );
+
+  const paginatedUsers = filteredUsers.slice(
+    (safePage - 1) * itemsPerPage,
+    safePage * itemsPerPage
+  );
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -522,7 +529,7 @@ export default function UserListPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentItems.map((user) => (
+                    {paginatedUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50 transition">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -577,14 +584,14 @@ export default function UserListPage() {
                           <div className="flex flex-wrap gap-2">
                             <button
                               onClick={() => handleEditUser(user.id)}
-                              className="px-2 py-1 text-blue-600 hover:text-blue-800 hover:underline"
+                              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                             >
                               Edit
                             </button>
 
                             <button
                               onClick={() => handleDeleteUser(user.id)}
-                              className="px-2 py-1 text-red-600 hover:text-red-800 hover:underline"
+                              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                             >
                               Delete
                             </button>
@@ -598,7 +605,7 @@ export default function UserListPage() {
 
               {/* Mobile Card View */}
               <div className="lg:hidden divide-y divide-gray-200">
-                {currentItems.map((user) => (
+                {paginatedUsers.map((user) => (
                   <div key={user.id} className="p-4 hover:bg-gray-50 transition">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
@@ -656,7 +663,14 @@ export default function UserListPage() {
               </div>
 
               {/* Pagination */}
-              {renderPagination()}
+              <Pagination
+                currentPage={safePage}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                label="users"
+                colorScheme="teal"
+              />
             </>
           )}
         </div>

@@ -5,6 +5,7 @@ import api from "../../../services/api";
 import { getActivePickingTask } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
+import Pagination from "../../../components/Pagination";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -203,7 +204,7 @@ export default function InvoiceListPage() {
       navigate(`/ops/picking/invoices/view/${id}`);
       return;
     }
-    navigate(`/invoices/view/${id}`);
+    navigate(`/invoices/view/${id}/picking`);
   };
 
   const getPriorityBadgeColor = (priority) => {
@@ -385,7 +386,14 @@ export default function InvoiceListPage() {
                   </tbody>
                 </table>
               </div>
-              {renderPagination()}
+              <Pagination
+                currentPage={currentPage}
+                totalItems={sortedInvoices.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                label="invoices"
+                colorScheme="teal"
+              />
             </>
           )}
         </div>

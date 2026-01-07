@@ -18,7 +18,7 @@ import CourierListPage from "../features/master/pages/CourierListPage";
 import AddCourierPage from "../features/master/pages/AddCourierPage";
 
 import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
-import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
+// import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
 import MyInvoiceListPage from "../features/invoice/pages/MyInvoiceListPage";
 import HistoryPage from "../features/history/pages/HistoryPage";
 import InvoiceHistoryView from "../features/history/pages/InvoiceHistoryView";
@@ -26,7 +26,7 @@ import { useAuth } from "../features/auth/AuthContext";
 
 import OperationsLayout from "../layout/OperationsLayout";
 import PackingInvoiceListPage from "../features/packing/pages/PackingInvoiceListPage";
-import PackingInvoiceViewPage from "../features/packing/pages/PackingInvoiceViewPage";
+// import PackingInvoiceViewPage from "../features/packing/pages/PackingInvoiceViewPage";
 import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
 
 // Import Billing Pages
@@ -39,6 +39,8 @@ import DeliveryDispatchPage from "../features/delivery/pages/DeliveryDispatchPag
 import MyDeliveryListPage from "../features/delivery/pages/MyDeliveryListPage";
 import CourierDeliveryListPage from "../features/delivery/pages/CourierDeliveryListPage";
 import CompanyDeliveryListPage from "../features/delivery/pages/CompanyDeliveryListPage";
+
+import CommonInvoiceView from "../components/CommonInvoiceView";
 
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
@@ -64,12 +66,12 @@ export default function AppRouter() {
           
           {/* Picking routes */}
           <Route path="/invoices" element={<InvoiceListPage />} />
-          <Route path="/invoices/view/:id" element={<InvoiceViewPage />} />
+          {/* <Route path="/invoices/view/:id" element={<InvoiceViewPage />} /> */}
           <Route path="/invoices/my" element={<MyInvoiceListPage />} />
           
           {/* Packing routes for SUPERADMIN */}
           <Route path="/packing/invoices" element={<PackingInvoiceListPage />} />
-          <Route path="/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} />
+          {/* <Route path="/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} /> */}
           <Route path="/packing/my" element={<MyPackingListPage />} />
 
           {/* Billing routes for SUPERADMIN */}
@@ -98,6 +100,12 @@ export default function AppRouter() {
           <Route path="/delivery/courier-list" element={<CourierDeliveryListPage />} />
           <Route path="/delivery/company-list" element={<CompanyDeliveryListPage />} />
 
+          {/* Common Invoice View Routes */}
+          <Route path="/invoices/view/:id/:section?" element={<CommonInvoiceView />} />
+          <Route path="/packing/invoices/view/:id/:section?" element={<CommonInvoiceView />} />
+          <Route path="/billing/invoices/view/:id/:section?" element={<CommonInvoiceView />} />
+          <Route path="/delivery/invoices/view/:id/:section?" element={<CommonInvoiceView />} />
+
           {/* History */}
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/history/consolidate" element={<InvoiceHistoryView />} />
@@ -113,11 +121,11 @@ export default function AppRouter() {
         <Route element={<OperationsLayout />}>
           {/* Picking */}
           <Route path="/ops/picking/invoices" element={<InvoiceListPage />} />
-          <Route path="/ops/picking/invoices/view/:id" element={<InvoiceViewPage />} />
+          {/* <Route path="/ops/picking/invoices/view/:id" element={<InvoiceViewPage />} /> */}
 
           {/* Packing */}
           <Route path="/ops/packing/invoices" element={<PackingInvoiceListPage />} />
-          <Route path="/ops/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} />
+          {/* <Route path="/ops/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} /> */}
           <Route path="/ops/packing/my" element={<MyPackingListPage />} />
 
           {/* Billing */}
@@ -130,6 +138,11 @@ export default function AppRouter() {
           <Route path="/ops/delivery/my" element={<MyDeliveryListPage />} />
           <Route path="/ops/delivery/courier-list" element={<CourierDeliveryListPage />} />
           <Route path="/ops/delivery/company-list" element={<CompanyDeliveryListPage />} />
+
+          <Route path="/ops/picking/invoices/view/:id" element={<CommonInvoiceView />} />
+          <Route path="/ops/packing/invoices/view/:id" element={<CommonInvoiceView />} />
+          <Route path="/ops/billing/invoices/view/:id" element={<CommonInvoiceView />} />
+          <Route path="/ops/delivery/invoices/view/:id" element={<CommonInvoiceView />} />
         </Route>
       </Route>
 
