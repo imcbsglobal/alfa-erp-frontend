@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
+import Pagination from "../../../components/Pagination";
 import {
   getJobTitles,
   updateJobTitle,
@@ -582,13 +583,13 @@ export default function JobTitleListPage() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => openEdit(job)}
-                                className="px-2 py-1 text-blue-600 hover:text-blue-800 hover:underline"
+                                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-al"
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => openDeleteConfirm(job)}
-                                className="px-2 py-1 text-red-600 hover:text-red-800 hover:underline"
+                                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-al"
                               >
                                 Delete
                               </button>
@@ -600,8 +601,14 @@ export default function JobTitleListPage() {
                   </tbody>
                 </table>
               </div>
-
-              {renderPagination()}
+              <Pagination
+                currentPage={safePage}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                label="job titles"
+                colorScheme="teal"
+              />
             </>
           )}
         </div>
@@ -706,13 +713,13 @@ export default function JobTitleListPage() {
                     <div className="flex gap-2 pt-3 border-t border-gray-100">
                       <button
                         onClick={() => openEdit(job)}
-                        className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium text-sm hover:bg-blue-100 transition"
+                        className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => openDeleteConfirm(job)}
-                        className="flex-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg font-medium text-sm hover:bg-red-100 transition"
+                        className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                       >
                         Delete
                       </button>
@@ -721,7 +728,14 @@ export default function JobTitleListPage() {
                 </div>
               ))}
 
-              {renderPagination()}
+              <Pagination
+                currentPage={safePage}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                label="job titles"
+                colorScheme="teal"
+              />
             </>
           )}
         </div>

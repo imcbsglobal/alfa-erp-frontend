@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import api from "../../../services/api";
-import { useAuth } from "../../auth/AuthContext";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import api from "../services/api";
+import { useAuth } from "../features/auth/AuthContext";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -9,18 +9,33 @@ function formatDate(dateStr) {
   return `${d}-${m}-${y}`;
 }
 
-export default function InvoiceViewPage() {
+export default function CommonInvoiceView() {
   const { user } = useAuth();
+  const { id, section } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const navigate = useNavigate();
-  const { id } = useParams();
+
+  // Detect section from URL path if not in params
+  const detectSection = () => {
+    if (section) return section;
+    const path = location.pathname;
+    if (path.includes('/picking/')) return 'picking';
+    if (path.includes('/packing/')) return 'packing';
+    if (path.includes('/billing/')) return 'billing';
+    if (path.includes('/delivery/')) return 'delivery';
+    return 'default';
+  };
+
+  const currentSection = detectSection();
 
   useEffect(() => {
     loadInvoice();
-  }, []);
+  }, [id]);
 
   const loadInvoice = async () => {
     setLoading(true);
@@ -35,6 +50,7 @@ export default function InvoiceViewPage() {
   };
 
   const handleBack = () => {
+    // Role-based navigation
     if (user?.role === "PICKER") {
       navigate(`/ops/picking/invoices/`);
       return;
@@ -43,7 +59,57 @@ export default function InvoiceViewPage() {
       navigate(`/ops/packing/invoices/`);
       return;
     }
-    navigate("/packing/invoices");
+    if (user?.role === "BILLER") {
+      navigate(`/ops/billing/invoices/`);
+      return;
+    }
+    if (user?.role === "DELIVERY") {
+      navigate(`/ops/delivery/dispatch/`);
+      return;
+    }
+
+    // Section-based navigation for admin/superadmin
+    switch(currentSection) {
+      case 'picking':
+        navigate("/invoices");
+        break;
+      case 'packing':
+        navigate("/packing/invoices");
+        break;
+      case 'billing':
+        navigate("/billing/invoices");
+        break;
+      case 'billing-review':
+        navigate("/billing/reviewed");
+        break;
+      case 'delivery':
+        navigate("/delivery/dispatch");
+        break;
+      default:
+        navigate("/invoices");
+    }
+  };
+
+  const getSectionTitle = () => {
+    switch(currentSection) {
+      case 'picking': return 'Picking Management';
+      case 'packing': return 'Packing Management';
+      case 'billing': return 'Billing Management';
+      case 'billing-review': return 'Billing Review';
+      case 'delivery': return 'Delivery Management';
+      default: return 'Invoice Management';
+    }
+  };
+
+  const getSectionColor = () => {
+    switch(currentSection) {
+      case 'picking': return 'from-teal-500 to-cyan-600';
+      case 'packing': return 'from-teal-500 to-cyan-600';
+      case 'billing': return 'from-teal-500 to-cyan-600';
+      case 'billing-review': return 'from-orange-500 to-red-600';
+      case 'delivery': return 'from-teal-500 to-cyan-600';
+      default: return 'from-teal-500 to-cyan-600';
+    }
   };
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -81,10 +147,12 @@ export default function InvoiceViewPage() {
         {/* Header */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-800">Invoice Management</h1>
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-800">
+              {getSectionTitle()}
+            </h1>
             <button
               onClick={handleBack}
-              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all text-sm sm:text-base"
+              className={`px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r ${getSectionColor()} text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:opacity-90 transition-all text-sm sm:text-base`}
             >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -93,6 +161,25 @@ export default function InvoiceViewPage() {
             </button>
           </div>
         </div>
+
+        {/* Return Info Banner - Show for billing review */}
+        {currentSection === 'billing-review' && invoice.return_info && (
+          <div className="mb-4 bg-orange-50 border-l-4 border-orange-500 p-4 rounded-lg">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-orange-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="flex-1">
+                <h3 className="font-semibold text-orange-900 mb-1">Returned for Review</h3>
+                <p className="text-sm text-orange-800 mb-2">{invoice.return_info.return_reason}</p>
+                <div className="flex gap-4 text-xs text-orange-700">
+                  <span>Returned by: {invoice.return_info.returned_by_name || invoice.return_info.returned_by_email}</span>
+                  <span>From: {invoice.return_info.returned_from_section}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mobile View */}
         <div className="block lg:hidden space-y-4">
@@ -106,6 +193,7 @@ export default function InvoiceViewPage() {
               <MobileInfoRow label="Invoice Date" value={formatDate(invoice.invoice_date)} />
               <MobileInfoRow label="Salesman" value={invoice.salesman?.name} />
               <MobileInfoRow label="Created By" value={invoice.created_by} />
+              <MobileInfoRow label="Status" value={invoice.status} />
             </div>
           </div>
 
@@ -132,40 +220,37 @@ export default function InvoiceViewPage() {
             <div className="space-y-3">
               {currentItems.map((item, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                  {/* Ultra compact single-line row */}
-                  <div className="text-[11px] text-gray-700 flex items-center gap-3 whitespace-nowrap overflow-x-auto">
-                    <span>📍 <b>{item.shelf_location || "—"}</b></span>
-                    <span><b>{item.name}</b></span>
-                    <span>Pack: <b>{item.packing || "—"}</b></span>
-                    <span>Qty: <b>{item.quantity}</b></span>
-                    <span>MRP: <b>₹{item.mrp}</b></span>
-                    <span>Batch: <b>{item.batch_no || "—"}</b></span>
-                    <span>
-                      Exp:{" "}
-                      <b>
-                        {item.expiry_date
-                          ? new Date(item.expiry_date).toLocaleDateString("en-GB")
-                          : "—"}
-                      </b>
-                    </span>
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
+                      <p className="text-xs text-gray-500">Shelf: {item.shelf_location || "—"}</p>
+                      {item.company_name && (
+                        <p className="text-xs text-gray-500">Company: {item.company_name}</p>
+                      )}
+                      {item.packing && (
+                        <p className="text-xs text-gray-500">Pack: {item.packing}</p>
+                      )}
+                    </div>
+                    <span className="text-sm font-bold text-teal-600">Qty: {item.quantity}</span>
                   </div>
                   
-                  {/* Compact item details row */}
-                  <div className="mt-1 text-[11px] text-gray-600 flex flex-wrap gap-x-3 gap-y-1">
-                    <span>📍 <b>{item.shelf_location || "—"}</b></span>
-                    <span><b>{item.name}</b></span>
-                    <span>Pack: <b>{item.packing || "—"}</b></span>
-                    <span>Qty: <b>{item.quantity}</b></span>
-                    <span>MRP: <b>₹{item.mrp}</b></span>
-                    <span>Batch: <b>{item.batch_no || "—"}</b></span>
-                    <span>
-                      Exp:{" "}
-                      <b>
-                        {item.expiry_date
-                          ? new Date(item.expiry_date).toLocaleDateString("en-GB")
-                          : "—"}
-                      </b>
-                    </span>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-gray-500">MRP:</span>
+                      <span className="ml-1 font-semibold text-gray-900">₹{item.mrp?.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Batch:</span>
+                      <span className="ml-1 text-gray-700">{item.batch_no || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Exp Date:</span>
+                      <span className="ml-1 text-gray-700">{formatDate(item.expiry_date || item.exp_date)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Remarks:</span>
+                      <span className="ml-1 text-gray-700">{item.remarks || "—"}</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -204,7 +289,7 @@ export default function InvoiceViewPage() {
             )}
           </div>
 
-          <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-4 text-center shadow-md">
+          <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-4 text-center shadow-md`}>
             <p className="text-sm font-bold tracking-wider mb-1">Total Amount</p>
             <p className="text-2xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
           </div>
@@ -225,6 +310,7 @@ export default function InvoiceViewPage() {
                 <div className="space-y-2">
                   <CompactInfoRowInline label1="Invoice No" value1={invoice.invoice_no} label2="Date" value2={formatDate(invoice.invoice_date)} />
                   <CompactInfoRowInline label1="Salesman" value1={invoice.salesman?.name} label2="Created By" value2={invoice.created_by} />
+                  <CompactInfoRowInline label1="Status" value1={invoice.status} label2="Priority" value2={invoice.priority || "LOW"} />
                 </div>
               </div>
 
@@ -241,7 +327,7 @@ export default function InvoiceViewPage() {
               </div>
 
               {/* Total Amount */}
-              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-3 text-center">
+              <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-3 text-center`}>
                 <p className="text-xs font-bold mb-1">Total Amount</p>
                 <p className="text-2xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
               </div>
@@ -259,7 +345,7 @@ export default function InvoiceViewPage() {
               <div className="flex-1 flex flex-col border border-gray-300 rounded-lg overflow-hidden">
 
                 {/* Table Header */}
-                <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white flex-shrink-0">
+                <div className={`bg-gradient-to-r ${getSectionColor()} text-white flex-shrink-0`}>
                   <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs font-bold">
                     <div className="col-span-1 text-center">Shelf</div>
                     <div className="col-span-3">Item Name</div>
@@ -305,7 +391,7 @@ export default function InvoiceViewPage() {
                       </div>
 
                       <div className="col-span-2 text-xs text-center text-gray-600">
-                        {formatDate(item.expiry_date)}
+                        {formatDate(item.expiry_date || item.exp_date)}
                       </div>
 
                       <div className="col-span-1 text-xs text-center text-gray-500 overflow-hidden">
@@ -339,7 +425,7 @@ export default function InvoiceViewPage() {
                         onClick={() => handlePageChange(num)}
                         className={`w-7 h-7 flex items-center justify-center rounded text-xs font-semibold transition-all
                         ${currentPage === num
-                          ? "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow"
+                          ? `bg-gradient-to-r ${getSectionColor()} text-white shadow`
                           : "bg-white border border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
                       >
                         {num}

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
+import Pagination from "../../../components/Pagination";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -299,7 +300,14 @@ export default function BillingInvoiceListPage() {
                   </tbody>
                 </table>
               </div>
-              {renderPagination()}
+              <Pagination
+                currentPage={currentPage}
+                totalItems={sortedInvoices.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                label="invoices"
+                colorScheme="teal"
+              />
             </>
           )}
         </div>

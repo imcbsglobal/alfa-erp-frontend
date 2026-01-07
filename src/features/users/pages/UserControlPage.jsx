@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as LucideIcons from "lucide-react";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import {
   getUsersApi,
@@ -7,63 +8,124 @@ import {
   assignMenusApi,
 } from "../../../services/accessControl";
 import toast from "react-hot-toast";
+import { MENU_CONFIG } from "../../../layout/Sidebar/menuConfig";
 
-// Icon components
-const HomeIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-  </svg>
-);
+// Function to get icon component from menu config
+const getIconFromConfig = (menu) => {
+  const menuId = menu.id;
+  const menuCode = menu.code;
+  const menuName = menu.name;
+  
+  // First, try to find by menu ID or code in MENU_CONFIG (including submenus)
+  const findMenuConfig = (menus, id, code, name) => {
+    for (const menuItem of menus) {
+      // Check if this menu matches by id, code, or name (case insensitive)
+      if (menuItem.id === id || 
+          menuItem.code === id || 
+          menuItem.id === code || 
+          menuItem.code === code ||
+          menuItem.label?.toLowerCase() === name?.toLowerCase()) {
+        return menuItem;
+      }
+      // Check submenu items
+      if (menuItem.submenu && menuItem.submenu.length > 0) {
+        const found = findMenuConfig(menuItem.submenu, id, code, name);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
 
-const UsersIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-  </svg>
-);
+  const menuConfig = findMenuConfig(MENU_CONFIG, menuId, menuCode, menuName);
+  
+  if (menuConfig?.icon) {
+    // If icon is a React component (from lucide-react)
+    if (typeof menuConfig.icon === 'function' || typeof menuConfig.icon === 'object') {
+      const IconComponent = menuConfig.icon;
+      return <IconComponent className="w-4 h-4" />;
+    }
+    // If icon is a string (icon name from lucide-react)
+    if (typeof menuConfig.icon === 'string') {
+      const IconComponent = LucideIcons[menuConfig.icon];
+      if (IconComponent) {
+        return <IconComponent className="w-4 h-4" />;
+      }
+    }
+  }
 
-const CogIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
+  // Fallback: try to match by code name or menu name with icon mappings from MENU_CONFIG
+  const iconNameMap = {
+    // Main menus
+    dashboard: "LayoutDashboard",
+    billing: "FileText",
+    invoice: "FileText",
+    invoices: "ClipboardCheck",
+    picking: "ClipboardCheck",
+    packing: "Box",
+    delivery: "Truck",
+    history: "Clock",
+    user_management: "Users",
+    "user-management": "Users",
+    master: "Settings",
+    
+    // Invoice submenus
+    invoice_list: "ListChecks",
+    "invoice list": "ListChecks",
+    reviewed_bills: "AlertCircle",
+    "reviewed bills": "AlertCircle",
+    
+    // Picking submenus
+    picking_list: "ClipboardCheck",
+    "picking list": "ClipboardCheck",
+    my_picking: "PlusCircle",
+    "my assigned picking": "PlusCircle",
+    
+    // Packing submenus
+    packing_list: "Box",
+    "packing list": "Box",
+    my_packing: "PlusCircle",
+    "my assigned packing": "PlusCircle",
+    
+    // Delivery submenus
+    dispatch: "Truck",
+    "dispatch orders": "Truck",
+    courier_list: "Package",
+    "courier list": "Package",
+    company_list: "Warehouse",
+    "company delivery list": "Warehouse",
+    my_delivery: "PlusCircle",
+    "my assigned delivery": "PlusCircle",
+    
+    // History submenus
+    history_list: "History",
+    consolidate: "Layers",
+    
+    // User Management submenus
+    user_list: "Users",
+    "user list": "Users",
+    user_control: "UserCog",
+    "user control": "UserCog",
+    
+    // Master submenus
+    job_title: "Briefcase",
+    "job title": "Briefcase",
+    department: "Building",
+    courier: "Send",
+  };
 
-const BriefcaseIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-  </svg>
-);
+  const iconName = iconNameMap[menuCode?.toLowerCase()] || 
+                   iconNameMap[menuId?.toLowerCase()] || 
+                   iconNameMap[menuName?.toLowerCase()] ||
+                   "Settings";
+  const IconComponent = LucideIcons[iconName];
+  
+  if (IconComponent) {
+    return <IconComponent className="w-4 h-4" />;
+  }
 
-const BuildingIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-  </svg>
-);
-
-const FileTextIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
-
-const ListIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-  </svg>
-);
-
-const permissionIcons = {
-  dashboard: <HomeIcon className="w-4 h-4" />,
-  users: <UsersIcon className="w-4 h-4" />,
-  user_management: <UsersIcon className="w-4 h-4" />,
-  user_list: <UsersIcon className="w-4 h-4" />,
-  user_control: <CogIcon className="w-4 h-4" />,
-  invoice: <FileTextIcon className="w-4 h-4" />,
-  invoice_list: <ListIcon className="w-4 h-4" />,
-  master: <TuneOutlinedIcon className="w-4 h-4" />,
-  job_title: <BriefcaseIcon className="w-4 h-4" />,
-  department: <BuildingIcon className="w-4 h-4" />,
-  default: <CogIcon className="w-4 h-4" />,
+  // Final fallback
+  const DefaultIcon = LucideIcons.Settings;
+  return <DefaultIcon className="w-4 h-4" />;
 };
 
 export default function UserControlPage() {
@@ -141,7 +203,6 @@ export default function UserControlPage() {
     }));
   };
 
-  // Keep all menus collapsed by default
   useEffect(() => {
     setExpandedMenus({});
   }, [availableMenus]);
@@ -215,7 +276,7 @@ export default function UserControlPage() {
           )}
 
           <div className={`${enabled ? "text-teal-600" : "text-gray-400"}`}>
-            {permissionIcons[menu.code] || permissionIcons.default}
+            {getIconFromConfig(menu)}
           </div>
 
           <button
@@ -248,13 +309,13 @@ export default function UserControlPage() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
-      {/* Compact Header */}
+      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-2 flex-shrink-0">
         <h1 className="text-xl font-bold text-gray-800">User Access Control</h1>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Compact User List - Fixed Width Sidebar */}
+        {/* User List Sidebar */}
         <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center gap-2 mb-3">
@@ -264,7 +325,6 @@ export default function UserControlPage() {
               </span>
             </div>
             
-            {/* Compact Search */}
             <div className="relative">
               <input
                 type="text"
@@ -284,7 +344,6 @@ export default function UserControlPage() {
             </div>
           </div>
 
-          {/* User List */}
           <div className="flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
             {loading ? (
               <div className="flex items-center justify-center py-12">
@@ -327,7 +386,7 @@ export default function UserControlPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm truncate text-gray-800">
+                          <p className="font-medium text-sm truncate text-gray-800 uppercase">
                             {u.name || u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || "Unknown User"}
                           </p>
                           <span
@@ -366,7 +425,6 @@ export default function UserControlPage() {
             </div>
           ) : (
             <>
-              {/* Selected User Header - Compact */}
               <div className="border-b border-gray-200 px-6 py-2 bg-gray-50 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -381,7 +439,7 @@ export default function UserControlPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h2 className="text-base font-bold text-gray-800">
+                        <h2 className="text-base font-bold text-gray-800 uppercase">
                           {selectedUser.name || selectedUser.full_name || `${selectedUser.first_name || ""} ${selectedUser.last_name || ""}`.trim() || "Unknown User"}
                         </h2>
                         <span
@@ -400,7 +458,6 @@ export default function UserControlPage() {
                     </div>
                   </div>
                   
-                  {/* Quick Actions */}
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
@@ -428,14 +485,12 @@ export default function UserControlPage() {
                 </div>
               </div>
 
-              {/* Permissions List - Compact Table Style */}
               <div className="flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
                 {availableMenus.map(menu => (
                   <MenuItem key={menu.id} menu={menu} />
                 ))}
               </div>
 
-              {/* Save Button - Fixed at Bottom */}
               <div className="border-t border-gray-200 px-6 py-2 bg-gray-50 flex-shrink-0">
                 <button
                   onClick={handleSavePermissions}

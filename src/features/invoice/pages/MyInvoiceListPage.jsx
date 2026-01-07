@@ -368,7 +368,7 @@ export default function MyInvoiceListPage() {
               </svg>
               <h2 className="text-lg font-semibold text-gray-700">Active Bill</h2>
               {isReInvoiced && (
-                <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-300 animate-pulse">
+                <span className="ml-2 px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-xs font-bold border border-teal-300 animate-pulse">
                   ✓ CORRECTED & RE-SENT
                 </span>
               )}
@@ -378,14 +378,14 @@ export default function MyInvoiceListPage() {
                 ${isReviewInvoice
                   ? "bg-gray-100 border-orange-400 opacity-70"
                   : isReInvoiced
-                    ? "bg-blue-50 border-blue-500 animate-border-pulse"
+                    ? "bg-teal-50 border-teal-500 animate-border-pulse"
                     : "bg-white border-teal-500"}
               `}
             >
-              <div onClick={() => setExpandedInvoice(expandedInvoice === activeInvoice.id ? null : activeInvoice.id)} className={`p-4 border-b cursor-pointer ${isReInvoiced ? 'bg-blue-100 border-blue-200' : 'bg-teal-50 border-teal-200'}`}>
+              <div onClick={() => setExpandedInvoice(expandedInvoice === activeInvoice.id ? null : activeInvoice.id)} className={`p-4 border-b cursor-pointer ${isReInvoiced ? 'bg-teal-100 border-teal-200' : 'bg-teal-50 border-teal-200'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full animate-pulse ${isReInvoiced ? 'bg-blue-600' : 'bg-teal-500'}`}></div>
+                    <div className={`w-2 h-2 rounded-full animate-pulse ${isReInvoiced ? 'bg-teal-600' : 'bg-teal-500'}`}></div>
                     <div>
                       <h3 className="font-bold text-gray-900">Invoice #{activeInvoice.invoice_no}</h3>
                       <p className="text-xs text-gray-600">
@@ -405,18 +405,18 @@ export default function MyInvoiceListPage() {
                 <div className="p-4 space-y-3">
                   {/* Re-invoiced Banner */}
                   {isReInvoiced && activeInvoice.resolution_notes && (
-                    <div className="p-4 mb-3 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-400 shadow-md">
+                    <div className="p-4 mb-3 rounded-lg bg-gradient-to-r from-teal-50 to-teal-100 border-2 border-teal-400 shadow-md">
                       <div className="flex items-start gap-3">
-                        <svg className="w-6 h-6 text-blue-700 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-6 h-6 text-teal-700 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div className="flex-1">
-                          <p className="font-bold text-blue-900 text-lg mb-2">
+                          <p className="font-bold text-teal-900 text-lg mb-2">
                             ✓ Invoice Corrected - Please Re-pick
                           </p>
-                          <div className="bg-white rounded-md p-3 border border-blue-200">
-                            <p className="text-xs text-blue-600 font-semibold mb-1">Resolution Details:</p>
-                            <p className="text-sm text-blue-800">
+                          <div className="bg-white rounded-md p-3 border border-teal-200">
+                            <p className="text-xs text-teal-600 font-semibold mb-1">Resolution Details:</p>
+                            <p className="text-sm text-teal-800">
                               {activeInvoice.resolution_notes}
                             </p>
                           </div>
@@ -506,7 +506,7 @@ export default function MyInvoiceListPage() {
                     <button onClick={handleSendInvoiceToReview} disabled={isReviewInvoice || !hasIssues} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${hasIssues ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
                       Send Invoice to Review
                     </button>
-                    <button onClick={handleCompletePicking} disabled={!canCompletePicking} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${allItemsPicked && !hasIssues ? (isReInvoiced ? "bg-blue-600 hover:bg-blue-700" : "bg-teal-600 hover:bg-teal-700") + " text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
+                    <button onClick={handleCompletePicking} disabled={!canCompletePicking} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${allItemsPicked && !hasIssues ? (isReInvoiced ? "bg-teal-600 hover:bg-teal-700" : "bg-teal-600 hover:bg-teal-700") + " text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
                       {hasIssues ? "Resolve Issues First" : allItemsPicked ? (isReInvoiced ? "✓ Complete Re-pick" : "Complete Picking") : `Pick ${totalItems - pickedCount} More`}
                     </button>
                   </div>
@@ -555,7 +555,7 @@ export default function MyInvoiceListPage() {
                       <div className="col-span-2 flex items-center justify-center gap-2">
                         <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold uppercase tracking-wide">PICKED</span>
                         {inv.notes && inv.notes.includes('[RE-PICK]') && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-semibold">
+                          <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold">
                             RE-PICKED
                           </span>
                         )}

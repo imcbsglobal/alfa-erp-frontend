@@ -397,7 +397,7 @@ export default function MyPackingListPage() {
                 ${isLockedForReview
                   ? "bg-gray-100 border-orange-400 opacity-70"
                   : isReInvoiced
-                    ? "bg-blue-50 border-blue-500"
+                    ? "bg-teal-50 border-teal-500"
                     : "bg-white border-teal-500"}
               `}
             >

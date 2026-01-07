@@ -4,6 +4,7 @@ import PackInvoiceModal from "../components/PackInvoiceModal";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
+import Pagination from "../../../components/Pagination";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -201,7 +202,11 @@ export default function PackingInvoiceListPage() {
   };
 
   const handleViewInvoice = (id) => {
-    navigate(`view/${id}`);
+    if(user?.role === "PACKER"){
+      navigate(`/ops/packing/invoices/view/${id}`);
+      return;
+    }
+    navigate(`/packing/invoices/view/${id}/packing`);
   };
 
   const getPriorityBadgeColor = (priority) => {
@@ -305,7 +310,7 @@ export default function PackingInvoiceListPage() {
                     {currentItems.map((inv) => (
                       <tr
                         key={inv.id}
-                        className={`transition hover:bg-gray-50 ${
+                        className={`transition hover:bg-grey-50 ${
                           inv.priority === "HIGH" ? "bg-red-50" : ""
                         }`}
                       >
@@ -369,7 +374,14 @@ export default function PackingInvoiceListPage() {
                   </tbody>
                 </table>
               </div>
-              {renderPagination()}
+              <Pagination
+                currentPage={currentPage}
+                totalItems={sortedInvoices.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                label="invoices"
+                colorScheme="teal"
+              />
             </>
           )}
         </div>
