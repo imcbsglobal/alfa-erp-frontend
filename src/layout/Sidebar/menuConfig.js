@@ -30,6 +30,7 @@ import {
     History,
     Send,
     Warehouse,
+    Pill,
   } from "lucide-react";
 
 export const MENU_CONFIG = [
@@ -41,108 +42,114 @@ export const MENU_CONFIG = [
     type: "single",
   },
   {
-    id: "billing",
-    label: "Invoice",
-    icon: FileText,
+    id: "orders",
+    label: "Orders",
+    icon: Pill, // or use Package, Box, or any icon that represents orders
     type: "dropdown",
-    hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+    hasAccess: (user) => 
+      !["USER"].includes(user?.role), // Adjust based on who should see orders
     submenu: [
       {
-        label: "Invoice List",
-        icon: ListChecks,
-        path: (user) => user?.role === "BILLER" ? "/ops/billing/invoices" : "/billing/invoices",
+        label: "Invoice",
+        icon: FileText,
+        type: "nested-dropdown",
         hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+        submenu: [
+          {
+            label: "Invoice List",
+            icon: ListChecks,
+            path: (user) => user?.role === "BILLER" ? "/ops/billing/invoices" : "/billing/invoices",
+            hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+          },
+          {
+            label: "Reviewed Bills",
+            icon: AlertCircle,
+            path: (user) => user?.role === "BILLER" ? "/ops/billing/reviewed" : "/billing/reviewed",
+            hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+          },
+        ],
       },
       {
-        label: "Reviewed Bills",
-        icon: AlertCircle,
-        path: (user) => user?.role === "BILLER" ? "/ops/billing/reviewed" : "/billing/reviewed",
-        hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
-      },
-    ],
-    isActive: (pathname) =>
-      pathname.startsWith("/billing") || pathname.startsWith("/ops/billing"),
-  },
-  {
-    id: "invoices",
-    label: "Picking",
-    icon: ClipboardCheck,
-    type: "dropdown",
-    hasAccess: (user) =>
-      !["PICKER", "PACKER", "BILLER", "DELIVERY"].includes(user?.role),
-    submenu: [
-      {
-        label: "Picking List",
+        label: "Picking",
         icon: ClipboardCheck,
-        path: "/invoices",
+        type: "nested-dropdown",
+        hasAccess: (user) =>
+          !["PICKER", "PACKER", "BILLER", "DELIVERY"].includes(user?.role),
+        submenu: [
+          {
+            label: "Picking List",
+            icon: ClipboardCheck,
+            path: "/invoices",
+          },
+          {
+            label: "My Assigned Picking",
+            icon: PlusCircle,
+            path: "/invoices/my",
+            hasAccess: (user, permissions) =>
+              permissions["my-invoices"]?.view === true,
+          },
+        ],
       },
       {
-        label: "My Assigned Picking",
-        icon: PlusCircle,
-        path: "/invoices/my",
-        hasAccess: (user, permissions) =>
-          permissions["my-invoices"]?.view === true,
-      },
-    ],
-    isActive: (pathname) =>
-      pathname.startsWith("/invoices"),
-  },
-  {
-    id: "packing",
-    label: "Packing",
-    icon: Box,
-    type: "dropdown",
-    hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
-    submenu: [
-      {
-        label: "Packing List",
+        label: "Packing",
         icon: Box,
-        path: (user) => user?.role === "PACKER" ? "/ops/packing/invoices" : "/packing/invoices",
+        type: "nested-dropdown",
         hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
+        submenu: [
+          {
+            label: "Packing List",
+            icon: Box,
+            path: (user) => user?.role === "PACKER" ? "/ops/packing/invoices" : "/packing/invoices",
+            hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
+          },
+          {
+            label: "My Assigned Packing",
+            icon: PlusCircle,
+            path: (user) => user?.role === "PACKER" ? "/ops/packing/my" : "/packing/my",
+            hasAccess: (user, permissions) =>
+              user?.role === "PACKER" || 
+              user?.role === "SUPERADMIN" || 
+              permissions["my-packing"]?.view === true,
+          },
+        ],
       },
       {
-        label: "My Assigned Packing",
-        icon: PlusCircle,
-        path: (user) => user?.role === "PACKER" ? "/ops/packing/my" : "/packing/my",
-        hasAccess: (user, permissions) =>
-          user?.role === "PACKER" || 
-          user?.role === "SUPERADMIN" || 
-          permissions["my-packing"]?.view === true,
-      },
-    ],
-    isActive: (pathname) =>
-      pathname.startsWith("/packing") || pathname.startsWith("/ops/packing"),
-  },
-  {
-    id: "delivery",
-    label: "Delivery",
-    icon: Truck,
-    type: "dropdown",
-    hasAccess: (user) => ["SUPERADMIN", "ADMIN", "DELIVERY"].includes(user?.role),
-    submenu: [
-      {
-        label: "Dispatch Orders",
+        label: "Delivery",
         icon: Truck,
-        path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/dispatch" : "/delivery/dispatch",
-      },
-      {
-        label: "Courier List",
-        icon: Package,
-        path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/courier-list" : "/delivery/courier-list",
-      },
-      {
-        label: "Company Delivery List",
-         icon: Warehouse,
-        path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/company-list" : "/delivery/company-list",
-      },
-      {
-        label: "My Assigned Delivery",
-        icon: PlusCircle,
-        path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/my" : "/delivery/my",
+        type: "nested-dropdown",
+        hasAccess: (user) => ["SUPERADMIN", "ADMIN", "DELIVERY"].includes(user?.role),
+        submenu: [
+          {
+            label: "Dispatch Orders",
+            icon: Truck,
+            path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/dispatch" : "/delivery/dispatch",
+          },
+          {
+            label: "Courier List",
+            icon: Package,
+            path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/courier-list" : "/delivery/courier-list",
+          },
+          {
+            label: "Company Delivery List",
+            icon: Warehouse,
+            path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/company-list" : "/delivery/company-list",
+          },
+          {
+            label: "My Assigned Delivery",
+            icon: PlusCircle,
+            path: (user) => user?.role === "DELIVERY" ? "/ops/delivery/my" : "/delivery/my",
+          },
+        ],
       },
     ],
     isActive: (pathname) =>
-      pathname.startsWith("/delivery") || pathname.startsWith("/ops/delivery"),
+      pathname.startsWith("/billing") || 
+      pathname.startsWith("/ops/billing") ||
+      pathname.startsWith("/invoices") ||
+      pathname.startsWith("/packing") || 
+      pathname.startsWith("/ops/packing") ||
+      pathname.startsWith("/delivery") || 
+      pathname.startsWith("/ops/delivery"),
   },
   {
     id: "history",

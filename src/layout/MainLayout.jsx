@@ -16,7 +16,33 @@ import {
   PlusCircleIcon,
 } from "./Icons";
 
+// Import all lucide-react icons used in MENU_CONFIG
+import {
+  LayoutDashboard,
+  FileText,
+  ClipboardCheck,
+  Box,
+  Truck,
+  Clock,
+  Users,
+  UserCog,
+  ListChecks,
+  PlusCircle,
+  AlertCircle,
+  Briefcase,
+  Building,
+  Package,
+  Layers,
+  History,
+  Send,
+  Warehouse,
+  Pill,
+} from "lucide-react";
+import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+
+// Extended icon map with all icons from MENU_CONFIG
 const iconMap = {
+  // Custom icons
   HomeIcon: HomeIcon,
   UsersIcon: UsersIcon,
   CogIcon: CogIcon,
@@ -25,6 +51,30 @@ const iconMap = {
   InvoiceIcon: InvoiceIcon,
   ListIcon: ListIcon,
   PlusCircleIcon: PlusCircleIcon,
+  
+  // Lucide-react icons (matching MENU_CONFIG)
+  LayoutDashboard: LayoutDashboard,
+  FileText: FileText,
+  ClipboardCheck: ClipboardCheck,
+  Box: Box,
+  Truck: Truck,
+  Clock: Clock,
+  Users: Users,
+  UserCog: UserCog,
+  ListChecks: ListChecks,
+  PlusCircle: PlusCircle,
+  AlertCircle: AlertCircle,
+  Briefcase: Briefcase,
+  Building: Building,
+  Package: Package,
+  Layers: Layers,
+  History: History,
+  Send: Send,
+  Warehouse: Warehouse,
+  Pill: Pill,
+  
+  // MUI icons
+  TuneOutlinedIcon: TuneOutlinedIcon,
 };
 
 
@@ -33,7 +83,7 @@ export default function MainLayout() {
   const location = useLocation();
   const { user, menus = [], logout } = useAuth();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Changed default to false for mobile-first
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
@@ -47,33 +97,36 @@ export default function MainLayout() {
       }
     };
 
-    // Set initial state
     handleResize();
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ✅ SAFELY BUILD MENUS FROM BACKEND DATA
+  // Build menus from backend data with proper icon mapping
   const visibleMenus = useMemo(() => {
-  if (user?.role === "SUPERADMIN") {
-    return MENU_CONFIG;
-  }
+    if (user?.role === "SUPERADMIN") {
+      return MENU_CONFIG;
+    }
 
-  return menus.map(menu => ({
-    id: menu.code,
-    label: menu.name,
-    icon: iconMap[menu.icon] || ListIcon,
-    path: menu.url,
-    type: menu.children?.length ? "dropdown" : "single",
-    submenu: menu.children?.map(child => ({
-      label: child.name,
-      icon: iconMap[child.icon] || ListIcon,
-      path: child.url,
-    })) || [],
-  }));
-}, [user, menus]);
-
+    return menus.map(menu => ({
+      id: menu.code,
+      label: menu.name,
+      icon: iconMap[menu.icon] || ListIcon,
+      path: menu.url,
+      type: menu.children?.length ? "dropdown" : "single",
+      submenu: menu.children?.map(child => ({
+        label: child.name,
+        icon: iconMap[child.icon] || ListIcon,
+        path: child.url,
+        type: child.children?.length ? "nested-dropdown" : "single",
+        submenu: child.children?.map(nestedChild => ({
+          label: nestedChild.name,
+          icon: iconMap[nestedChild.icon] || ListIcon,
+          path: nestedChild.url,
+        })) || [],
+      })) || [],
+    }));
+  }, [user, menus]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -99,7 +152,6 @@ export default function MainLayout() {
   const handleNavigate = (path) => {
     navigate(path);
     setOpenMenuId(null);
-    // Close sidebar on mobile after navigation
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
@@ -153,7 +205,6 @@ export default function MainLayout() {
           }}
         >
           <div className="flex items-center gap-3">
-            {/* Mobile Menu Button */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -161,16 +212,8 @@ export default function MainLayout() {
             >
               <MenuIcon className="w-6 h-6 text-gray-600" />
             </button>
-
-            {/* <div>
-              <h1 className="text-base sm:text-xl font-bold text-gray-800">{getPageTitle()}</h1>
-              <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">
-                Welcome back, {user?.name || "User"}
-              </p>
-            </div> */}
           </div>
 
-          {/* Profile */}
           <div className="relative" data-profile-menu style={{ zIndex: 950 }}>
             <button
               data-profile-button

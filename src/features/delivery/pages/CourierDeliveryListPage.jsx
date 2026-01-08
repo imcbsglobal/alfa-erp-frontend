@@ -138,7 +138,7 @@ const CourierDeliveryListPage = () => {
     try {
       const payload = {
         invoice_no: assignModal.delivery.invoice_no,
-        courier_id: parseInt(selectedCourier),
+        courier_id: selectedCourier,
         delivery_type: 'COURIER',
       };
 
@@ -147,7 +147,16 @@ const CourierDeliveryListPage = () => {
       toast.success('Courier assigned successfully! Now upload the courier slip.');
       setAssignModal({ open: false, delivery: null });
       setSelectedCourier('');
-      loadCourierDeliveries();
+
+      // ✅ UPDATE LOCALLY (do NOT reload)
+      setDeliveries(prev =>
+        prev.map(d =>
+          d.invoice_no === assignModal.delivery.invoice_no
+            ? { ...d, courier_assigned: true }
+            : d
+        )
+      );
+
     } catch (error) {
       console.error('Failed to assign courier:', error);
       const errorMessage = error.response?.data?.detail 
@@ -184,7 +193,12 @@ const CourierDeliveryListPage = () => {
       setUploadModal({ open: false, delivery: null });
       setUploadedFile(null);
       setPreviewUrl('');
-      loadCourierDeliveries();
+
+      // ✅ REMOVE FROM CONSIDER LIST
+      setDeliveries(prev =>
+        prev.filter(d => d.invoice_no !== uploadModal.delivery.invoice_no)
+      );
+
     } catch (error) {
       console.error('Failed to upload slip:', error);
       const errorMessage = error.response?.data?.detail 
