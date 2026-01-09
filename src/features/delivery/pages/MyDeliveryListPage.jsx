@@ -26,25 +26,25 @@ export default function MyDeliveryListPage() {
   const loadActiveDelivery = async () => {
     try {
       setLoading(true);
-      // Get delivery sessions for current user
+      // Get delivery sessions for current user where they are assigned_to
       const res = await api.get("/sales/delivery/history/", {
         params: {
-          search: user.email, // Search by user email
-          page_size: 10 // Get more to filter properly
+          search: user.email,
+          status: 'IN_TRANSIT', // Only get IN_TRANSIT deliveries
+          page_size: 1
         }
       });
       
       if (res.data?.results && res.data.results.length > 0) {
-        // Filter for truly active deliveries (not completed)
+        // Filter to make sure this user is assigned and delivery is active
         const activeDeliveries = res.data.results.filter(delivery => 
-          // Only show if delivery_status is PENDING or IN_TRANSIT
-          // AND end_time is null (not completed yet)
-          (delivery.delivery_status === 'PENDING' || delivery.delivery_status === 'IN_TRANSIT') &&
+          delivery.delivery_user_email === user.email && 
+          delivery.delivery_status === 'IN_TRANSIT' &&
           !delivery.end_time
         );
         
         if (activeDeliveries.length > 0) {
-          setActiveDelivery(activeDeliveries[0]); // Get the first active one
+          setActiveDelivery(activeDeliveries[0]);
         } else {
           setActiveDelivery(null);
         }
@@ -65,15 +65,18 @@ export default function MyDeliveryListPage() {
       const res = await api.get("/sales/delivery/history/", {
         params: {
           search: user.email,
+          status: 'DELIVERED',
           start_date: today,
           end_date: today,
           page_size: 50
         }
       });
       
-      // Filter for completed deliveries (has end_time)
+      // Filter for completed deliveries by this user
       const completed = (res.data?.results || []).filter(delivery => 
-        delivery.end_time && delivery.delivery_status === 'DELIVERED'
+        delivery.delivery_user_email === user.email &&
+        delivery.end_time && 
+        delivery.delivery_status === 'DELIVERED'
       );
       
       setCompletedDeliveries(completed);
