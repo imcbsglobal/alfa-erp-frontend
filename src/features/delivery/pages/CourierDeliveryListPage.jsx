@@ -142,20 +142,16 @@ const CourierDeliveryListPage = () => {
         delivery_type: 'COURIER',
       };
 
+      console.log('Assigning courier with payload:', payload);
+
       await api.post('/sales/delivery/assign/', payload);
 
       toast.success('Courier assigned successfully! Now upload the courier slip.');
       setAssignModal({ open: false, delivery: null });
       setSelectedCourier('');
 
-      // ✅ UPDATE LOCALLY (do NOT reload)
-      setDeliveries(prev =>
-        prev.map(d =>
-          d.invoice_no === assignModal.delivery.invoice_no
-            ? { ...d, courier_assigned: true }
-            : d
-        )
-      );
+      // ✅ RELOAD FROM SERVER
+      await loadCourierDeliveries();
 
     } catch (error) {
       console.error('Failed to assign courier:', error);
@@ -183,6 +179,8 @@ const CourierDeliveryListPage = () => {
       formData.append('courier_slip', uploadedFile);
       formData.append('delivery_type', 'COURIER');
 
+      console.log('Uploading slip for:', uploadModal.delivery.invoice_no);
+
       await api.post('/sales/delivery/upload-slip/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -194,10 +192,8 @@ const CourierDeliveryListPage = () => {
       setUploadedFile(null);
       setPreviewUrl('');
 
-      // ✅ REMOVE FROM CONSIDER LIST
-      setDeliveries(prev =>
-        prev.filter(d => d.invoice_no !== uploadModal.delivery.invoice_no)
-      );
+      // ✅ RELOAD FROM SERVER
+      await loadCourierDeliveries();
 
     } catch (error) {
       console.error('Failed to upload slip:', error);
@@ -220,6 +216,11 @@ const CourierDeliveryListPage = () => {
       minute: '2-digit',
       hour12: true,
     });
+  };
+
+  // ✅ HELPER FUNCTION TO CHECK IF COURIER IS ASSIGNED
+  const isCourierAssigned = (delivery) => {
+    return delivery.delivery_info?.courier_name ? true : false;
   };
 
   return (
@@ -290,10 +291,16 @@ const CourierDeliveryListPage = () => {
                           {formatDateTime(delivery.created_at)}
                         </td>
                         <td className="px-4 py-3">
-                          {delivery.courier_assigned ? (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
-                              Assigned
-                            </span>
+                          {/* ✅ UPDATED STATUS BADGE */}
+                          {isCourierAssigned(delivery) ? (
+                            <div>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium block mb-1">
+                                Assigned
+                              </span>
+                              <span className="text-xs text-gray-600">
+                                {delivery.delivery_info.courier_name}
+                              </span>
+                            </div>
                           ) : (
                             <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">
                               Pending
@@ -301,6 +308,7 @@ const CourierDeliveryListPage = () => {
                           )}
                         </td>
                         <td className="px-4 py-3">
+                          {/* ✅ UPDATED ACTION BUTTONS */}
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleViewInvoice(delivery.id)}
@@ -308,7 +316,7 @@ const CourierDeliveryListPage = () => {
                             >
                               View
                             </button>
-                            {!delivery.courier_assigned ? (
+                            {!isCourierAssigned(delivery) ? (
                               <button
                                 onClick={() => handleAssignClick(delivery)}
                                 className="px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm hover:from-teal-600 hover:to-cyan-700 transition-all flex items-center gap-1"
