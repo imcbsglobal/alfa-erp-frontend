@@ -138,25 +138,27 @@ const CourierDeliveryListPage = () => {
     try {
       const payload = {
         invoice_no: assignModal.delivery.invoice_no,
-        courier_id: selectedCourier,
+        courier_id: selectedCourier, // ✅ Send courier_id (not full object)
         delivery_type: 'COURIER',
       };
 
       console.log('Assigning courier with payload:', payload);
 
-      await api.post('/sales/delivery/assign/', payload);
+      const response = await api.post('/sales/delivery/assign/', payload);
 
       toast.success('Courier assigned successfully! Now upload the courier slip.');
+      
+      // ✅ Close modal first
       setAssignModal({ open: false, delivery: null });
       setSelectedCourier('');
 
-      // ✅ RELOAD FROM SERVER
+      // ✅ Then reload data from server
       await loadCourierDeliveries();
 
     } catch (error) {
       console.error('Failed to assign courier:', error);
-      const errorMessage = error.response?.data?.detail 
-        || error.response?.data?.message 
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.detail 
         || error.response?.data?.error
         || JSON.stringify(error.response?.data)
         || 'Failed to assign courier';
@@ -188,11 +190,13 @@ const CourierDeliveryListPage = () => {
       });
 
       toast.success('Courier slip uploaded successfully! Delivery marked as completed.');
+      
+      // ✅ Close modal first
       setUploadModal({ open: false, delivery: null });
       setUploadedFile(null);
       setPreviewUrl('');
 
-      // ✅ RELOAD FROM SERVER
+      // ✅ Then reload data from server
       await loadCourierDeliveries();
 
     } catch (error) {
@@ -218,7 +222,7 @@ const CourierDeliveryListPage = () => {
     });
   };
 
-  // ✅ HELPER FUNCTION TO CHECK IF COURIER IS ASSIGNED
+  // ✅ Check if courier is assigned by checking delivery_info
   const isCourierAssigned = (delivery) => {
     return delivery.delivery_info?.courier_name ? true : false;
   };
@@ -291,7 +295,6 @@ const CourierDeliveryListPage = () => {
                           {formatDateTime(delivery.created_at)}
                         </td>
                         <td className="px-4 py-3">
-                          {/* ✅ UPDATED STATUS BADGE */}
                           {isCourierAssigned(delivery) ? (
                             <div>
                               <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium block mb-1">
@@ -308,7 +311,6 @@ const CourierDeliveryListPage = () => {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {/* ✅ UPDATED ACTION BUTTONS */}
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleViewInvoice(delivery.id)}
