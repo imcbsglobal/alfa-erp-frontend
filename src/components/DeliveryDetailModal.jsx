@@ -6,6 +6,8 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
   useEffect(() => {
     if (isOpen && deliveryData) {
       setLoading(false);
+      console.log("📦 Delivery Data:", deliveryData);
+      console.log("📄 Courier Slip URL:", deliveryData.courier_slip);
     }
   }, [isOpen, deliveryData]);
 
@@ -65,7 +67,7 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
 
   const isImage = (url) => {
     if (!url) return false;
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
     return imageExtensions.some(ext => url.toLowerCase().includes(ext));
   };
 
@@ -230,7 +232,19 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                           src={deliveryData.courier_slip}
                           alt="Courier Slip"
                           className="max-w-full max-h-96 rounded-lg shadow-md object-contain"
+                          onError={(e) => {
+                            console.error("Failed to load image:", deliveryData.courier_slip);
+                            e.target.style.display = 'none';
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }}
                         />
+                        <div style={{ display: 'none' }} className="flex flex-col items-center justify-center py-8 text-gray-600">
+                          <svg className="w-16 h-16 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-sm">Failed to load image</p>
+                          <p className="text-xs text-gray-500">Click download to view</p>
+                        </div>
                       </div>
                     ) : isPDF(deliveryData.courier_slip) ? (
                       <div className="flex flex-col items-center justify-center py-8 text-gray-600">
@@ -246,10 +260,20 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                         <p className="text-sm">Courier slip available</p>
-                        <p className="text-xs text-gray-500">Click download to view</p>
+                        <p className="text-xs text-gray-500 mb-2">Click download to view</p>
+                        <p className="text-xs text-blue-600 font-mono break-all px-4">{deliveryData.courier_slip}</p>
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Debug Info - Only shown in development */}
+              {deliveryData.delivery_type === "COURIER" && !deliveryData.courier_slip && (
+                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800">
+                    ⚠️ No courier slip uploaded yet for this delivery.
+                  </p>
                 </div>
               )}
 
