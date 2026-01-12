@@ -57,6 +57,23 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
     }
   };
 
+  const handleDownloadSlip = () => {
+    if (deliveryData.courier_slip) {
+      window.open(deliveryData.courier_slip, '_blank');
+    }
+  };
+
+  const isImage = (url) => {
+    if (!url) return false;
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    return imageExtensions.some(ext => url.toLowerCase().includes(ext));
+  };
+
+  const isPDF = (url) => {
+    if (!url) return false;
+    return url.toLowerCase().includes('.pdf');
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -189,6 +206,52 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                   </div>
                 </div>
               </div>
+
+              {/* COURIER SLIP SECTION - Only for Courier Deliveries */}
+              {deliveryData.delivery_type === "COURIER" && deliveryData.courier_slip && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-teal-600 font-bold text-sm uppercase">Courier Slip / Screenshot</h3>
+                    <button
+                      onClick={handleDownloadSlip}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-xs font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download
+                    </button>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    {isImage(deliveryData.courier_slip) ? (
+                      <div className="flex justify-center">
+                        <img
+                          src={deliveryData.courier_slip}
+                          alt="Courier Slip"
+                          className="max-w-full max-h-96 rounded-lg shadow-md object-contain"
+                        />
+                      </div>
+                    ) : isPDF(deliveryData.courier_slip) ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-gray-600">
+                        <svg className="w-16 h-16 text-teal-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <p className="font-medium mb-2">PDF Document</p>
+                        <p className="text-sm text-gray-500 mb-4">Click download to view the courier slip</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-gray-600">
+                        <svg className="w-16 h-16 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <p className="text-sm">Courier slip available</p>
+                        <p className="text-xs text-gray-500">Click download to view</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* NOTES */}
               {deliveryData.notes && (

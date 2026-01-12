@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, User, Mail, Phone, Clock, CheckCircle, Package, Truck, FileText } from "lucide-react";
+import { X, User, Mail, Phone, Clock, CheckCircle, Package, Truck, FileText, AlertTriangle } from "lucide-react";
 
 export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, invoiceData }) {
   const [loading, setLoading] = useState(false);
@@ -84,6 +84,19 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
 
   const isRepick = invoiceData.picking?.notes?.includes('[RE-PICK]');
 
+  // Helper function to get return info for a specific stage
+  const getReturnInfo = (stage) => {
+    if (!invoiceData.return_info) return null;
+    
+    // Check if the return is from this specific stage
+    const returnFrom = invoiceData.return_info.returned_from_section?.toLowerCase();
+    if (returnFrom && returnFrom.includes(stage.toLowerCase())) {
+      return invoiceData.return_info;
+    }
+    
+    return null;
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -95,6 +108,11 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
               {isRepick && (
                 <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-semibold">
                   RE-PICK
+                </span>
+              )}
+              {invoiceData.return_info && (
+                <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">
+                  RETURNED
                 </span>
               )}
             </h2>
@@ -136,6 +154,42 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                   </div>
                 </div>
               </div>
+
+              {/* RETURN ALERT - Show if invoice was returned */}
+              {invoiceData.return_info && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-red-900 mb-2">Invoice Returned for Review</h4>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="font-medium text-red-800">Returned From:</span>
+                          <span className="ml-2 text-red-700">{invoiceData.return_info.returned_from_section}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-red-800">Returned By:</span>
+                          <span className="ml-2 text-red-700">
+                            {invoiceData.return_info.returned_by_name || invoiceData.return_info.returned_by_email}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-red-800">Reason:</span>
+                          <p className="mt-1 text-red-700 bg-red-100 p-2 rounded">
+                            {invoiceData.return_info.return_reason}
+                          </p>
+                        </div>
+                        {invoiceData.return_info.returned_at && (
+                          <div>
+                            <span className="font-medium text-red-800">Returned At:</span>
+                            <span className="ml-2 text-red-700">{formatDateTime(invoiceData.return_info.returned_at)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* PROGRESS STEPPER - CLICKABLE */}
               <div className="flex items-center justify-center gap-3 py-4">
@@ -290,6 +344,23 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                           </div>
                         </div>
 
+                        {/* Return Info for Picking Stage */}
+                        {getReturnInfo('picking') && (
+                          <div className="mt-3">
+                            <div className="flex items-center gap-1.5 text-red-600 mb-1.5">
+                              <AlertTriangle size={14} />
+                              <span className="font-medium text-xs">Return Reason</span>
+                            </div>
+                            <div className="bg-red-50 p-2.5 rounded border border-red-200">
+                              <p className="text-red-900 text-xs font-medium mb-1">
+                                Returned by: {getReturnInfo('picking').returned_by_name || getReturnInfo('picking').returned_by_email}
+                              </p>
+                              <p className="text-red-800 text-xs whitespace-pre-line">{getReturnInfo('picking').return_reason}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Regular Notes */}
                         {invoiceData.picking.notes && (
                           <div className="mt-3">
                             <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
@@ -349,6 +420,23 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                           </div>
                         </div>
 
+                        {/* Return Info for Packing Stage */}
+                        {getReturnInfo('packing') && (
+                          <div className="mt-3">
+                            <div className="flex items-center gap-1.5 text-red-600 mb-1.5">
+                              <AlertTriangle size={14} />
+                              <span className="font-medium text-xs">Return Reason</span>
+                            </div>
+                            <div className="bg-red-50 p-2.5 rounded border border-red-200">
+                              <p className="text-red-900 text-xs font-medium mb-1">
+                                Returned by: {getReturnInfo('packing').returned_by_name || getReturnInfo('packing').returned_by_email}
+                              </p>
+                              <p className="text-red-800 text-xs whitespace-pre-line">{getReturnInfo('packing').return_reason}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Regular Notes */}
                         {invoiceData.packing.notes && (
                           <div className="mt-3">
                             <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
@@ -441,6 +529,23 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                           </div>
                         </div>
 
+                        {/* Return Info for Delivery Stage */}
+                        {getReturnInfo('delivery') && (
+                          <div className="mt-3">
+                            <div className="flex items-center gap-1.5 text-red-600 mb-1.5">
+                              <AlertTriangle size={14} />
+                              <span className="font-medium text-xs">Return Reason</span>
+                            </div>
+                            <div className="bg-red-50 p-2.5 rounded border border-red-200">
+                              <p className="text-red-900 text-xs font-medium mb-1">
+                                Returned by: {getReturnInfo('delivery').returned_by_name || getReturnInfo('delivery').returned_by_email}
+                              </p>
+                              <p className="text-red-800 text-xs whitespace-pre-line">{getReturnInfo('delivery').return_reason}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Regular Notes */}
                         {invoiceData.delivery.notes && (
                           <div className="mt-3">
                             <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
