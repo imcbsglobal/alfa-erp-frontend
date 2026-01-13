@@ -7,7 +7,12 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
     if (isOpen && deliveryData) {
       setLoading(false);
       console.log("📦 Delivery Data:", deliveryData);
-      console.log("📄 Courier Slip URL:", deliveryData.courier_slip);
+      console.log("📄 Courier Slip URL:", deliveryData.courier_slip_url);
+      console.log("📍 Location Data:", {
+        lat: deliveryData.delivery_latitude,
+        lon: deliveryData.delivery_longitude,
+        address: deliveryData.delivery_location_address
+      });
     }
   }, [isOpen, deliveryData]);
 
@@ -59,9 +64,18 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
     }
   };
 
+  const courierSlipUrl = deliveryData.courier_slip_url || deliveryData.courier_slip;
+
   const handleDownloadSlip = () => {
-    if (deliveryData.courier_slip) {
-      window.open(deliveryData.courier_slip, '_blank');
+    if (courierSlipUrl) {
+      window.open(courierSlipUrl, '_blank');
+    }
+  };
+
+  const handleOpenMap = () => {
+    if (deliveryData.delivery_latitude && deliveryData.delivery_longitude) {
+      const googleMapsUrl = `https://www.google.com/maps?q=${deliveryData.delivery_latitude},${deliveryData.delivery_longitude}`;
+      window.open(googleMapsUrl, '_blank');
     }
   };
 
@@ -75,6 +89,8 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
     if (!url) return false;
     return url.toLowerCase().includes('.pdf');
   };
+
+  const hasLocation = deliveryData.delivery_latitude && deliveryData.delivery_longitude;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -209,8 +225,90 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                 </div>
               </div>
 
+              {/* LOCATION SECTION - Only for Company Deliveries */}
+              {deliveryData.delivery_type === "INTERNAL" && hasLocation && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-teal-600 font-bold text-sm uppercase">Delivery Location</h3>
+                    <button
+                      onClick={handleOpenMap}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-xs font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Open in Maps
+                    </button>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-lg p-4 border border-green-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700 mb-2">📍 Coordinates</p>
+                        <div className="bg-white rounded-lg p-3 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500">Latitude:</span>
+                            <span className="text-sm font-mono font-medium text-gray-900">
+                              {parseFloat(deliveryData.delivery_latitude).toFixed(6)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500">Longitude:</span>
+                            <span className="text-sm font-mono font-medium text-gray-900">
+                              {parseFloat(deliveryData.delivery_longitude).toFixed(6)}
+                            </span>
+                          </div>
+                          {deliveryData.delivery_location_accuracy && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-500">Accuracy:</span>
+                              <span className="text-sm font-medium text-gray-900">
+                                ±{Math.round(deliveryData.delivery_location_accuracy)}m
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700 mb-2">📌 Address</p>
+                        <div className="bg-white rounded-lg p-3">
+                          <p className="text-sm text-gray-800 leading-relaxed">
+                            {deliveryData.delivery_location_address || "Address not available"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Banner */}
+                  <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-xs text-blue-800">
+                      <p className="font-medium mb-1">GPS Location Captured</p>
+                      <p className="text-blue-700">This location was automatically captured when the delivery was completed.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* No Location Warning - Only for Company Deliveries */}
+              {deliveryData.delivery_type === "INTERNAL" && !hasLocation && (
+                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                  <svg className="w-6 h-6 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800 mb-1">No Location Data</p>
+                    <p className="text-xs text-yellow-700">GPS location was not captured for this delivery.</p>
+                  </div>
+                </div>
+              )}
+
               {/* COURIER SLIP SECTION - Only for Courier Deliveries */}
-              {deliveryData.delivery_type === "COURIER" && deliveryData.courier_slip && (
+              {deliveryData.delivery_type === "COURIER" && courierSlipUrl && (
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-teal-600 font-bold text-sm uppercase">Courier Slip / Screenshot</h3>
@@ -221,59 +319,81 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      Download
+                      Open in New Tab
                     </button>
                   </div>
 
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    {isImage(deliveryData.courier_slip) ? (
-                      <div className="flex justify-center">
+                    {isImage(courierSlipUrl) ? (
+                      <div className="relative">
                         <img
-                          src={deliveryData.courier_slip}
+                          src={courierSlipUrl}
                           alt="Courier Slip"
-                          className="max-w-full max-h-96 rounded-lg shadow-md object-contain"
+                          className="w-full max-h-[500px] rounded-lg shadow-md object-contain mx-auto bg-white"
                           onError={(e) => {
-                            console.error("Failed to load image:", deliveryData.courier_slip);
+                            console.error("Failed to load image:", courierSlipUrl);
                             e.target.style.display = 'none';
-                            e.target.nextElementSibling.style.display = 'flex';
+                            const errorDiv = e.target.nextElementSibling;
+                            if (errorDiv) errorDiv.style.display = 'flex';
                           }}
                         />
-                        <div style={{ display: 'none' }} className="flex flex-col items-center justify-center py-8 text-gray-600">
+                        <div style={{ display: 'none' }} className="flex flex-col items-center justify-center py-12 text-gray-600">
                           <svg className="w-16 h-16 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <p className="text-sm">Failed to load image</p>
-                          <p className="text-xs text-gray-500">Click download to view</p>
+                          <p className="text-sm font-medium mb-1">Failed to load image</p>
+                          <p className="text-xs text-gray-500 mb-3">Click "Open in New Tab" to view</p>
+                          <code className="text-xs bg-gray-200 px-2 py-1 rounded">{courierSlipUrl}</code>
                         </div>
                       </div>
-                    ) : isPDF(deliveryData.courier_slip) ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-gray-600">
-                        <svg className="w-16 h-16 text-teal-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    ) : isPDF(courierSlipUrl) ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-gray-600">
+                        <svg className="w-20 h-20 text-teal-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
-                        <p className="font-medium mb-2">PDF Document</p>
-                        <p className="text-sm text-gray-500 mb-4">Click download to view the courier slip</p>
+                        <p className="font-semibold text-lg mb-2">PDF Document</p>
+                        <p className="text-sm text-gray-500 mb-4">Click "Open in New Tab" to view the courier slip</p>
+                        <div className="bg-white px-4 py-2 rounded-lg border border-gray-300">
+                          <p className="text-xs text-gray-600 font-mono">📄 {courierSlipUrl.split('/').pop()}</p>
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-8 text-gray-600">
+                      <div className="flex flex-col items-center justify-center py-12 text-gray-600">
                         <svg className="w-16 h-16 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
-                        <p className="text-sm">Courier slip available</p>
-                        <p className="text-xs text-gray-500 mb-2">Click download to view</p>
-                        <p className="text-xs text-blue-600 font-mono break-all px-4">{deliveryData.courier_slip}</p>
+                        <p className="text-sm font-medium mb-2">Courier Slip Available</p>
+                        <p className="text-xs text-gray-500 mb-3">Click "Open in New Tab" to view</p>
+                        <div className="bg-white px-4 py-2 rounded-lg border border-gray-300 max-w-full overflow-hidden">
+                          <p className="text-xs text-blue-600 font-mono truncate">{courierSlipUrl}</p>
+                        </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Additional Info Banner */}
+                  <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-xs text-blue-800">
+                      <p className="font-medium mb-1">Courier Slip Uploaded</p>
+                      <p className="text-blue-700">This document serves as proof of delivery to the courier service.</p>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Debug Info - Only shown in development */}
-              {deliveryData.delivery_type === "COURIER" && !deliveryData.courier_slip && (
-                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800">
-                    ⚠️ No courier slip uploaded yet for this delivery.
-                  </p>
+              {/* Warning - No Courier Slip */}
+              {deliveryData.delivery_type === "COURIER" && !courierSlipUrl && (
+                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                  <svg className="w-6 h-6 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800 mb-1">No Courier Slip Uploaded</p>
+                    <p className="text-xs text-yellow-700">The courier slip/screenshot has not been uploaded for this delivery yet.</p>
+                  </div>
                 </div>
               )}
 

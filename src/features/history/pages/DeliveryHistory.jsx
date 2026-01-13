@@ -80,6 +80,15 @@ export default function DeliveryHistory() {
     });
   };
 
+  const getShortLocation = (address) => {
+    if (!address) return "No location";
+    // Extract city/area name from address (first meaningful part)
+    const parts = address.split(',').map(p => p.trim());
+    // Return first 2-3 parts or first 30 characters
+    const shortAddr = parts.slice(0, 2).join(', ');
+    return shortAddr.length > 30 ? shortAddr.substring(0, 30) + '...' : shortAddr;
+  };
+
   const typeBadge = (type) => {
     const styles = {
       DIRECT: "bg-blue-100 text-blue-700 border-blue-200",
@@ -239,7 +248,15 @@ export default function DeliveryHistory() {
                         {h.delivery_type === "INTERNAL" && (
                           <>
                             <p className="font-medium">{h.delivery_user_name}</p>
-                            <p className="text-xs text-gray-500">{h.delivery_user_email}</p>
+                            <div className="flex items-center gap-1 mt-1">
+                              <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              <p className="text-xs text-gray-500">
+                                {getShortLocation(h.delivery_location_address)}
+                              </p>
+                            </div>
                           </>
                         )}
                       </td>
@@ -297,6 +314,14 @@ export default function DeliveryHistory() {
                     <div className="text-xs text-gray-500 space-y-1">
                       <p>📅 {formatDateTime(h.start_time)}</p>
                       <p>⏱️ {formatDuration(h.duration)}</p>
+                      {h.delivery_type === "INTERNAL" && h.delivery_location_address && (
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          </svg>
+                          <span>{getShortLocation(h.delivery_location_address)}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-2 text-center text-gray-400 text-xs">

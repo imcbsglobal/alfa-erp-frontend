@@ -15,8 +15,77 @@ export default function MyDeliveryListPage() {
   const [courierName, setCourierName] = useState("");
   const [trackingNo, setTrackingNo] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
+  const [locationData, setLocationData] = useState(null);
 
   const { user } = useAuth();
+
+  // Function to fetch current location
+  const fetchCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setFetchingLocation(true);
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        
+        try {
+          // Reverse geocode to get address
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await response.json();
+          
+          setLocationData({
+            latitude,
+            longitude,
+            accuracy,
+            address: data.display_name || 'Address not available'
+          });
+          
+          toast.success('Location captured successfully');
+        } catch (error) {
+          console.error('Reverse geocoding failed:', error);
+          setLocationData({
+            latitude,
+            longitude,
+            accuracy,
+            address: 'Address lookup failed'
+          });
+          toast.success('Location captured (address lookup failed)');
+        } finally {
+          setFetchingLocation(false);
+        }
+      },
+      (error) => {
+        console.error('Location error:', error);
+        setFetchingLocation(false);
+        
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            toast.error('Location permission denied. Please enable location access.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            toast.error('Location information unavailable');
+            break;
+          case error.TIMEOUT:
+            toast.error('Location request timed out');
+            break;
+          default:
+            toast.error('Failed to get location');
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
 
   useEffect(() => {
     loadActiveDelivery();
@@ -26,17 +95,15 @@ export default function MyDeliveryListPage() {
   const loadActiveDelivery = async () => {
     try {
       setLoading(true);
-      // Get delivery sessions for current user where they are assigned_to
       const res = await api.get("/sales/delivery/history/", {
         params: {
           search: user.email,
-          status: 'IN_TRANSIT', // Only get IN_TRANSIT deliveries
+          status: 'IN_TRANSIT',
           page_size: 1
         }
       });
       
       if (res.data?.results && res.data.results.length > 0) {
-        // Filter to make sure this user is assigned and delivery is active
         const activeDeliveries = res.data.results.filter(delivery => 
           delivery.delivery_user_email === user.email && 
           delivery.delivery_status === 'IN_TRANSIT' &&
@@ -72,7 +139,6 @@ export default function MyDeliveryListPage() {
         }
       });
       
-      // Filter for completed deliveries by this user
       const completed = (res.data?.results || []).filter(delivery => 
         delivery.delivery_user_email === user.email &&
         delivery.end_time && 
@@ -91,6 +157,12 @@ export default function MyDeliveryListPage() {
     setNotes("");
     setCourierName(delivery.courier_name || "");
     setTrackingNo(delivery.tracking_no || "");
+    setLocationData(null);
+    
+    // Auto-fetch location for company delivery
+    if (delivery.delivery_type === 'INTERNAL') {
+      fetchCurrentLocation();
+    }
   };
 
   const closeCompleteModal = () => {
@@ -99,6 +171,7 @@ export default function MyDeliveryListPage() {
     setNotes("");
     setCourierName("");
     setTrackingNo("");
+    setLocationData(null);
   };
 
   const handleCompleteDelivery = async () => {
@@ -108,6 +181,16 @@ export default function MyDeliveryListPage() {
     if (completeModal.delivery.delivery_type === 'COURIER' && deliveryStatus === 'DELIVERED') {
       if (!courierName.trim()) {
         toast.error('Please enter courier name');
+        return;
+      }
+    }
+
+    // For company delivery, location is recommended
+    if (completeModal.delivery.delivery_type === 'INTERNAL' && !locationData) {
+      const confirmWithoutLocation = window.confirm(
+        'Location was not captured. Do you want to complete delivery without location data?'
+      );
+      if (!confirmWithoutLocation) {
         return;
       }
     }
@@ -129,12 +212,19 @@ export default function MyDeliveryListPage() {
         }
       }
 
+      // Add location data for company delivery
+      if (completeModal.delivery.delivery_type === 'INTERNAL' && locationData) {
+        payload.delivery_latitude = locationData.latitude;
+        payload.delivery_longitude = locationData.longitude;
+        payload.delivery_location_address = locationData.address;
+        payload.delivery_location_accuracy = locationData.accuracy;
+      }
+
       await api.post("/sales/delivery/complete/", payload);
 
       toast.success("Delivery completed successfully!");
       closeCompleteModal();
       
-      // Reload both lists
       await loadActiveDelivery();
       await loadTodayCompletedDeliveries();
     } catch (err) {
@@ -155,16 +245,6 @@ export default function MyDeliveryListPage() {
     });
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    });
-  };
-
   const toggleExpand = (deliveryId) => {
     setExpandedDelivery(expandedDelivery === deliveryId ? null : deliveryId);
   };
@@ -176,12 +256,6 @@ export default function MyDeliveryListPage() {
       INTERNAL: "Company Delivery"
     };
     return labels[type] || type;
-  };
-
-  const getDeliveryTypeIcon = (type) => {
-    if (type === "COURIER") return <Package className="w-5 h-5" />;
-    if (type === "INTERNAL") return <Truck className="w-5 h-5" />;
-    return <CheckCircle className="w-5 h-5" />;
   };
 
   if (loading) return (
@@ -214,7 +288,6 @@ export default function MyDeliveryListPage() {
             </div>
 
             <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
-              {/* Header */}
               <div
                 onClick={() => toggleExpand(activeDelivery.id)}
                 className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer hover:bg-teal-100 transition-colors"
@@ -251,10 +324,8 @@ export default function MyDeliveryListPage() {
                 </div>
               </div>
 
-              {/* Expanded Details */}
               {expandedDelivery === activeDelivery.id && (
                 <div className="p-4 space-y-3">
-                  {/* Customer Details */}
                   <div className="bg-gray-50 rounded-lg p-3">
                     <h4 className="text-sm font-semibold text-gray-700 mb-2">Customer Information</h4>
                     <div className="space-y-1 text-sm">
@@ -264,22 +335,14 @@ export default function MyDeliveryListPage() {
                     </div>
                   </div>
 
-                  {/* Delivery Details */}
                   <div className="bg-gray-50 rounded-lg p-3">
                     <h4 className="text-sm font-semibold text-gray-700 mb-2">Delivery Information</h4>
                     <div className="space-y-1 text-sm">
                       <p><span className="text-gray-500">Type:</span> {getDeliveryTypeLabel(activeDelivery.delivery_type)}</p>
                       <p><span className="text-gray-500">Started:</span> {formatTime(activeDelivery.start_time)}</p>
-                      {activeDelivery.courier_name && (
-                        <p><span className="text-gray-500">Courier:</span> {activeDelivery.courier_name}</p>
-                      )}
-                      {activeDelivery.tracking_no && (
-                        <p><span className="text-gray-500">Tracking:</span> {activeDelivery.tracking_no}</p>
-                      )}
                     </div>
                   </div>
 
-                  {/* Items */}
                   {activeDelivery.items && activeDelivery.items.length > 0 && (
                     <div className="bg-gray-50 rounded-lg p-3">
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">
@@ -296,7 +359,6 @@ export default function MyDeliveryListPage() {
                     </div>
                   )}
 
-                  {/* Complete Button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -344,7 +406,6 @@ export default function MyDeliveryListPage() {
             </div>
           ) : (
             <>
-              {/* Table Header */}
               <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                 <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
                   <div className="col-span-2">Invoice</div>
@@ -356,7 +417,6 @@ export default function MyDeliveryListPage() {
                 </div>
               </div>
 
-              {/* Table Body */}
               <div className="divide-y divide-gray-200">
                 {completedDeliveries.map((del) => (
                   <div key={del.id}>
@@ -401,7 +461,6 @@ export default function MyDeliveryListPage() {
                       </div>
                     </div>
 
-                    {/* Expanded Details */}
                     {expandedDelivery === del.id && (
                       <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                         <div className="grid grid-cols-2 gap-4">
@@ -414,12 +473,6 @@ export default function MyDeliveryListPage() {
                           <div>
                             <h4 className="text-sm font-semibold text-gray-700 mb-2">Delivery Info</h4>
                             <p className="text-sm text-gray-600">Type: {getDeliveryTypeLabel(del.delivery_type)}</p>
-                            {del.courier_name && (
-                              <p className="text-xs text-gray-500">Courier: {del.courier_name}</p>
-                            )}
-                            {del.tracking_no && (
-                              <p className="text-xs text-gray-500">Tracking: {del.tracking_no}</p>
-                            )}
                             {del.notes && (
                               <p className="text-xs text-gray-500">Notes: {del.notes}</p>
                             )}
@@ -438,8 +491,8 @@ export default function MyDeliveryListPage() {
       {/* Complete Delivery Modal */}
       {completeModal.open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
               <h3 className="font-bold text-gray-900">Complete Delivery</h3>
               <button
                 onClick={closeCompleteModal}
@@ -458,7 +511,7 @@ export default function MyDeliveryListPage() {
                 <p className="text-xs text-gray-500 mt-1">{getDeliveryTypeLabel(completeModal.delivery?.delivery_type)}</p>
               </div>
 
-              {/* Courier Details - Only show for COURIER type */}
+              {/* Courier Details */}
               {completeModal.delivery?.delivery_type === 'COURIER' && (
                 <>
                   <div>
@@ -489,6 +542,71 @@ export default function MyDeliveryListPage() {
                 </>
               )}
 
+              {/* Location Info - Only for INTERNAL */}
+              {completeModal.delivery?.delivery_type === 'INTERNAL' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Delivery Location
+                  </label>
+                  
+                  {fetchingLocation ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent mb-2"></div>
+                      <p className="text-sm text-blue-700">Fetching location...</p>
+                    </div>
+                  ) : locationData ? (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-green-800">Location Captured</p>
+                          <p className="text-xs text-green-700 mt-1 break-words">{locationData.address}</p>
+                          <p className="text-xs text-green-600 mt-1">
+                            Lat: {locationData.latitude.toFixed(6)}, Lon: {locationData.longitude.toFixed(6)}
+                          </p>
+                          <p className="text-xs text-green-600">
+                            Accuracy: ±{Math.round(locationData.accuracy)}m
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={fetchCurrentLocation}
+                        disabled={fetchingLocation}
+                        className="w-full text-xs text-green-700 hover:text-green-800 font-medium disabled:opacity-50"
+                      >
+                        Refresh Location
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-start gap-2 mb-3">
+                        <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-yellow-800">Location Not Captured</p>
+                          <p className="text-xs text-yellow-700 mt-1">
+                            Click the button below to capture your current location
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={fetchCurrentLocation}
+                        disabled={fetchingLocation}
+                        className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm font-medium disabled:opacity-50"
+                      >
+                        📍 Capture Current Location
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Delivery Status
@@ -517,7 +635,7 @@ export default function MyDeliveryListPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 flex gap-3">
+            <div className="p-4 border-t border-gray-200 flex gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={closeCompleteModal}
                 disabled={submitting}
@@ -527,7 +645,7 @@ export default function MyDeliveryListPage() {
               </button>
               <button
                 onClick={handleCompleteDelivery}
-                disabled={submitting}
+                disabled={submitting || fetchingLocation}
                 className="flex-1 py-2 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
               >
                 {submitting ? "Completing..." : "Complete Delivery"}
