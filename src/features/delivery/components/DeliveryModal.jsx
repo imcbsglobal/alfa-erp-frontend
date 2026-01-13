@@ -38,13 +38,13 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
     if (type === 'COUNTER_PICKUP') {
       setStep(2);
     } else {
-      setStep(3);
+       setStep(99); 
     }
   };
 
   const handleSubTypeSelect = (sub) => {
     setSubType(sub);
-    setStep(3);
+     setStep(99); 
   };
 
   const handleBack = () => {
@@ -180,6 +180,49 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                       <p className="text-xs text-gray-600 mt-1">Internal delivery staff</p>
                     </div>
                   </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 99: Yes / No confirmation for Courier & Company */}
+          {step === 99 && (
+            <div className="text-center space-y-4">
+              <h4 className="text-lg font-semibold text-gray-800">
+                Confirm {deliveryType === 'COURIER' ? 'Courier' : 'Company'} Delivery
+              </h4>
+              <p className="text-sm text-gray-600">
+                Invoice: <b>{invoice?.invoice_no}</b>
+              </p>
+              <p className="text-sm text-gray-500">
+                Do you want to move this invoice to{" "}
+                {deliveryType === 'COURIER'
+                  ? 'Courier Consider List'
+                  : 'Company Delivery Consider List'}?
+              </p>
+
+              <div className="flex gap-3 justify-center pt-2">
+                <button
+                  onClick={() => {
+                    setStep(1);
+                    setDeliveryType(null);
+                  }}
+                  className="px-5 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  No
+                </button>
+
+                <button
+                  onClick={() => {
+                    onConfirm({
+                      invoice_no: invoice.invoice_no,
+                      delivery_type:
+                        deliveryType === 'COURIER' ? 'COURIER' : 'INTERNAL',
+                    });
+                  }}
+                  className="px-5 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
+                >
+                  Yes
                 </button>
               </div>
             </div>
@@ -374,95 +417,9 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                   </div>
                 </>
               )}
-
-              {deliveryType === 'COURIER' && (
-                <>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Courier Delivery</h4>
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
-                        <svg className="w-5 h-5 text-orange-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-orange-900 mb-1">
-                          This invoice will be moved to the Courier Consider List
-                        </p>
-                        <p className="text-xs text-orange-700">
-                          • Invoice will be removed from the Dispatch page<br />
-                          • You can then assign staff to handle courier details<br />
-                          • Staff will enter courier name and tracking number
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {deliveryType === 'COMPANY' && (
-                <>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Company Delivery</h4>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
-                        <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-blue-900 mb-1">
-                          This invoice will be moved to the Company Delivery Consider List
-                        </p>
-                        <p className="text-xs text-blue-700">
-                          • Invoice will be removed from the Dispatch page<br />
-                          • You can then assign delivery staff<br />
-                          • Staff will complete the delivery to customer
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Notes field for all types */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add any additional notes..."
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        {step === 3 && (
-          <div className="p-4 border-t border-gray-200 flex gap-3">
-            <button
-              onClick={handleClose}
-              disabled={submitting}
-              className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || !isFormValid()}
-              className="flex-1 py-2 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Processing...' : 
-                deliveryType === 'COUNTER_PICKUP' ? 'Complete Pickup' : 
-                'Add to Consider List'}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

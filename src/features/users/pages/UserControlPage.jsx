@@ -142,7 +142,28 @@ export default function UserControlPage() {
     setLoading(true);
     try {
       const res = await getUsersApi();
-      setUsers(res.data.data.results || []);
+      const allUsers = res.data?.data?.results || [];
+
+      // ❌ Hide Superadmin + Store users (Picker, Packer, Delivery, Billing)
+      const filtered = allUsers.filter(
+        (u) =>
+          u.role !== "SUPERADMIN" &&
+          !["PICKER", "PACKER", "DELIVERY", "BILLING"].includes(
+            u.role?.toUpperCase()
+          ) &&
+          !["PICKER", "PACKER", "DELIVERY", "BILLING"].includes(
+            u.job_title_name?.toUpperCase()
+          )
+      );
+
+      const sorted = filtered.sort((a, b) => {
+        const nameA = (a.name || a.full_name || "").toLowerCase();
+        const nameB = (b.name || b.full_name || "").toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+
+      setUsers(sorted);
+
     } catch (err) {
       console.error("Failed to fetch users", err);
     } finally {
@@ -402,6 +423,9 @@ export default function UserControlPage() {
                           </span>
                         </div>
                         <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                        <p className="text-[11px] text-gray-400 truncate">
+                          {u.job_title_name || "No Job Title"}
+                        </p>
                       </div>
                     </div>
                   </button>

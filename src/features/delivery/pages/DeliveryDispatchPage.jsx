@@ -262,17 +262,17 @@ const DeliveryDispatchPage = () => {
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleViewInvoice(bill.id)}
-                              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-                            >
-                              View
-                            </button>
-                            <button
                               onClick={() => handleDeliveryClick(bill)}
                               className="p-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                               title="Start Delivery"
                             >
                               <Truck className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleViewInvoice(bill.id)}
+                              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                            >
+                              View
                             </button>
                           </div>
                         </td>

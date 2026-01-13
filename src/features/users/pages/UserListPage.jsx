@@ -518,9 +518,6 @@ export default function UserListPage() {
                         Role
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-bold text-white">
-                        Created By
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-white">
                         Status
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-bold text-white">
@@ -565,10 +562,6 @@ export default function UserListPage() {
                           >
                             {user.role}
                           </span>
-                        </td>
-
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {user.created_by || "-"}
                         </td>
 
                         <td className="px-6 py-4">
@@ -637,10 +630,6 @@ export default function UserListPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-500">Job Title:</span>
                         <span className="font-medium">{user.job_title_name || "-"}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Created By:</span>
-                        <span className="font-medium">{user.created_by || "-"}</span>
                       </div>
                     </div>
 

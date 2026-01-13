@@ -523,80 +523,131 @@ export default function MyInvoiceListPage() {
             </svg>
             <h2 className="text-lg font-semibold text-gray-700">Completed Invoices Today</h2>
           </div>
+
           {completedInvoices.length === 0 ? (
             <div className="text-center py-16">
-              <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
               <p className="text-gray-500 text-lg">No completed invoices yet</p>
-              <p className="text-gray-400 text-sm mt-1">Completed invoices will appear here</p>
             </div>
           ) : (
             <>
-              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
-                <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
-                  <div className="col-span-2">Invoice Number</div>
-                  <div className="col-span-2">Date</div>
-                  <div className="col-span-2">Start Time</div>
-                  <div className="col-span-2">End Time</div>
-                  <div className="col-span-2">Duration</div>
-                  <div className="col-span-2">Status</div>
+              {/* ===== DESKTOP TABLE ===== */}
+              <div className="hidden md:block">
+                <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
+                    <div className="col-span-2">Invoice</div>
+                    <div className="col-span-2">Date</div>
+                    <div className="col-span-2">Start</div>
+                    <div className="col-span-2">End</div>
+                    <div className="col-span-2">Duration</div>
+                    <div className="col-span-2">Status</div>
+                  </div>
                 </div>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {completedInvoices.map((inv) => (
-                  <div key={inv.id}>
-                    <div className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => toggleExpand(inv.id)}>
-                      <div className="col-span-2 font-semibold text-gray-900">#{inv.invoice_no}</div>
-                      <div className="col-span-2 text-gray-600">{formatDate(inv.start_time)}</div>
-                      <div className="col-span-2 text-gray-600">{formatTime(inv.start_time)}</div>
-                      <div className="col-span-2 text-gray-600">{formatTime(inv.end_time)}</div>
-                      <div className="col-span-2 text-gray-600">{inv.duration != null ? (() => { const mins = Math.floor(inv.duration); const secs = Math.round((inv.duration - mins) * 60); return `${mins} min ${secs} sec`; })() : "-"}</div>
-                      <div className="col-span-2 flex items-center justify-center gap-2">
-                        <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold uppercase tracking-wide">PICKED</span>
-                        {inv.notes && inv.notes.includes('[RE-PICK]') && (
-                          <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold">
-                            RE-PICKED
+
+                <div className="divide-y divide-gray-200">
+                  {completedInvoices.map((inv) => (
+                    <div key={inv.id}>
+                      {/* MAIN ROW */}
+                      <div
+                        onClick={() => toggleExpand(inv.id)}
+                        className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <div className="col-span-2 font-semibold">#{inv.invoice_no}</div>
+                        <div className="col-span-2">{formatDate(inv.start_time)}</div>
+                        <div className="col-span-2">{formatTime(inv.start_time)}</div>
+                        <div className="col-span-2">{formatTime(inv.end_time)}</div>
+                        <div className="col-span-2">
+                          {inv.duration != null
+                            ? `${Math.floor(inv.duration)} min ${Math.round(
+                                (inv.duration % 1) * 60
+                              )} sec`
+                            : "-"}
+                        </div>
+                        <div className="col-span-2">
+                          <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold">
+                            PICKED
                           </span>
-                        )}
-                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedInvoice === inv.id ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                        </div>
                       </div>
-                    </div>
-                    {expandedInvoice === inv.id && (
-                      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                        <div className="mb-4">
-                          <h3 className="text-sm font-semibold text-gray-700 mb-2">Customer Details</h3>
-                          <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <div className="grid grid-cols-3 gap-4">
-                              <div><p className="text-xs text-gray-500 mb-1">Name</p><p className="font-medium text-gray-900">{inv.customer_name || "-"}</p></div>
-                              <div><p className="text-xs text-gray-500 mb-1">Phone</p><p className="font-medium text-gray-900">{inv.customer_phone || "-"}</p></div>
-                              <div><p className="text-xs text-gray-500 mb-1">Address</p><p className="font-medium text-gray-900">{inv.customer_address || "-"}</p></div>
+
+                      {/* EXPANDED DESKTOP VIEW */}
+                      {expandedInvoice === inv.id && (
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                          <div className="mb-3">
+                            <p className="font-semibold text-gray-700">Customer</p>
+                            <p>{inv.customer_name || "-"}</p>
+                            <p>{inv.customer_phone || "-"}</p>
+                            <p>{inv.customer_address || "-"}</p>
+                          </div>
+
+                          <div>
+                            <p className="font-semibold text-gray-700 mb-2">
+                              Items ({inv.items?.length || 0})
+                            </p>
+                            <div className="bg-white border rounded">
+                              {inv.items?.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex justify-between px-4 py-2 border-b last:border-b-0"
+                                >
+                                  <span>{item.name || item.item_name}</span>
+                                  <span>{item.quantity || item.qty} pcs</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </div>
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-700 mb-2">Items Picked ({inv.items?.length || 0})</h3>
-                          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                            {inv.items && inv.items.length > 0 ? (
-                              <div className="divide-y divide-gray-200">
-                                {inv.items.map((item, idx) => (
-                                  <div key={idx} className="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-gray-50">
-                                    <div className="col-span-6">
-                                      <p className="font-medium text-gray-900">{item.name || item.item_name}</p>
-                                      <p className="text-xs text-gray-500 mt-1">SKU: {item.sku || item.item_code || "N/A"}</p>
-                                    </div>
-                                    <div className="col-span-6 text-right">
-                                      <p className="font-bold text-gray-900">{item.quantity || item.qty} <span className="text-sm font-normal text-gray-500">pcs</span></p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="px-4 py-8 text-center text-gray-500 text-sm">No items data available</div>
-                            )}
-                          </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ===== MOBILE CARD VIEW (CLICK TO EXPAND) ===== */}
+              <div className="block md:hidden space-y-4 p-4">
+                {completedInvoices.map((inv) => (
+                  <div key={inv.id} className="border rounded-lg bg-white shadow-sm">
+                    {/* Header */}
+                    <div
+                      onClick={() => toggleExpand(inv.id)}
+                      className="p-4 flex justify-between items-center cursor-pointer"
+                    >
+                      <p className="font-bold">#{inv.invoice_no}</p>
+                      <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded text-xs font-semibold">
+                        PICKED
+                      </span>
+                    </div>
+
+                    {/* Basic Info */}
+                    <div className="px-4 pb-3 text-sm text-gray-700 space-y-1">
+                      <p><b>Date:</b> {formatDate(inv.start_time)}</p>
+                      <p><b>Start:</b> {formatTime(inv.start_time)}</p>
+                      <p><b>End:</b> {formatTime(inv.end_time)}</p>
+                      <p>
+                        <b>Duration:</b>{" "}
+                        {inv.duration != null
+                          ? `${Math.floor(inv.duration)} min ${Math.round((inv.duration % 1) * 60)} sec`
+                          : "-"}
+                      </p>
+                    </div>
+
+                    {/* Expanded Details */}
+                    {expandedInvoice === inv.id && (
+                      <div className="border-t bg-gray-50 p-4 text-sm">
+                        <p className="font-semibold mb-1">Customer</p>
+                        <p>{inv.customer_name || "-"}</p>
+                        <p>{inv.customer_phone || "-"}</p>
+                        <p>{inv.customer_address || "-"}</p>
+
+                        <p className="font-semibold mt-3 mb-1">
+                          Items ({inv.items?.length || 0})
+                        </p>
+                        <div className="space-y-1">
+                          {inv.items?.map((item, idx) => (
+                            <div key={idx} className="flex justify-between border-b pb-1">
+                              <span>{item.name || item.item_name}</span>
+                              <span>{item.quantity || item.qty} pcs</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
