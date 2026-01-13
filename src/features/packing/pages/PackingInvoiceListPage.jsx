@@ -34,8 +34,7 @@ export default function PackingInvoiceListPage() {
 
   // SSE Live Updates
   useEffect(() => {
-    const eventSource = new EventSource(`${API_BASE_URL.replace("/api", "")}/events/invoices/`);
-
+  const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
     eventSource.onmessage = (event) => {
       try {
         const invoice = JSON.parse(event.data);

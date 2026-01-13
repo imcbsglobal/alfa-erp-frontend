@@ -30,12 +30,9 @@ export default function MyPackingListPage() {
     loadTodayCompletedPacking();
   }, []);
 
-  // ⬇️⬇️⬇️ ADD THIS ENTIRE BLOCK RIGHT HERE ⬇️⬇️⬇️
 
   useEffect(() => {
-    const es = new EventSource(
-      `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"}/sales/sse/invoices/`
-    );
+    const es  = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
     es.onmessage = (event) => {
       try {
