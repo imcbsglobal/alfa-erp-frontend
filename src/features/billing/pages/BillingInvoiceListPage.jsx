@@ -38,6 +38,16 @@ export default function BillingInvoiceListPage() {
       try {
         const data = JSON.parse(event.data);
 
+        // 🔴 Filter by salesman name - only show if matches logged-in user (unless admin)
+        const isAdmin = user?.role === "ADMIN" || user?.is_superuser;
+        const salesmanName = data.salesman?.name;
+        const userName = user?.username || user?.name;
+        
+        // Skip if not admin and salesman doesn't match logged-in user
+        if (!isAdmin && salesmanName !== userName) {
+          return;
+        }
+
         setInvoices((prev) => {
           // Remove if status is REVIEW (moved to reviewed list)
           if (data.billing_status === "REVIEW") {
@@ -64,7 +74,7 @@ export default function BillingInvoiceListPage() {
     };
 
     return () => es.close();
-  }, []);
+  }, [user]);
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -73,9 +83,19 @@ export default function BillingInvoiceListPage() {
       const list = res.data.results || [];
 
       // 🔴 Filter out REVIEW status invoices
-      const nonReviewedInvoices = list.filter(
+      let nonReviewedInvoices = list.filter(
         inv => inv.billing_status !== "REVIEW" && inv.status !== "REVIEW"
       );
+
+      // 🔴 Filter by salesman name - only show if matches logged-in user (unless admin)
+      const isAdmin = user?.role === "ADMIN" || user?.is_superuser;
+      const userName = user?.username || user?.name;
+      
+      if (!isAdmin) {
+        nonReviewedInvoices = nonReviewedInvoices.filter(
+          inv => inv.salesman?.name === userName
+        );
+      }
 
       setInvoices(nonReviewedInvoices);
     } catch {
