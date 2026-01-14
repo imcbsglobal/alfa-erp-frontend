@@ -32,7 +32,9 @@ export default function MyPackingListPage() {
 
 
   useEffect(() => {
-    const es  = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+    const es = new EventSource(
+      `${import.meta.env.VITE_API_BASE_URL}/sales/sse/invoices/`
+    );
 
     es.onmessage = (event) => {
       try {
@@ -623,7 +625,7 @@ export default function MyPackingListPage() {
               <>
                 {/* ===== DESKTOP TABLE ===== */}
                 <div className="hidden md:block">
-                  <div className="bg-teal-600 text-white">
+                  <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                     <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
                       <div className="col-span-2">Invoice</div>
                       <div className="col-span-2">Date</div>

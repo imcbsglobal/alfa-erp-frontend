@@ -112,6 +112,7 @@ export default function MyDeliveryListPage() {
         
         if (activeDeliveries.length > 0) {
           setActiveDelivery(activeDeliveries[0]);
+          setExpandedDelivery(activeDeliveries[0].id);
         } else {
           setActiveDelivery(null);
         }
@@ -245,6 +246,16 @@ export default function MyDeliveryListPage() {
     });
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
+  };
+
   const toggleExpand = (deliveryId) => {
     setExpandedDelivery(expandedDelivery === deliveryId ? null : deliveryId);
   };
@@ -258,33 +269,25 @@ export default function MyDeliveryListPage() {
     return labels[type] || type;
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-2"></div>
-        <p className="text-gray-600">Loading deliveries...</p>
-      </div>
-    </div>
-  );
+  if (loading && !activeDelivery && completedDeliveries.length === 0) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">My Delivery Tasks</h1>
-          <p className="text-gray-600 mt-1">Manage your assigned deliveries</p>
+        <div className="mb-4">
+          <h1 className="text-xl font-bold text-gray-800">My Delivery Tasks</h1>
         </div>
 
         {/* Active Delivery Section */}
-        {activeDelivery ? (
+        {activeDelivery && (
           <div className="mb-6">
             <div className="mb-3 flex items-center gap-2">
               <Truck className="w-6 h-6 text-teal-600" />
               <h2 className="text-lg font-semibold text-gray-700">Active Delivery</h2>
-              <span className="px-2 py-1 bg-teal-100 text-teal-800 text-xs rounded-full">
-                In Progress
-              </span>
+              <span className="text-sm text-gray-500">Currently in progress</span>
             </div>
 
             <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
@@ -294,12 +297,12 @@ export default function MyDeliveryListPage() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-teal-500 rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
                     <div>
                       <h3 className="font-bold text-gray-900">
                         Invoice #{activeDelivery.invoice_no}
                       </h3>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs text-gray-600">
                         {activeDelivery.customer_name} • {getDeliveryTypeLabel(activeDelivery.delivery_type)}
                       </p>
                     </div>
@@ -372,154 +375,140 @@ export default function MyDeliveryListPage() {
               )}
             </div>
           </div>
-        ) : (
-          <div className="mb-6 bg-white rounded-lg shadow p-8 text-center">
-            <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-600 text-lg font-medium">No Active Deliveries</p>
-            <p className="text-gray-400 text-sm mt-1">
-              You don't have any deliveries assigned at the moment
-            </p>
-          </div>
         )}
 
-        {/* Completed Deliveries Section - Responsive + Expandable */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 bg-white border-b border-gray-200 flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-teal-600" />
-              <h2 className="text-lg font-semibold text-gray-700">
-                Completed Deliveries Today
-              </h2>
-              {completedDeliveries.length > 0 && (
-                <span className="ml-auto px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                  {completedDeliveries.length} completed
-                </span>
-              )}
+        {/* Completed Deliveries Section */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 bg-white border-b border-gray-200 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-teal-600" />
+            <h2 className="text-lg font-semibold text-gray-700">
+              Completed Deliveries Today
+            </h2>
+          </div>
+
+          {completedDeliveries.length === 0 ? (
+            <div className="text-center py-16">
+              <Clock className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500 text-lg">No completed deliveries yet</p>
             </div>
-
-            {completedDeliveries.length === 0 ? (
-              <div className="text-center py-16">
-                <Clock className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500 text-lg">No completed deliveries yet</p>
-                <p className="text-gray-400 text-sm mt-1">
-                  Completed deliveries will appear here
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* ===== DESKTOP TABLE ===== */}
-                <div className="hidden md:block">
-                  <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
-                    <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
-                      <div className="col-span-2">Invoice</div>
-                      <div className="col-span-2">Customer</div>
-                      <div className="col-span-2">Type</div>
-                      <div className="col-span-2">Start</div>
-                      <div className="col-span-2">End</div>
-                      <div className="col-span-2">Duration</div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-gray-200">
-                    {completedDeliveries.map((del) => (
-                      <div key={del.id}>
-                        {/* Main Row */}
-                        <div
-                          onClick={() => toggleExpand(del.id)}
-                          className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer"
-                        >
-                          <div className="col-span-2 font-semibold">#{del.invoice_no}</div>
-                          <div className="col-span-2">{del.customer_name}</div>
-                          <div className="col-span-2">{getDeliveryTypeLabel(del.delivery_type)}</div>
-                          <div className="col-span-2">{formatTime(del.start_time)}</div>
-                          <div className="col-span-2">{formatTime(del.end_time)}</div>
-                          <div className="col-span-2 flex justify-between">
-                            <span>{del.duration ? `${del.duration} min` : "-"}</span>
-                            <svg
-                              className={`w-4 h-4 transition-transform ${
-                                expandedDelivery === del.id ? "rotate-180" : ""
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
-                        </div>
-
-                        {/* Expanded Desktop */}
-                        {expandedDelivery === del.id && (
-                          <div className="px-6 py-4 bg-gray-50 border-t">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="font-semibold">Customer</p>
-                                <p>{del.customer_name}</p>
-                                <p>{del.customer_phone || "-"}</p>
-                                <p>{del.customer_address || "-"}</p>
-                              </div>
-                              <div>
-                                <p className="font-semibold">Delivery Info</p>
-                                <p>Type: {getDeliveryTypeLabel(del.delivery_type)}</p>
-                                {del.notes && <p>Notes: {del.notes}</p>}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+          ) : (
+            <>
+              {/* ===== DESKTOP TABLE ===== */}
+              <div className="hidden md:block">
+                <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
+                    <div className="col-span-2">Invoice</div>
+                    <div className="col-span-2">Date</div>
+                    <div className="col-span-2">Customer</div>
+                    <div className="col-span-2">Type</div>
+                    <div className="col-span-2">Start</div>
+                    <div className="col-span-2">End</div>
                   </div>
                 </div>
 
-                {/* ===== MOBILE CARD VIEW ===== */}
-                <div className="block md:hidden p-4 space-y-4">
+                <div className="divide-y divide-gray-200">
                   {completedDeliveries.map((del) => (
-                    <div key={del.id} className="border rounded-lg bg-white shadow-sm">
-                      {/* Header */}
+                    <div key={del.id}>
+                      {/* Main Row */}
                       <div
                         onClick={() => toggleExpand(del.id)}
-                        className="p-4 flex justify-between items-center cursor-pointer"
+                        className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer"
                       >
-                        <p className="font-bold">#{del.invoice_no}</p>
-                        <svg
-                          className={`w-4 h-4 transition-transform ${
-                            expandedDelivery === del.id ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                        <div className="col-span-2 font-semibold">#{del.invoice_no}</div>
+                        <div className="col-span-2">{formatDate(del.start_time)}</div>
+                        <div className="col-span-2">{del.customer_name}</div>
+                        <div className="col-span-2">{getDeliveryTypeLabel(del.delivery_type)}</div>
+                        <div className="col-span-2">{formatTime(del.start_time)}</div>
+                        <div className="col-span-2 flex justify-between">
+                          <span>{formatTime(del.end_time)}</span>
+                          <svg
+                            className={`w-4 h-4 transition-transform ${
+                              expandedDelivery === del.id ? "rotate-180" : ""
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
                       </div>
 
-                      {/* Basic Info */}
-                      <div className="px-4 pb-3 text-sm space-y-1">
-                        <p><b>Customer:</b> {del.customer_name}</p>
-                        <p><b>Type:</b> {getDeliveryTypeLabel(del.delivery_type)}</p>
-                        <p><b>Start:</b> {formatTime(del.start_time)}</p>
-                        <p><b>End:</b> {formatTime(del.end_time)}</p>
-                        <p><b>Duration:</b> {del.duration ? `${del.duration} min` : "-"}</p>
-                      </div>
-
-                      {/* Expanded Mobile */}
+                      {/* Expanded Desktop */}
                       {expandedDelivery === del.id && (
-                        <div className="border-t bg-gray-50 p-4 text-sm">
-                          <p className="font-semibold">Customer</p>
-                          <p>{del.customer_name}</p>
-                          <p>{del.customer_phone || "-"}</p>
-                          <p>{del.customer_address || "-"}</p>
-
-                          <p className="font-semibold mt-2">Delivery Info</p>
-                          <p>Type: {getDeliveryTypeLabel(del.delivery_type)}</p>
-                          {del.notes && <p>Notes: {del.notes}</p>}
+                        <div className="px-6 py-4 bg-gray-50 border-t">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="font-semibold">Customer</p>
+                              <p>{del.customer_name}</p>
+                              <p>{del.customer_phone || "-"}</p>
+                              <p>{del.customer_address || "-"}</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Delivery Info</p>
+                              <p>Type: {getDeliveryTypeLabel(del.delivery_type)}</p>
+                              <p>Duration: {del.duration ? `${del.duration} min` : "-"}</p>
+                              {del.notes && <p>Notes: {del.notes}</p>}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+
+              {/* ===== MOBILE CARD VIEW ===== */}
+              <div className="block md:hidden p-4 space-y-4">
+                {completedDeliveries.map((del) => (
+                  <div key={del.id} className="border rounded-lg bg-white shadow-sm">
+                    {/* Header */}
+                    <div
+                      onClick={() => toggleExpand(del.id)}
+                      className="p-4 flex justify-between items-center cursor-pointer"
+                    >
+                      <p className="font-bold">#{del.invoice_no}</p>
+                      <svg
+                        className={`w-4 h-4 transition-transform ${
+                          expandedDelivery === del.id ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+
+                    {/* Basic Info */}
+                    <div className="px-4 pb-3 text-sm space-y-1">
+                      <p><b>Date:</b> {formatDate(del.start_time)}</p>
+                      <p><b>Customer:</b> {del.customer_name}</p>
+                      <p><b>Type:</b> {getDeliveryTypeLabel(del.delivery_type)}</p>
+                      <p><b>Start:</b> {formatTime(del.start_time)}</p>
+                      <p><b>End:</b> {formatTime(del.end_time)}</p>
+                      <p><b>Duration:</b> {del.duration ? `${del.duration} min` : "-"}</p>
+                    </div>
+
+                    {/* Expanded Mobile */}
+                    {expandedDelivery === del.id && (
+                      <div className="border-t bg-gray-50 p-4 text-sm">
+                        <p className="font-semibold">Customer</p>
+                        <p>{del.customer_name}</p>
+                        <p>{del.customer_phone || "-"}</p>
+                        <p>{del.customer_address || "-"}</p>
+
+                        <p className="font-semibold mt-2">Delivery Info</p>
+                        <p>Type: {getDeliveryTypeLabel(del.delivery_type)}</p>
+                        {del.notes && <p>Notes: {del.notes}</p>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Complete Delivery Modal */}
