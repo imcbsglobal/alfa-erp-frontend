@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import { getActivePickingTask } from "../../../services/sales";
+import toast from "react-hot-toast";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -196,7 +197,7 @@ export default function MyInvoiceListPage() {
     }
 
     if (!issues.length) {
-      alert("Select at least one issue");
+      toast.error("Select at least one issue");
       return;
     }
 
@@ -215,17 +216,17 @@ export default function MyInvoiceListPage() {
 
   const handleSendInvoiceToReview = async () => {
     if (!activeInvoice) {
-      alert("No active invoice to complete.");
+      toast.error("No active invoice to complete.");
       return;
     }
 
     if (isReviewInvoice) {
-      alert("Invoice already sent for review.");
+      toast.error("Invoice already sent for review.");
       return;
     }
 
     if (!savedIssues.length) {
-      alert("No saved issues to send.");
+      toast.error("No saved issues to send.");
       return;
     }
 
@@ -242,14 +243,14 @@ export default function MyInvoiceListPage() {
         user_email: user.email,
       });
 
-      alert("Invoice sent to billing review");
+      toast.success("Invoice sent to billing review");
 
       setSavedIssues([]);
       await loadActivePicking();
       await loadTodayCompletedPicking();
     } catch (err) {
       console.error("Return error:", err.response?.status, err.response?.data);
-      alert(err.response?.data?.message || "Failed to send invoice to review");
+      toast.error(err.response?.data?.message || "Failed to send invoice to review");
     } finally {
       setLoading(false);
     }
@@ -265,22 +266,22 @@ export default function MyInvoiceListPage() {
 
   const handleCompletePicking = async () => {
     if (!activePickingTask) {
-      alert("No active picking task.");
+      toast.error("No active picking task.");
       return;
     }
 
     if (isReviewInvoice) {
-      alert("This invoice is under billing review and cannot be modified.");
+      toast.error("Invoice is under billing review and cannot be completed");
       return;
     }
     
     if (!allItemsPicked) {
-      alert("Please pick all items before completing");
+      toast.error("Please pick all items first");
       return;
     }
     
     if (!user?.email) {
-      alert("User email not found");
+      toast.error("User email not found. Please log in again.");
       return;
     }
     
@@ -308,14 +309,14 @@ export default function MyInvoiceListPage() {
         loadTodayCompletedPicking()
       ]);
       
-      alert("Picking completed successfully!");
+      toast.success("Picking completed successfully!");
       
     } catch (err) {
       console.error("Complete picking error:", err);
       const errorMsg = err.response?.data?.message || 
                       err.response?.data?.errors?.invoice_no?.[0] ||
                       "Failed to complete picking";
-      alert(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -617,23 +618,24 @@ export default function MyInvoiceListPage() {
                     {/* Header */}
                     <div
                       onClick={() => toggleExpand(inv.id)}
-                      className="p-4 flex justify-between items-center cursor-pointer"
+                      className="p-4 flex justify-between items-start cursor-pointer"
                     >
                       <div>
                         <p className="font-bold">#{inv.invoice_no}</p>
                         <p className="text-sm text-gray-600">{inv.customer_name || "-"}</p>
                         <p className="text-xs text-gray-500">{getPlaceFromAddress(inv.customer_address)}</p>
                       </div>
-                      <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded text-xs font-semibold">
-                        PICKED
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded text-xs font-semibold">
+                          PICKED
+                        </span>
+                        <p className="text-xs text-gray-600">{formatDate(inv.start_time)}</p>
+                      </div>
                     </div>
 
                     {/* Basic Info */}
                     <div className="px-4 pb-3 text-sm text-gray-700 space-y-1">
-                      <p><b>Date:</b> {formatDate(inv.start_time)}</p>
-                      <p><b>Start:</b> {formatTime(inv.start_time)}</p>
-                      <p><b>End:</b> {formatTime(inv.end_time)}</p>
+                      <p><b>Start:</b> {formatTime(inv.start_time)} <b className="ml-3">End:</b> {formatTime(inv.end_time)}</p>
                       <p>
                         <b>Duration:</b>{" "}
                         {inv.duration != null
