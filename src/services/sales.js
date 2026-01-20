@@ -30,19 +30,29 @@ export const getPackedInvoices = (params = {}) =>
   api.get("/sales/invoices/", { params: { status: "PACKED", ...params } });
 
 // Get delivery history
-  export const getDeliveryHistory = (params) => {
-    return api.get("/sales/delivery/history/", { params });
-  };
+export const getDeliveryHistory = (params) => {
+  return api.get("/sales/delivery/history/", { params });
+};
 
-  // Start delivery
-  export const startDelivery = (data) => {
-    return api.post("/sales/delivery/start/", data);
-  };
+// Start delivery (for dispatch - first assignment)
+export const startDelivery = (data) => {
+  return api.post("/sales/delivery/start/", data);
+};
 
-  // Complete delivery
-  export const completeDelivery = (data) => {
-    return api.post("/sales/delivery/complete/", data);
-  };
+// Start assigned delivery (for staff to begin delivery)
+export const startAssignedDelivery = (data) => {
+  return api.post("/sales/delivery/start-assigned/", data);
+};
+
+// Complete delivery
+export const completeDelivery = (data) => {
+  return api.post("/sales/delivery/complete/", data);
+};
+
+// Get consider list (invoices waiting for staff action)
+export const getConsiderList = (params) => {
+  return api.get("/sales/delivery/consider-list/", { params });
+};
 
 export const getCouriers = async () => {
   return api.get("/sales/couriers/");

@@ -15,6 +15,35 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
+function formatTime(timeStr) {
+  if (!timeStr) return "N/A";
+  try {
+    const date = new Date(timeStr);
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  } catch (e) {
+    return "N/A";
+  }
+}
+
+function formatDuration(startTime) {
+  if (!startTime) return "N/A";
+  const start = new Date(startTime);
+  const now = new Date();
+  const diffMs = now - start;
+  const diffMins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(diffMins / 60);
+  const mins = diffMins % 60;
+  
+  if (hours > 0) {
+    return `${hours}h ${mins}m`;
+  }
+  return `${mins}m`;
+}
+
 export default function InvoiceListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -29,6 +58,8 @@ export default function InvoiceListPage() {
   const [ongoingTasks, setOngoingTasks] = useState([]);
   const [loadingOngoing, setLoadingOngoing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showActiveWarning, setShowActiveWarning] = useState(false);
+  const [activeInvoiceData, setActiveInvoiceData] = useState(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -110,29 +141,6 @@ export default function InvoiceListPage() {
     toast.success("Invoices refreshed");
   };
 
-  const calculateProgress = (task) => {
-    if (!task.invoice?.items) return 0;
-    const totalItems = task.invoice.items.length;
-    const pickedItems = task.invoice.items.filter(item => item.picked).length;
-    if (totalItems === 0) return 0;
-    return Math.round((pickedItems / totalItems) * 100);
-  };
-
-  const formatDuration = (startTime) => {
-    if (!startTime) return "N/A";
-    const start = new Date(startTime);
-    const now = new Date();
-    const diffMs = now - start;
-    const diffMins = Math.floor(diffMs / 60000);
-    const hours = Math.floor(diffMins / 60);
-    const mins = diffMins % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
-  };
-
   const handlePickClick = async (invoice) => {
     await loadInvoices();
 
@@ -150,9 +158,9 @@ export default function InvoiceListPage() {
       const activeRes = await api.get("/sales/picking/active/");
       if (activeRes.data?.data) {
         const activeInvoice = activeRes.data.data.invoice;
-        toast("You already have an active picking task");
+        setActiveInvoiceData(activeInvoice);
         setShowPickModal(false);
-        navigate(`/ops/picking/invoices/view/${activeInvoice.id}`);
+        setShowActiveWarning(true);
         return;
       }
 
@@ -171,18 +179,28 @@ export default function InvoiceListPage() {
       const msg = err.response?.data?.errors?.invoice_no?.[0];
 
       if (msg?.includes("already exists")) {
-        toast("Picking already started. Redirecting…");
-
         const activeRes = await api.get("/sales/picking/active/");
         if (activeRes.data?.data) {
           const inv = activeRes.data.data.invoice;
-          navigate(`/ops/picking/invoices/view/${inv.id}`);
+          setActiveInvoiceData(inv);
+          setShowPickModal(false);
+          setShowActiveWarning(true);
         }
         return;
       }
 
       toast.error(err.response?.data?.message || "Failed to start picking");
     }
+  };
+
+  const handleGoToActiveBill = () => {
+    if (activeInvoiceData) {
+      const path = user?.role === "PICKER" 
+        ? `/ops/picking/invoices/view/${activeInvoiceData.id}`
+        : `/invoices/view/${activeInvoiceData.id}/picking`;
+      navigate(path);
+    }
+    setShowActiveWarning(false);
   };
 
   const sortedInvoices = [...invoices].sort(
@@ -245,27 +263,6 @@ export default function InvoiceListPage() {
 
   const getStatusLabel = (status) => status || "INVOICED";
 
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-    return (
-      <div className="flex justify-center gap-2 py-4">
-        {[...Array(totalPages)].map((_, i) => (
-          <button
-            key={i}
-            onClick={() => handlePageChange(i + 1)}
-            className={`px-3 py-1 rounded ${
-              currentPage === i + 1
-                ? "bg-teal-600 text-white"
-                : "bg-white border hover:bg-teal-50"
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -310,9 +307,9 @@ export default function InvoiceListPage() {
                       <th className="px-4 py-3 text-left">Priority</th>
                       <th className="px-4 py-3 text-left">Date</th>
                       <th className="px-4 py-3 text-left">Customer</th>
-                      <th className="px-4 py-3 text-left">Salesman</th>
+                      <th className="px-4 py-3 text-left">Created By</th>
                       <th className="px-4 py-3 text-right">Amount</th>
-                      <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-center">Status</th>
                       <th className="px-4 py-3 text-left">Actions</th>
                     </tr>
                   </thead>
@@ -352,9 +349,9 @@ export default function InvoiceListPage() {
                           {inv.salesman?.name}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          ₹{inv.total_amount}
+                          {inv.total_amount?.toFixed(2)}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 text-center ">
                           <span
                             className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
                               inv.status
@@ -407,6 +404,60 @@ export default function InvoiceListPage() {
         invoiceNumber={selectedInvoice?.invoice_no}
       />
 
+      {/* Active Bill Warning Modal */}
+      {showActiveWarning && (
+        <>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            onClick={() => setShowActiveWarning(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <h2 className="text-xl font-bold text-white">
+                    Active Picking Session
+                  </h2>
+                </div>
+
+                <button
+                  onClick={() => setShowActiveWarning(false)}
+                  className="text-white text-2xl font-bold leading-none hover:bg-white hover:bg-opacity-20 rounded-lg px-3 py-1 transition"
+                >
+                  ×
+                </button>
+              </div>
+
+
+              <div className="p-6">
+                <div className="mb-6">
+                  <p className="text-gray-700 text-lg mb-4">
+                    You already have an active picking session for:
+                  </p>
+                  <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
+                    <p className="text-2xl font-bold text-orange-900 mb-2">
+                      Invoice #{activeInvoiceData?.invoice_no}
+                    </p>
+                    {activeInvoiceData?.customer?.name && (
+                      <p className="text-sm text-gray-600">
+                        Customer: {activeInvoiceData.customer.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Ongoing Work Modal */}
       {showOngoingModal && (
         <>
@@ -446,61 +497,39 @@ export default function InvoiceListPage() {
                       <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                         <tr>
                           <th className="px-4 py-3 text-left">Invoice</th>
+                          <th className="px-4 py-3 text-left">Employee</th>
+                          <th className="px-4 py-3 text-left">Customer</th>
                           <th className="px-4 py-3 text-left">Date</th>
                           <th className="px-4 py-3 text-left">Start Time</th>
                           <th className="px-4 py-3 text-left">Duration</th>
-                          <th className="px-4 py-3 text-left">Employee</th>
-                          <th className="px-4 py-3 text-left">Progress</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {ongoingTasks.map((task, i) => {
-                          const progress = calculateProgress(task);
-                          const total = task.invoice?.items?.length || 0;
-                          const picked =
-                            task.invoice?.items?.filter((item) => item.picked)
-                              ?.length || 0;
-
-                          return (
-                            <tr key={i} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 font-semibold">
-                                {task.invoice_no}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                {task?.invoice_date || "N/A"}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                {task.start_time
-                                  ? new Date(
-                                      task.start_time
-                                    ).toLocaleTimeString()
-                                  : "N/A"}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                {formatDuration(task.start_time)}
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium">
-                                {task?.picker_name || "Current User"}
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className="bg-teal-600 h-2 rounded-full"
-                                      style={{ width: `${progress}%` }}
-                                    ></div>
-                                  </div>
-                                  <span className="text-sm font-semibold min-w-[45px]">
-                                    {progress}%
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {picked} / {total} items
-                                </p>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                        {ongoingTasks.map((task, i) => (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <p className="font-semibold">{task.invoice_no}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="font-medium">{task?.picker_name || "Current User"}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="font-medium">{task.customer_name || "—"}</p>
+                              <p className="text-xs text-gray-500">
+                                {task.customer_address || "—"}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {formatDate(task?.invoice_date)}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {formatTime(task.start_time)}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold">
+                              {formatDuration(task.start_time)}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>

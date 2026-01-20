@@ -119,6 +119,55 @@ export default function CommonInvoiceView() {
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
 
+  const formatDateTime = (dateTimeStr) => {
+    if (!dateTimeStr) return "—";
+    const date = new Date(dateTimeStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = String(hours % 12 || 12).padStart(2, '0');
+    return `${day}/${month}/${year} ${displayHours}:${minutes} ${ampm}`;
+  };
+
+  const getWorkflowInfo = (inv) => {
+    const rows = [];
+
+    if (inv.picker_info) {
+      const pickerValue = `${inv.picker_info.name || inv.picker_info.email} • ${formatDateTime(inv.picker_info.end_time)}`;
+      rows.push({
+        label: "Picked By",
+        value: pickerValue,
+      });
+    }
+
+    if (inv.packer_info) {
+      const packerValue = `${inv.packer_info.name || inv.packer_info.email} • ${formatDateTime(inv.packer_info.end_time)}`;
+      rows.push({
+        label: "Packed By",
+        value: packerValue,
+      });
+    }
+
+    if (inv.delivery_info) {
+      let v = `${inv.delivery_info.name || inv.delivery_info.email || "—"}`;
+      if (inv.delivery_info.delivery_type) {
+        v += ` • ${inv.delivery_info.delivery_type}`;
+      }
+      if (inv.delivery_info.start_time) {
+        v += ` • ${formatDateTime(inv.delivery_info.start_time)}`;
+      }
+      rows.push({
+        label: "Dispatched By",
+        value: v,
+      });
+    }
+
+    return rows;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-screen">
@@ -212,6 +261,19 @@ export default function CommonInvoiceView() {
             </div>
           </div>
 
+          {getWorkflowInfo(invoice).length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
+                Workflow Details
+              </h2>
+              <div className="space-y-2">
+                {getWorkflowInfo(invoice).map((r, i) => (
+                  <MobileInfoRow key={i} label={r.label} value={r.value} />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
               Item Details ({invoice.items.length})
@@ -237,7 +299,7 @@ export default function CommonInvoiceView() {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-gray-500">MRP:</span>
-                      <span className="ml-1 font-semibold text-gray-900">₹{item.mrp?.toFixed(2)}</span>
+                      <span className="ml-1 font-semibold text-gray-900">{item.mrp?.toFixed(2)}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Batch:</span>
@@ -291,7 +353,7 @@ export default function CommonInvoiceView() {
 
           <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-4 text-center shadow-md`}>
             <p className="text-sm font-bold tracking-wider mb-1">Total Amount</p>
-            <p className="text-2xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{invoice.total_amount?.toFixed(2)}</p>
           </div>
         </div>
 
@@ -326,10 +388,29 @@ export default function CommonInvoiceView() {
                 </div>
               </div>
 
+              {/* Workflow Details */}
+              {getWorkflowInfo(invoice).length > 0 && (
+                <div>
+                  <div className="border-b border-teal-500 pb-1 mb-3">
+                    <h2 className="text-sm font-bold text-gray-900">
+                      Workflow Details
+                    </h2>
+                  </div>
+                  <div className="space-y-2">
+                    {getWorkflowInfo(invoice).map((r, i) => (
+                      <div key={i} className="flex flex-col gap-0.5">
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase">{r.label}</span>
+                        <div className="text-xs font-medium text-gray-900 break-words">{r.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Total Amount */}
               <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-3 text-center`}>
                 <p className="text-xs font-bold mb-1">Total Amount</p>
-                <p className="text-2xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{invoice.total_amount?.toFixed(2)}</p>
               </div>
 
             </div>
@@ -383,7 +464,7 @@ export default function CommonInvoiceView() {
                       </div>
 
                       <div className="col-span-1 text-xs font-semibold text-gray-900 text-right">
-                        ₹{item.mrp?.toFixed(2)}
+                        {item.mrp?.toFixed(2)}
                       </div>
 
                       <div className="col-span-2 text-xs text-center text-gray-700 overflow-hidden">

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
-import { Truck, Package, CheckCircle, Clock } from "lucide-react";
+import { Truck, Package, CheckCircle, Clock, MapPin, PlayCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function MyDeliveryListPage() {
+  const [pendingDeliveries, setPendingDeliveries] = useState([]);
   const [activeDelivery, setActiveDelivery] = useState(null);
   const [completedDeliveries, setCompletedDeliveries] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -88,13 +89,51 @@ export default function MyDeliveryListPage() {
   };
 
   useEffect(() => {
-    loadActiveDelivery();
-    loadTodayCompletedDeliveries();
+    loadAllDeliveries();
   }, []);
+
+  const loadAllDeliveries = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([
+        loadPendingDeliveries(),
+        loadActiveDelivery(),
+        loadTodayCompletedDeliveries()
+      ]);
+    } catch (err) {
+      console.error("Failed to load deliveries", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load pending deliveries assigned to this user
+  const loadPendingDeliveries = async () => {
+    try {
+      const res = await api.get("/sales/delivery/consider-list/", {
+        params: {
+          delivery_type: 'INTERNAL',
+          status: 'TO_CONSIDER',
+          search: user.email,
+          page_size: 50
+        }
+      });
+      
+      // Filter for deliveries assigned to current user that haven't started
+      const pending = (res.data?.results || []).filter(delivery => 
+        delivery.delivery_info?.delivery_user_email === user.email &&
+        !delivery.delivery_info?.start_time
+      );
+      
+      setPendingDeliveries(pending);
+    } catch (err) {
+      console.error("Failed to load pending deliveries", err);
+      setPendingDeliveries([]);
+    }
+  };
 
   const loadActiveDelivery = async () => {
     try {
-      setLoading(true);
       const res = await api.get("/sales/delivery/history/", {
         params: {
           search: user.email,
@@ -122,8 +161,6 @@ export default function MyDeliveryListPage() {
     } catch (err) {
       console.error("Failed to load active delivery", err);
       setActiveDelivery(null);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -149,6 +186,24 @@ export default function MyDeliveryListPage() {
       setCompletedDeliveries(completed);
     } catch (err) {
       console.error("Failed to load completed deliveries", err);
+    }
+  };
+
+  // Start a pending delivery
+  const handleStartDelivery = async (invoice) => {
+    try {
+      const payload = {
+        invoice_no: invoice.invoice_no,
+        user_email: user.email,
+      };
+
+      await api.post("/sales/delivery/start-assigned/", payload);
+      toast.success("Delivery started successfully!");
+      
+      await loadAllDeliveries();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || err.response?.data?.message || "Failed to start delivery");
     }
   };
 
@@ -226,8 +281,7 @@ export default function MyDeliveryListPage() {
       toast.success("Delivery completed successfully!");
       closeCompleteModal();
       
-      await loadActiveDelivery();
-      await loadTodayCompletedDeliveries();
+      await loadAllDeliveries();
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.detail || err.response?.data?.message || "Failed to complete delivery");
@@ -269,17 +323,112 @@ export default function MyDeliveryListPage() {
     return labels[type] || type;
   };
 
-  if (loading && !activeDelivery && completedDeliveries.length === 0) {
-    return <div className="p-6">Loading...</div>;
+  if (loading && !activeDelivery && completedDeliveries.length === 0 && pendingDeliveries.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-4 border-teal-500 border-t-transparent mb-4"></div>
+          <p className="text-gray-600 text-base sm:text-lg">Loading deliveries...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-800">My Delivery Tasks</h1>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">My Delivery Tasks</h1>
         </div>
+
+        {/* Pending Deliveries Section */}
+        {pendingDeliveries.length > 0 && (
+          <div className="mb-6">
+            <div className="mb-3 flex items-center gap-2">
+              <Package className="w-6 h-6 text-blue-600" />
+              <h2 className="text-lg font-semibold text-gray-700">Pending Deliveries</h2>
+              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                {pendingDeliveries.length}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {pendingDeliveries.map((invoice) => (
+                <div key={invoice.id} className="bg-white rounded-lg border-2 border-blue-200 shadow overflow-hidden">
+                  <div
+                    onClick={() => toggleExpand(invoice.id)}
+                    className="p-4 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <div>
+                          <h3 className="font-bold text-gray-900">
+                            Invoice #{invoice.invoice_no}
+                          </h3>
+                          <p className="text-xs text-gray-600">
+                            {invoice.customer?.name} • {getDeliveryTypeLabel(invoice.delivery_type)}
+                          </p>
+                        </div>
+                      </div>
+                      <button className="text-gray-500 hover:text-gray-700">
+                        <svg
+                          className={`w-5 h-5 transition-transform ${
+                            expandedDelivery === invoice.id ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {expandedDelivery === invoice.id && (
+                    <div className="p-4 space-y-3">
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-2">Customer Information</h4>
+                        <div className="space-y-1 text-sm">
+                          <p><span className="text-gray-500">Name:</span> {invoice.customer?.name}</p>
+                          <p><span className="text-gray-500">Phone:</span> {invoice.customer?.phone1 || "-"}</p>
+                          <p><span className="text-gray-500">Address:</span> {invoice.customer?.address1 || "-"}</p>
+                          <p><span className="text-gray-500">Area:</span> {invoice.customer?.area || "-"}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-2">Invoice Details</h4>
+                        <div className="space-y-1 text-sm">
+                          <p><span className="text-gray-500">Items:</span> {invoice.items?.length || 0}</p>
+                          <p><span className="text-gray-500">Total Amount:</span> ₹{invoice.total_amount?.toFixed(2)}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartDelivery(invoice);
+                        }}
+                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <PlayCircle className="w-5 h-5" />
+                        Start Delivery
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Active Delivery Section */}
         {activeDelivery && (
@@ -580,10 +729,7 @@ export default function MyDeliveryListPage() {
                   ) : locationData ? (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
                       <div className="flex items-start gap-2">
-                        <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
+                        <MapPin className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
                           <p className="text-xs font-medium text-green-800">Location Captured</p>
                           <p className="text-xs text-green-700 mt-1 break-words">{locationData.address}</p>
@@ -621,9 +767,10 @@ export default function MyDeliveryListPage() {
                         type="button"
                         onClick={fetchCurrentLocation}
                         disabled={fetchingLocation}
-                        className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm font-medium disabled:opacity-50"
+                        className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
                       >
-                        📍 Capture Current Location
+                        <MapPin className="w-4 h-4" />
+                        Capture Current Location
                       </button>
                     </div>
                   )}

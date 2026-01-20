@@ -41,7 +41,6 @@ export default function BillingInvoiceViewPage() {
     if (from) {
       navigate(from);
     } else {
-      // fallback if user refreshed or opened URL directly
       navigate("/billing/invoices");
     }
   };  
@@ -52,6 +51,20 @@ export default function BillingInvoiceViewPage() {
   const totalPages = invoice ? Math.ceil(invoice.items.length / itemsPerPage) : 0;
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
+
+  // 👇 ADD THE FUNCTIONS HERE (BEFORE if (loading))
+    const formatDateTime = (dateTimeStr) => {
+      if (!dateTimeStr) return "—";
+      const date = new Date(dateTimeStr);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = String(hours % 12 || 12).padStart(2, '0');
+      return `${day}/${month}/${year} ${displayHours}:${minutes} ${ampm}`;
+    };
 
   if (loading) {
     return (
@@ -68,26 +81,28 @@ export default function BillingInvoiceViewPage() {
     const rows = [];
 
     if (inv.picker_info) {
+      const pickerValue = `${inv.picker_info.name} (${inv.picker_info.email}) • ${formatDateTime(inv.picker_info.end_time)}`;
       rows.push({
         label: "Picked By",
-        value: `${inv.picker_info.name} (${inv.picker_info.email})`,
+        value: pickerValue,
       });
     }
 
     if (inv.packer_info) {
+      const packerValue = `${inv.packer_info.name} (${inv.packer_info.email}) • ${formatDateTime(inv.packer_info.end_time)}`;
       rows.push({
         label: "Packed By",
-        value: `${inv.packer_info.name} (${inv.packer_info.email})`,
+        value: packerValue,
       });
     }
 
     if (inv.delivery_info) {
-      let v = inv.delivery_info.name || inv.delivery_info.email || "—";
+      let v = `${inv.delivery_info.name || inv.delivery_info.email || "—"}`;
       if (inv.delivery_info.delivery_type) {
         v += ` • ${inv.delivery_info.delivery_type}`;
       }
-      if (inv.delivery_info.courier_name) {
-        v += ` (${inv.delivery_info.courier_name})`;
+      if (inv.delivery_info.start_time) {
+        v += ` • ${formatDateTime(inv.delivery_info.start_time)}`;
       }
       rows.push({
         label: "Dispatched By",
@@ -198,7 +213,7 @@ export default function BillingInvoiceViewPage() {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-gray-500">MRP:</span>
-                      <span className="ml-1 font-semibold text-gray-900">₹{item.mrp?.toFixed(2)}</span>
+                      <span className="ml-1 font-semibold text-gray-900">{item.mrp?.toFixed(2)}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Batch:</span>
@@ -252,7 +267,7 @@ export default function BillingInvoiceViewPage() {
 
           <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-4 text-center shadow-md">
             <p className="text-sm font-bold tracking-wider mb-1">Total Amount</p>
-            <p className="text-2xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{invoice.total_amount?.toFixed(2)}</p>
           </div>
         </div>
 
@@ -311,7 +326,7 @@ export default function BillingInvoiceViewPage() {
               {/* Total Amount */}
               <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-3 text-center">
                 <p className="text-xs font-bold mb-1">Total Amount</p>
-                <p className="text-2xl font-bold">₹{invoice.total_amount?.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{invoice.total_amount?.toFixed(2)}</p>
               </div>
 
             </div>
@@ -365,7 +380,7 @@ export default function BillingInvoiceViewPage() {
                       </div>
 
                       <div className="col-span-1 text-xs font-semibold text-gray-900 text-right">
-                        ₹{item.mrp?.toFixed(2)}
+                        {item.mrp?.toFixed(2)}
                       </div>
 
                       <div className="col-span-2 text-xs text-center text-gray-700 overflow-hidden">

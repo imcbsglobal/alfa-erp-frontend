@@ -258,9 +258,9 @@ export default function BillingReviewedListPage() {
                       <th className="px-4 py-3 text-left font-semibold">Priority</th>
                       <th className="px-4 py-3 text-left font-semibold">Date</th>
                       <th className="px-4 py-3 text-left font-semibold">Customer</th>
-                      <th className="px-4 py-3 text-left font-semibold">Salesman</th>
+                      <th className="px-4 py-3 text-left font-semibold">Created By</th>
                       <th className="px-4 py-3 text-right font-semibold">Amount</th>
-                      <th className="px-4 py-3 text-left font-semibold">Status</th>
+                      <th className="px-4 py-3 text-center font-semibold">Status</th>
                       <th className="px-4 py-3 text-left font-semibold">Actions</th>
                     </tr>
                   </thead>
@@ -316,10 +316,10 @@ export default function BillingReviewedListPage() {
                         </td>
 
                         <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                          ₹{inv.total_amount?.toLocaleString()}
+                          {inv.total_amount?.toLocaleString()}
                         </td>
 
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 text-center">
                           <span
                             className={`px-3 py-1 rounded-full border text-xs font-bold uppercase ${getStatusBadgeColor(
                               inv.billing_status

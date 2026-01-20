@@ -132,6 +132,7 @@ export default function UserControlPage() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [availableMenus, setAvailableMenus] = useState([]);
@@ -256,11 +257,17 @@ export default function UserControlPage() {
     }
   };
 
+  // Get unique job roles for filter
+  const uniqueRoles = ["ALL", ...new Set(users.map(u => u.job_title_name).filter(Boolean))];
+
   const filteredUsers = users.filter((u) => {
     const name = u.name || u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim();
     const email = u.email || "";
     const searchLower = searchTerm.toLowerCase();
-    return name.toLowerCase().includes(searchLower) || email.toLowerCase().includes(searchLower);
+    const matchesSearch = name.toLowerCase().includes(searchLower) || email.toLowerCase().includes(searchLower);
+    const matchesRole = roleFilter === "ALL" || u.job_title_name === roleFilter;
+    
+    return matchesSearch && matchesRole;
   });
 
   const MenuItem = ({ menu, level = 0 }) => {
@@ -346,22 +353,46 @@ export default function UserControlPage() {
               </span>
             </div>
             
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:outline-none"
-              />
-              <svg
-                className="absolute left-2.5 top-2 h-4 w-4 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+            <div className="space-y-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                />
+                <svg
+                  className="absolute left-2.5 top-2 h-4 w-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+
+              <div className="relative">
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="w-full pl-3 pr-8 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:outline-none appearance-none bg-white"
+                >
+                  {uniqueRoles.map(role => (
+                    <option key={role} value={role}>
+                      {role === "ALL" ? "All Job Roles" : role}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="absolute right-2.5 top-2 h-4 w-4 text-gray-400 pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
 

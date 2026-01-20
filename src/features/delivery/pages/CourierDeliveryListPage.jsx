@@ -3,7 +3,6 @@ import { Truck, Upload, X, CheckCircle } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { getCouriers } from '../../../services/sales';
 
 const CourierDeliveryListPage = () => {
   const [deliveries, setDeliveries] = useState([]);
@@ -11,10 +10,7 @@ const CourierDeliveryListPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [assignModal, setAssignModal] = useState({ open: false, delivery: null });
   const [uploadModal, setUploadModal] = useState({ open: false, delivery: null });
-  const [couriers, setCouriers] = useState([]);
-  const [selectedCourier, setSelectedCourier] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -24,31 +20,6 @@ const CourierDeliveryListPage = () => {
   useEffect(() => {
     loadCourierDeliveries();
   }, [currentPage, searchTerm]);
-
-  useEffect(() => {
-    loadCouriers();
-  }, []);
-
-  const loadCouriers = async () => {
-    try {
-      const response = await getCouriers();
-      let courierArray = [];
-      const apiData = response?.data;
-
-      if (Array.isArray(apiData?.data)) {
-        courierArray = apiData.data;
-      } else {
-        courierArray = [];
-      }
-
-      const activeCouriers = courierArray.filter(c => c.status === 'ACTIVE');
-      setCouriers(activeCouriers);
-    } catch (error) {
-      console.error('Failed to load couriers:', error);
-      toast.error('Failed to load couriers');
-      setCouriers([]);
-    }
-  };
 
   const loadCourierDeliveries = async () => {
     setLoading(true);
@@ -82,11 +53,6 @@ const CourierDeliveryListPage = () => {
 
   const handleViewInvoice = (billId) => {
     navigate(`/delivery/invoices/view/${billId}/courier-delivery`);
-  };
-
-  const handleAssignClick = (delivery) => {
-    setAssignModal({ open: true, delivery });
-    setSelectedCourier('');
   };
 
   const handleUploadClick = (delivery) => {
@@ -128,46 +94,6 @@ const CourierDeliveryListPage = () => {
     setPreviewUrl('');
   };
 
-  const handleAssignCourier = async () => {
-    if (!selectedCourier) {
-      toast.error('Please select a courier');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const payload = {
-        invoice_no: assignModal.delivery.invoice_no,
-        courier_id: selectedCourier, // ✅ Send courier_id (not full object)
-        delivery_type: 'COURIER',
-      };
-
-      console.log('Assigning courier with payload:', payload);
-
-      const response = await api.post('/sales/delivery/assign/', payload);
-
-      toast.success('Courier assigned successfully! Now upload the courier slip.');
-      
-      // ✅ Close modal first
-      setAssignModal({ open: false, delivery: null });
-      setSelectedCourier('');
-
-      // ✅ Then reload data from server
-      await loadCourierDeliveries();
-
-    } catch (error) {
-      console.error('Failed to assign courier:', error);
-      const errorMessage = error.response?.data?.message 
-        || error.response?.data?.detail 
-        || error.response?.data?.error
-        || JSON.stringify(error.response?.data)
-        || 'Failed to assign courier';
-      toast.error(errorMessage);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleUploadSlip = async () => {
     if (!uploadedFile) {
       toast.error('Please upload a courier slip/screenshot');
@@ -191,12 +117,10 @@ const CourierDeliveryListPage = () => {
 
       toast.success('Courier slip uploaded successfully! Delivery marked as completed.');
       
-      // ✅ Close modal first
       setUploadModal({ open: false, delivery: null });
       setUploadedFile(null);
       setPreviewUrl('');
 
-      // ✅ Then reload data from server
       await loadCourierDeliveries();
 
     } catch (error) {
@@ -222,7 +146,7 @@ const CourierDeliveryListPage = () => {
     });
   };
 
-  // ✅ Check if courier is assigned by checking delivery_info
+  // Check if courier is assigned
   const isCourierAssigned = (delivery) => {
     return delivery.delivery_info?.courier_name ? true : false;
   };
@@ -289,7 +213,7 @@ const CourierDeliveryListPage = () => {
                           {delivery.items?.length || 0} items
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          ₹{delivery.total_amount?.toFixed(2) || '0.00'}
+                          {delivery.total_amount?.toFixed(2) || '0.00'}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {formatDateTime(delivery.created_at)}
@@ -318,23 +242,13 @@ const CourierDeliveryListPage = () => {
                             >
                               View
                             </button>
-                            {!isCourierAssigned(delivery) ? (
-                              <button
-                                onClick={() => handleAssignClick(delivery)}
-                                className="px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm hover:from-teal-600 hover:to-cyan-700 transition-all flex items-center gap-1"
-                              >
-                                <Truck className="w-3.5 h-3.5" />
-                                Assign
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleUploadClick(delivery)}
-                                className="px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm hover:from-teal-600 hover:to-cyan-700 transition-all flex items-center gap-1"
-                              >
-                                <Upload className="w-3.5 h-3.5" />
-                                Upload Slip
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleUploadClick(delivery)}
+                              className="px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm hover:from-orange-600 hover:to-orange-700 transition-all flex items-center gap-1"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              Upload Slip
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -372,82 +286,6 @@ const CourierDeliveryListPage = () => {
         </div>
       </div>
 
-      {/* Assign Courier Modal */}
-      {assignModal.open && (
-        <>
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50"
-            onClick={() => setAssignModal({ open: false, delivery: null })}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
-              className="bg-white rounded-xl shadow-2xl max-w-lg w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-5 py-3 flex items-center justify-between rounded-t-xl">
-                <h3 className="text-lg font-bold text-white">Assign Courier</h3>
-                <button
-                  onClick={() => setAssignModal({ open: false, delivery: null })}
-                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1.5 transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-5 space-y-4">
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{assignModal.delivery?.invoice_no}</p>
-                      <p className="text-sm text-gray-600 mt-0.5">{assignModal.delivery?.customer?.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-900">₹{assignModal.delivery?.total_amount?.toFixed(2)}</p>
-                      <p className="text-xs text-gray-500">{assignModal.delivery?.items?.length || 0} items</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Select Courier <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={selectedCourier}
-                    onChange={(e) => setSelectedCourier(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                  >
-                    <option value="">-- Select Courier --</option>
-                    {couriers.map((courier) => (
-                      <option key={courier.courier_id} value={courier.courier_id}>
-                        {courier.courier_name} ({courier.courier_code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="px-5 pb-5 flex gap-3">
-                <button
-                  onClick={() => setAssignModal({ open: false, delivery: null })}
-                  disabled={submitting}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAssignCourier}
-                  disabled={submitting || !selectedCourier}
-                  className="flex-1 py-2 px-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  {submitting ? 'Assigning...' : 'Assign Courier'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Upload Slip Modal */}
       {uploadModal.open && (
         <>
@@ -476,9 +314,14 @@ const CourierDeliveryListPage = () => {
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900">{uploadModal.delivery?.invoice_no}</p>
                       <p className="text-sm text-gray-600 mt-0.5">{uploadModal.delivery?.customer?.name}</p>
+                      {uploadModal.delivery?.delivery_info?.courier_name && (
+                        <p className="text-xs text-teal-600 mt-1 font-medium">
+                          Courier: {uploadModal.delivery.delivery_info.courier_name}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-gray-900">₹{uploadModal.delivery?.total_amount?.toFixed(2)}</p>
+                      <p className="font-semibold text-gray-900">{uploadModal.delivery?.total_amount?.toFixed(2)}</p>
                       <p className="text-xs text-gray-500">{uploadModal.delivery?.items?.length || 0} items</p>
                     </div>
                   </div>
@@ -536,10 +379,6 @@ const CourierDeliveryListPage = () => {
                       </div>
                     </div>
                   )}
-                </div>
-
-                <div className="text-xs text-gray-600 bg-green-50 border border-green-200 rounded p-2.5">
-                  ✅ <span className="font-medium">Final Step:</span> Upload the slip to mark delivery as completed.
                 </div>
               </div>
 

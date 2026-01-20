@@ -179,11 +179,11 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-800">{item.shelf_location}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-800">{item.name}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-center text-gray-800">{item.quantity}</td>
-                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right text-gray-800">₹{item.mrp?.toFixed(2)}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right text-gray-800">{item.mrp?.toFixed(2)}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-800">{item.batch_no}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-800">{item.expiry_date || '—'}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold text-gray-800">
-                            ₹{(item.quantity * item.mrp).toFixed(2)}
+                            {(item.quantity * item.mrp).toFixed(2)}
                           </td>
                         </tr>
                       ))}
@@ -195,7 +195,7 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                 <div className="bg-gray-50 border-t border-gray-200 px-3 sm:px-4 py-3 flex justify-end">
                   <div className="text-right">
                     <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Amount</p>
-                    <p className="text-xl sm:text-2xl font-bold text-teal-600">₹{invoice.total_amount?.toFixed(2)}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-teal-600">{invoice.total_amount?.toFixed(2)}</p>
                   </div>
                 </div>
               </div>

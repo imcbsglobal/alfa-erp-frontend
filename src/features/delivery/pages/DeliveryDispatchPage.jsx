@@ -100,7 +100,15 @@ const DeliveryDispatchPage = () => {
       const response = await api.post('/sales/delivery/start/', payload);
 
       if (response.data.success) {
-        toast.success(response.data.message);
+        // Show appropriate success message based on delivery type
+        if (payload.delivery_type === 'DIRECT') {
+          toast.success('Counter pickup completed successfully!');
+        } else if (payload.delivery_type === 'COURIER') {
+          toast.success('Courier assigned! Invoice moved to Courier Consider List');
+        } else if (payload.delivery_type === 'INTERNAL') {
+          toast.success('Staff assigned! Invoice moved to Company Delivery Consider List');
+        }
+        
         setSelectedBill(null);
         loadPackedInvoices();
       }
@@ -207,7 +215,6 @@ const DeliveryDispatchPage = () => {
                       <th className="px-4 py-3 text-left">Priority</th>
                       <th className="px-4 py-3 text-left">Date</th>
                       <th className="px-4 py-3 text-left">Customer</th>
-                      <th className="px-4 py-3 text-left">Contact</th>
                       <th className="px-4 py-3 text-left">Items</th>
                       <th className="px-4 py-3 text-right">Amount</th>
                       <th className="px-4 py-3 text-left">Status</th>
@@ -244,15 +251,11 @@ const DeliveryDispatchPage = () => {
                           <p className="font-medium">{bill.customer?.name || '—'}</p>
                           <p className="text-xs text-gray-500">{bill.customer?.area || ''}</p>
                         </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm">{bill.customer?.phone1 || '—'}</p>
-                          <p className="text-xs text-gray-500">{bill.customer?.email || ''}</p>
-                        </td>
                         <td className="px-4 py-3 text-sm">
                           {bill.items?.length || 0} items
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          ₹{bill.total_amount?.toFixed(2) || '0.00'}
+                          {bill.total_amount?.toFixed(2) || '0.00'}
                         </td>
                         <td className="px-4 py-3">
                           <span className="px-3 py-1 rounded-full border text-xs font-bold bg-emerald-100 text-emerald-700 border-emerald-300">

@@ -540,7 +540,7 @@ export default function MyPackingListPage() {
                                 })}
                               </span>
                             )}
-                            {item.mrp && <span>MRP: ₹{item.mrp}</span>}
+                            {item.mrp && <span>MRP: {item.mrp}</span>}
                           </div>
                         </div>
 

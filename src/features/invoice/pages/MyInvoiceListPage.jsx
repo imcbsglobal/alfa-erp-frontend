@@ -345,6 +345,15 @@ export default function MyInvoiceListPage() {
     setExpandedInvoice(expandedInvoice === invoiceId ? null : invoiceId);
   };
 
+  // Extract place from address (last part after comma)
+  const getPlaceFromAddress = (address) => {
+    if (!address) return "-";
+    const parts = address.split(',');
+    const lastPart = parts[parts.length - 1].trim();
+    // Remove "POST" suffix if exists and return
+    return lastPart.replace(/\s*POST\s*$/i, '').trim() || "-";
+  };
+
   if (loading) return <div className="p-6">Loading...</div>;
 
   const canCompletePicking =
@@ -477,7 +486,7 @@ export default function MyInvoiceListPage() {
                             <span>📍 <b>{item.shelf_location || "—"}</b></span>
                             <span>Pack: <b>{item.packing || "—"}</b></span>
                             <span>Qty: <b>{item.quantity}</b></span>
-                            <span>MRP: <b>₹{item.mrp || "—"}</b></span>
+                            <span>MRP: <b>{item.mrp || "—"}</b></span>
                             <span>Batch: <b>{item.batch_no || "—"}</b></span>
                             <span>Exp: <b>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString("en-GB") : "—"}</b></span>
                           </div>
@@ -533,13 +542,14 @@ export default function MyInvoiceListPage() {
               {/* ===== DESKTOP TABLE ===== */}
               <div className="hidden md:block">
                 <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
-                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
-                    <div className="col-span-2">Invoice</div>
-                    <div className="col-span-2">Date</div>
-                    <div className="col-span-2">Start</div>
-                    <div className="col-span-2">End</div>
-                    <div className="col-span-2">Duration</div>
-                    <div className="col-span-2">Status</div>
+                  <div className="grid grid-cols-7 gap-4 px-6 py-3 text-sm font-semibold">
+                    <div className="col-span-1">Invoice</div>
+                    <div className="col-span-1">Customer & Place</div>
+                    <div className="col-span-1">Date</div>
+                    <div className="col-span-1">Start</div>
+                    <div className="col-span-1">End</div>
+                    <div className="col-span-1">Duration</div>
+                    <div className="col-span-1">Status</div>
                   </div>
                 </div>
 
@@ -549,20 +559,24 @@ export default function MyInvoiceListPage() {
                       {/* MAIN ROW */}
                       <div
                         onClick={() => toggleExpand(inv.id)}
-                        className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer"
+                        className="grid grid-cols-7 gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer"
                       >
-                        <div className="col-span-2 font-semibold">#{inv.invoice_no}</div>
-                        <div className="col-span-2">{formatDate(inv.start_time)}</div>
-                        <div className="col-span-2">{formatTime(inv.start_time)}</div>
-                        <div className="col-span-2">{formatTime(inv.end_time)}</div>
-                        <div className="col-span-2">
+                        <div className="col-span-1 font-semibold">#{inv.invoice_no}</div>
+                        <div className="col-span-1">
+                          <p className="font-medium text-gray-900">{inv.customer_name || "-"}</p>
+                          <p className="text-xs text-gray-500">{getPlaceFromAddress(inv.customer_address)}</p>
+                        </div>
+                        <div className="col-span-1">{formatDate(inv.start_time)}</div>
+                        <div className="col-span-1">{formatTime(inv.start_time)}</div>
+                        <div className="col-span-1">{formatTime(inv.end_time)}</div>
+                        <div className="col-span-1">
                           {inv.duration != null
                             ? `${Math.floor(inv.duration)} min ${Math.round(
                                 (inv.duration % 1) * 60
                               )} sec`
                             : "-"}
                         </div>
-                        <div className="col-span-2">
+                        <div className="col-span-1">
                           <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold">
                             PICKED
                           </span>
@@ -572,12 +586,6 @@ export default function MyInvoiceListPage() {
                       {/* EXPANDED DESKTOP VIEW */}
                       {expandedInvoice === inv.id && (
                         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                          <div className="mb-3">
-                            <p className="font-semibold text-gray-700">Customer</p>
-                            <p>{inv.customer_name || "-"}</p>
-                            <p>{inv.customer_phone || "-"}</p>
-                            <p>{inv.customer_address || "-"}</p>
-                          </div>
 
                           <div>
                             <p className="font-semibold text-gray-700 mb-2">
@@ -611,7 +619,11 @@ export default function MyInvoiceListPage() {
                       onClick={() => toggleExpand(inv.id)}
                       className="p-4 flex justify-between items-center cursor-pointer"
                     >
-                      <p className="font-bold">#{inv.invoice_no}</p>
+                      <div>
+                        <p className="font-bold">#{inv.invoice_no}</p>
+                        <p className="text-sm text-gray-600">{inv.customer_name || "-"}</p>
+                        <p className="text-xs text-gray-500">{getPlaceFromAddress(inv.customer_address)}</p>
+                      </div>
                       <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded text-xs font-semibold">
                         PICKED
                       </span>
@@ -633,10 +645,6 @@ export default function MyInvoiceListPage() {
                     {/* Expanded Details */}
                     {expandedInvoice === inv.id && (
                       <div className="border-t bg-gray-50 p-4 text-sm">
-                        <p className="font-semibold mb-1">Customer</p>
-                        <p>{inv.customer_name || "-"}</p>
-                        <p>{inv.customer_phone || "-"}</p>
-                        <p>{inv.customer_address || "-"}</p>
 
                         <p className="font-semibold mt-3 mb-1">
                           Items ({inv.items?.length || 0})

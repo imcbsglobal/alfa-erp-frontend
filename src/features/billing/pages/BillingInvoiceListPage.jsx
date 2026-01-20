@@ -11,6 +11,11 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
+function formatAmount(amount) {
+  if (!amount) return "0.00";
+  return parseFloat(amount).toFixed(2);
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -23,7 +28,10 @@ export default function BillingInvoiceListPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Filters
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Initial load
   useEffect(() => {
@@ -160,18 +168,10 @@ export default function BillingInvoiceListPage() {
         return "Invoiced";
       case "PICKED":
         return "Picked";
-      case "PICKING":
-        return "Picking";
-      case "PACKING":
-        return "Packing";
       case "PACKED":
         return "Packed";
-      case "DISPATCHED":
-        return "Dispatched";
       case "DELIVERED":
         return "Delivered";
-      case "BILLED":
-        return "Billed";
       case "REVIEW":
         return "Under Review";
       default:
@@ -183,41 +183,30 @@ export default function BillingInvoiceListPage() {
     return inv.status;
   };
 
-  // Pagination calc + 🔽 sort latest first
+  // Sort latest first
   const sortedInvoices = [...invoices].sort(
     (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
   );
 
+  // Apply status filter
+  const filteredInvoices = statusFilter === "ALL" 
+    ? sortedInvoices 
+    : sortedInvoices.filter(inv => getDisplayStatus(inv) === statusFilter);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, itemsPerPage]);
+
   // Pagination calc
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sortedInvoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
+  const currentItems = filteredInvoices.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
 
   const handlePageChange = (n) => {
     setCurrentPage(n);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-    return (
-      <div className="flex justify-center gap-2 py-4">
-        {[...Array(totalPages)].map((_, i) => (
-          <button
-            key={i}
-            onClick={() => handlePageChange(i + 1)}
-            className={`px-3 py-1 rounded ${
-              currentPage === i + 1
-                ? "bg-cyan-600 text-white"
-                : "bg-white border"
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
-      </div>
-    );
   };
 
   return (
@@ -228,12 +217,43 @@ export default function BillingInvoiceListPage() {
           <h1 className="text-2xl font-bold text-gray-800">
             Invoice Management
           </h1>
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700">Status:</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="ALL">All</option>
+                <option value="INVOICED">Invoiced</option> 
+                <option value="PICKED">Picked</option>
+                <option value="PACKED">Packed</option>
+                <option value="DISPATCHED">Dispatched</option>
+                <option value="DELIVERED">Delivered</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-700">Rows:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow overflow-hidden">
@@ -241,9 +261,9 @@ export default function BillingInvoiceListPage() {
             <div className="py-20 text-center text-gray-500">
               Loading invoices...
             </div>
-          ) : invoices.length === 0 ? (
+          ) : filteredInvoices.length === 0 ? (
             <div className="py-20 text-center text-gray-500">
-              No invoices found
+              {statusFilter === "ALL" ? "No invoices found" : `No ${getStatusLabel(statusFilter).toLowerCase()} invoices found`}
             </div>
           ) : (
             <>
@@ -255,7 +275,7 @@ export default function BillingInvoiceListPage() {
                       <th className="px-4 py-3 text-left">Priority</th>
                       <th className="px-4 py-3 text-left">Date</th>
                       <th className="px-4 py-3 text-left">Customer</th>
-                      <th className="px-4 py-3 text-left">Salesman</th>
+                      <th className="px-4 py-3 text-left">Created By</th>
                       <th className="px-4 py-3 text-right">Amount</th>
                       <th className="px-4 py-3 text-left">Status</th>
                       <th className="px-4 py-3 text-left">Actions</th>
@@ -294,7 +314,7 @@ export default function BillingInvoiceListPage() {
                           {inv.salesman?.name}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          ₹{inv.total_amount}
+                          {formatAmount(inv.total_amount)}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -322,7 +342,7 @@ export default function BillingInvoiceListPage() {
               </div>
               <Pagination
                 currentPage={currentPage}
-                totalItems={sortedInvoices.length}
+                totalItems={filteredInvoices.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={handlePageChange}
                 label="invoices"

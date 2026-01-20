@@ -235,9 +235,38 @@ export default function DeliveryHistory() {
 
                       <td className="px-6 py-3 text-gray-700">
                         {h.delivery_type === "DIRECT" && (
-                          <p className="text-xs text-gray-500">Customer collected</p>
-                        )}
+                          <>
+                            {h.counter_sub_mode === "patient" && (
+                              <>
+                                <p className="font-medium">Direct Patient</p>
+                                <p className="text-xs text-gray-500">
+                                  Name: {h.pickup_person_name || "-"}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Phone: {h.pickup_person_phone || "-"}
+                                </p>
+                              </>
+                            )}
 
+                            {h.counter_sub_mode === "company" && (
+                              <>
+                                <p className="font-medium">Direct Company</p>
+                                <p className="text-xs text-gray-500">
+                                  Person: {h.pickup_person_name || "-"}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Phone: {h.pickup_person_phone || "-"}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Company: {h.pickup_company_name || "-"}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Company ID: {h.pickup_company_id || "-"}
+                                </p>
+                              </>
+                            )}
+                          </>
+                        )}
                         {h.delivery_type === "COURIER" && (
                           <>
                             <p className="font-medium">{h.courier_name}</p>
