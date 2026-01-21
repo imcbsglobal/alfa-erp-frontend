@@ -6,6 +6,7 @@ import { getActivePickingTask } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
+import ActiveUsersDock from '../../../components/ActiveUsersDock';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -128,6 +129,7 @@ export default function InvoiceListPage() {
       console.error("Failed to load ongoing tasks:", err);
       toast.error("Failed to load ongoing tasks");
       setOngoingTasks([]);
+      setLoadingOngoing(false);
     }
   };
 
@@ -155,15 +157,21 @@ export default function InvoiceListPage() {
 
   const handlePickInvoice = async (employeeEmail) => {
     try {
+      // First check if there's already an active picking session
+      console.log("Checking for active picking session...");
       const activeRes = await api.get("/sales/picking/active/");
+      console.log("Active picking response:", activeRes.data);
+      
       if (activeRes.data?.data) {
         const activeInvoice = activeRes.data.data.invoice;
+        console.log("Active invoice found:", activeInvoice);
         setActiveInvoiceData(activeInvoice);
         setShowPickModal(false);
         setShowActiveWarning(true);
         return;
       }
 
+      // No active session, proceed with starting picking
       await api.post("/sales/picking/start/", {
         invoice_no: selectedInvoice.invoice_no,
         user_email: employeeEmail,
@@ -176,31 +184,85 @@ export default function InvoiceListPage() {
 
       toast.success(`Picking started for ${selectedInvoice.invoice_no}`);
     } catch (err) {
-      const msg = err.response?.data?.errors?.invoice_no?.[0];
-
-      if (msg?.includes("already exists")) {
-        const activeRes = await api.get("/sales/picking/active/");
-        if (activeRes.data?.data) {
-          const inv = activeRes.data.data.invoice;
-          setActiveInvoiceData(inv);
+      console.error("Error in handlePickInvoice:", err);
+      console.log("Error response:", err.response?.data);
+      console.log("Error status:", err.response?.status);
+      
+      // Check if it's a 409 Conflict error (active session exists)
+      if (err.response?.status === 409) {
+        console.log("409 Conflict - Active session detected, fetching details...");
+        try {
+          const activeRes = await api.get("/sales/picking/active/");
+          console.log("Fetched active session:", activeRes.data);
+          
+          // Try different possible response structures
+          const activeInvoice = activeRes.data?.data?.invoice || 
+                               activeRes.data?.invoice || 
+                               activeRes.data?.data;
+          
+          if (activeInvoice && (activeInvoice.id || activeInvoice.invoice_no)) {
+            console.log("Active invoice details:", activeInvoice);
+            setActiveInvoiceData(activeInvoice);
+            setShowPickModal(false);
+            setShowActiveWarning(true);
+            return;
+          }
+          
+          // If we can't get invoice details, try to extract from error response
+          const errorInvoiceNo = err.response?.data?.invoice_no || 
+                                err.response?.data?.data?.invoice_no ||
+                                err.response?.data?.details?.invoice_no;
+          
+          if (errorInvoiceNo) {
+            console.log("Using invoice number from error:", errorInvoiceNo);
+            setActiveInvoiceData({ invoice_no: errorInvoiceNo });
+            setShowPickModal(false);
+            setShowActiveWarning(true);
+            return;
+          }
+          
+          // Last resort - show generic warning
+          console.log("Could not get invoice details, showing generic warning");
+          setActiveInvoiceData({ invoice_no: "Unknown" });
           setShowPickModal(false);
           setShowActiveWarning(true);
+          return;
+        } catch (activeErr) {
+          console.error("Failed to fetch active session:", activeErr);
+          // Still show warning even if fetch fails
+          setActiveInvoiceData({ invoice_no: "Unknown" });
+          setShowPickModal(false);
+          setShowActiveWarning(true);
+          return;
         }
-        return;
+      }
+      
+      // Check for other error messages indicating active session
+      const msg = err.response?.data?.errors?.invoice_no?.[0];
+      const errorMessage = err.response?.data?.message || '';
+
+      if (msg?.includes("already exists") || 
+          errorMessage.toLowerCase().includes("active") ||
+          errorMessage.toLowerCase().includes("already")) {
+        console.log("Active session error detected from message, fetching details...");
+        try {
+          const activeRes = await api.get("/sales/picking/active/");
+          console.log("Fetched active session:", activeRes.data);
+          
+          if (activeRes.data?.data) {
+            const inv = activeRes.data.data.invoice;
+            setActiveInvoiceData(inv);
+            setShowPickModal(false);
+            setShowActiveWarning(true);
+            return;
+          }
+        } catch (activeErr) {
+          console.error("Failed to fetch active session:", activeErr);
+        }
       }
 
       toast.error(err.response?.data?.message || "Failed to start picking");
     }
-  };
-
-  const handleGoToActiveBill = () => {
-    if (activeInvoiceData) {
-      const path = user?.role === "PICKER" 
-        ? `/ops/picking/invoices/view/${activeInvoiceData.id}`
-        : `/invoices/view/${activeInvoiceData.id}/picking`;
-      navigate(path);
-    }
-    setShowActiveWarning(false);
   };
 
   const sortedInvoices = [...invoices].sort(
@@ -262,6 +324,10 @@ export default function InvoiceListPage() {
   };
 
   const getStatusLabel = (status) => status || "INVOICED";
+
+  // Add debug logging
+  console.log("showActiveWarning:", showActiveWarning);
+  console.log("activeInvoiceData:", activeInvoiceData);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -435,7 +501,6 @@ export default function InvoiceListPage() {
                 </button>
               </div>
 
-
               <div className="p-6">
                 <div className="mb-6">
                   <p className="text-gray-700 text-lg mb-4">
@@ -539,6 +604,7 @@ export default function InvoiceListPage() {
           </div>
         </>
       )}
+      <ActiveUsersDock type="picking" />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import Pagination from "../../../components/Pagination";
+import ActiveUsersDock from '../../../components/ActiveUsersDock';
 
 const CompanyDeliveryListPage = () => {
   const [deliveries, setDeliveries] = useState([]);
@@ -244,6 +245,7 @@ const CompanyDeliveryListPage = () => {
               />
             </>
           )}
+          <ActiveUsersDock type="delivery" />
         </div>
       </div>
     </div>
