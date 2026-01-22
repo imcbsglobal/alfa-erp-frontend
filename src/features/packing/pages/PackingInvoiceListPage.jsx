@@ -177,6 +177,16 @@ export default function PackingInvoiceListPage() {
     }
 
     try {
+      // Check for active packing session
+      const activeRes = await api.get("/sales/packing/active/");
+      if (activeRes.data?.data) {
+        const activeInvoice = activeRes.data.data.invoice;
+        setActiveInvoiceData(activeInvoice);
+        setShowPackModal(false);
+        setShowActiveWarning(true);
+        return;
+      }
+
       await api.post("/sales/packing/start/", {
         invoice_no: selectedInvoice.invoice_no,
         user_email: employeeEmail.trim(),
@@ -189,53 +199,20 @@ export default function PackingInvoiceListPage() {
       toast.success(`Packing started for invoice ${selectedInvoice.invoice_no}`);
     } catch (err) {
       console.error("Start packing error:", err);
-      console.log("Error response:", err.response?.data);
-      console.log("Error status:", err.response?.status);
       
-      // Check if it's a 409 conflict (active session exists) or error message contains "active"
-      if (err.response?.status === 409 || 
-          err.response?.data?.message?.toLowerCase().includes("active") ||
-          err.response?.data?.error?.toLowerCase().includes("active")) {
-        
-        console.log("Active session detected, error data:", err.response?.data);
-        
-        // First try to get invoice number from the error response
-        const invoiceNo = err.response?.data?.data?.invoice_no || 
-                         err.response?.data?.invoice_no ||
-                         "Unknown";
-        
-        console.log("Invoice number from error:", invoiceNo);
-        
-        // Try to get full invoice details from the active endpoint
-        try {
-          const activeRes = await api.get("/sales/packing/active/");
-          console.log("Fetching active session after 409:", activeRes.data);
-          
-          // Try different response structures
-          const activeInvoice = activeRes.data?.data?.invoice || 
-                               activeRes.data?.invoice || 
-                               activeRes.data?.data;
-          
-          if (activeInvoice && (activeInvoice.id || activeInvoice.invoice_no)) {
-            console.log("Active invoice found from API:", activeInvoice);
-            setActiveInvoiceData(activeInvoice);
-            setShowPackModal(false);
-            setShowActiveWarning(true);
-            return;
-          }
-        } catch (activeErr) {
-          console.error("Failed to fetch active invoice details:", activeErr);
+      const msg = err.response?.data?.errors?.invoice_no?.[0];
+
+      if (msg?.includes("already exists")) {
+        const activeRes = await api.get("/sales/packing/active/");
+        if (activeRes.data?.data) {
+          const inv = activeRes.data.data.invoice;
+          setActiveInvoiceData(inv);
+          setShowPackModal(false);
+          setShowActiveWarning(true);
         }
-        
-        // If we couldn't get full details, use the invoice number from error
-        console.log("Using invoice number from error response:", invoiceNo);
-        setActiveInvoiceData({ invoice_no: invoiceNo });
-        setShowPackModal(false);
-        setShowActiveWarning(true);
         return;
       }
       
-      // For other errors, show toast
       const errorMessage = err.response?.data?.message 
         || err.response?.data?.error
         || err.response?.data?.detail
@@ -247,18 +224,9 @@ export default function PackingInvoiceListPage() {
 
   const handleGoToActiveBill = () => {
     if (activeInvoiceData) {
-      // Check if we have an invoice ID to navigate to
-      if (!activeInvoiceData.id) {
-        toast.error("Cannot navigate: Invoice ID not found");
-        setShowActiveWarning(false);
-        return;
-      }
-
       const path = user?.role === "PACKER" 
         ? `/ops/packing/invoices/view/${activeInvoiceData.id}`
         : `/packing/invoices/view/${activeInvoiceData.id}/packing`;
-      
-      console.log("Navigating to:", path);
       navigate(path);
     }
     setShowActiveWarning(false);
@@ -452,14 +420,14 @@ export default function PackingInvoiceListPage() {
         invoiceNumber={selectedInvoice?.invoice_no}
       />
 
-      {/* Active Packing Warning Modal - FIXED: Added "Go to Active Bill" button */}
+      {/* Active Packing Warning Modal */}
       {showActiveWarning && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            className="fixed inset-0 bg-black bg-opacity-50 z-[9999]"
             onClick={() => setShowActiveWarning(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
             <div
               className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
               onClick={(e) => e.stopPropagation()}
@@ -499,22 +467,6 @@ export default function PackingInvoiceListPage() {
                     )}
                   </div>
                 </div>
-
-                {/* FIXED: Added navigation button */}
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowActiveWarning(false)}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleGoToActiveBill}
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all"
-                  >
-                    Go to Active Bill
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -525,10 +477,10 @@ export default function PackingInvoiceListPage() {
       {showOngoingModal && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            className="fixed inset-0 bg-black bg-opacity-50 z-[9999]"
             onClick={() => setShowOngoingModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
             <div
               className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}

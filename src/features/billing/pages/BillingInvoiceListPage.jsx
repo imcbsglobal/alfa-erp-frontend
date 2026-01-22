@@ -65,19 +65,22 @@ export default function BillingInvoiceListPage() {
           // Normal update/add for non-REVIEW invoices
           const idx = prev.findIndex((i) => i.id === data.id);
           if (idx !== -1) {
+            // Update existing invoice
             const copy = [...prev];
             copy[idx] = { ...copy[idx], ...data };
             return copy;
           }
-          return [data, ...prev];
+          // Add new invoice at the beginning
+          return [{ ...data, _isLive: true }, ...prev];
         });
+        setCurrentPage(1);
       } catch (e) {
         console.error("Bad SSE data", e);
       }
     };
 
-    es.onerror = () => {
-      console.error("SSE connection closed");
+    es.onerror = (error) => {
+      console.error("SSE connection error:", error);
       es.close();
     };
 
@@ -87,18 +90,22 @@ export default function BillingInvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/billing/invoices/");
-      const list = res.data.results || [];
+      let all = [];
+      let url = "/sales/billing/invoices/";
 
-      // 🔴 Filter out REVIEW status invoices
-      let nonReviewedInvoices = list.filter(
+      while (url) {
+        const res = await api.get(url);
+        all = all.concat(res.data.results || []);
+        url = res.data.next;
+      }
+
+      let nonReviewedInvoices = all.filter(
         inv => inv.billing_status !== "REVIEW" && inv.status !== "REVIEW"
       );
 
-      // 🔴 Filter by salesman name - only show if matches logged-in user (unless admin)
       const isAdmin = user?.role === "ADMIN" || user?.is_superuser;
       const userName = user?.username || user?.name;
-      
+
       if (!isAdmin) {
         nonReviewedInvoices = nonReviewedInvoices.filter(
           inv => inv.salesman?.name === userName
@@ -184,9 +191,11 @@ export default function BillingInvoiceListPage() {
   };
 
   // Sort latest first
-  const sortedInvoices = [...invoices].sort(
-    (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
-  );
+  const sortedInvoices = [...invoices].sort((a, b) => {
+    if (a._isLive && !b._isLive) return -1;
+    if (!a._isLive && b._isLive) return 1;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
 
   // Apply status filter
   const filteredInvoices = statusFilter === "ALL" 
@@ -285,7 +294,7 @@ export default function BillingInvoiceListPage() {
                     {currentItems.map((inv) => (
                       <tr
                         key={inv.id}
-                        className={`transition hover:bg-grey-50 ${
+                        className={`transition hover:bg-gray-50 ${
                           inv.priority === "HIGH" ? "bg-red-50" : ""
                         }`}
                       >

@@ -5,7 +5,7 @@ export default function Forbidden() {
     <div className="h-screen flex flex-col items-center justify-center bg-gray-50">
       <h1 className="text-6xl font-bold text-red-600">403</h1>
       <p className="mt-4 text-gray-700 text-lg">
-        You don’t have permission to access this page.
+        You don't have permission to access this page.
       </p>
       <Link
         to="/dashboard"

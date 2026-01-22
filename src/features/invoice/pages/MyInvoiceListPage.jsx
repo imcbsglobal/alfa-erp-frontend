@@ -313,6 +313,15 @@ export default function MyInvoiceListPage() {
       
     } catch (err) {
       console.error("Complete picking error:", err);
+      
+      // Check for privilege error (403)
+      if (err.response?.status === 403) {
+        const privilegeMessage = err.response?.data?.message 
+          || "You don't have privilege to perform picking operations";
+        toast.error(privilegeMessage, { duration: 4000 });
+        return;
+      }
+      
       const errorMsg = err.response?.data?.message || 
                       err.response?.data?.errors?.invoice_no?.[0] ||
                       "Failed to complete picking";
