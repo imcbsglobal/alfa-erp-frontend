@@ -213,7 +213,7 @@ const CourierDeliveryListPage = () => {
                           {delivery.items?.length || 0} items
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {delivery.total_amount?.toFixed(2) || '0.00'}
+                          {delivery.total?.toFixed(2) || '0.00'}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {formatDateTime(delivery.created_at)}
@@ -321,7 +321,7 @@ const CourierDeliveryListPage = () => {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-gray-900">{uploadModal.delivery?.total_amount?.toFixed(2)}</p>
+                      <p className="font-semibold text-gray-900">{uploadModal.delivery?.total?.toFixed(2)}</p>
                       <p className="text-xs text-gray-500">{uploadModal.delivery?.items?.length || 0} items</p>
                     </div>
                   </div>

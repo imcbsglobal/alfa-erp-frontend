@@ -31,6 +31,8 @@ import {
     Send,
     Warehouse,
     Pill,
+    Settings,
+    Database,
   } from "lucide-react";
 
 export const MENU_CONFIG = [
@@ -40,6 +42,7 @@ export const MENU_CONFIG = [
     icon: LayoutDashboard,
     path: "/dashboard",
     type: "single",
+    hasAccess: (user) => user?.role === "SUPERADMIN" || user?.role === "ADMIN",
   },
   {
     id: "orders",
@@ -221,6 +224,14 @@ export const MENU_CONFIG = [
     ],
     isActive: (pathname) => pathname.includes("/master/"),
   },
+  {
+    id: "developer",
+    label: "Developer Options",
+    icon: Database,
+    path: "/developer/settings",
+    type: "single",
+    hasAccess: (user) => user?.role === "SUPERADMIN",
+  },
 ];
 
 // Page title mapping
@@ -257,4 +268,5 @@ export const PAGE_TITLES = {
   "/master/courier/add": "Add Courier",
   "/history": "History",
   "/history/consolidate": "Consolidate History",
+  "/developer/settings": "Developer Options",
 };

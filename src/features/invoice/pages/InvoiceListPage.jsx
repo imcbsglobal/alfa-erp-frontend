@@ -30,6 +30,16 @@ function formatTime(timeStr) {
   }
 }
 
+function formatDateTime(dateString) {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 function formatDuration(startTime) {
   if (!startTime) return "N/A";
   const start = new Date(startTime);
@@ -91,7 +101,7 @@ export default function InvoiceListPage() {
     };
 
     eventSource.onerror = () => {
-      console.error("SSE connection lost");
+      // SSE connection closed - normal behavior during server restarts or timeouts
       eventSource.close();
     };
 
@@ -371,7 +381,7 @@ export default function InvoiceListPage() {
                     <tr>
                       <th className="px-4 py-3 text-left">Invoice</th>
                       <th className="px-4 py-3 text-left">Priority</th>
-                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Date / Created</th>
                       <th className="px-4 py-3 text-left">Customer</th>
                       <th className="px-4 py-3 text-left">Created By</th>
                       <th className="px-4 py-3 text-right">Amount</th>
@@ -402,8 +412,9 @@ export default function InvoiceListPage() {
                             {inv.priority || "—"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm">
-                          {formatDate(inv.invoice_date)}
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-medium">{formatDate(inv.invoice_date)}</p>
+                          <p className="text-xs text-gray-500">{formatDateTime(inv.created_at)}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
@@ -415,7 +426,7 @@ export default function InvoiceListPage() {
                           {inv.salesman?.name}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {inv.total_amount?.toFixed(2)}
+                          {inv.total != null ? Number(inv.total).toFixed(2) : '0.00'}
                         </td>
                         <td className="px-4 py-3 text-center ">
                           <span
@@ -562,7 +573,7 @@ export default function InvoiceListPage() {
                       <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                         <tr>
                           <th className="px-4 py-3 text-left">Invoice</th>
-                          <th className="px-4 py-3 text-left">Employee</th>
+                          <th className="px-4 py-3 text-left">Date / Created</th>
                           <th className="px-4 py-3 text-left">Customer</th>
                           <th className="px-4 py-3 text-left">Date</th>
                           <th className="px-4 py-3 text-left">Start Time</th>

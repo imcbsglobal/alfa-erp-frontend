@@ -3,6 +3,7 @@ import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import { getActivePickingTask } from "../../../services/sales";
 import toast from "react-hot-toast";
+import ConfirmationModal from '../../../components/ConfirmationModal';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -18,6 +19,7 @@ export default function MyInvoiceListPage() {
   const [savedIssues, setSavedIssues] = useState([]);
   const [activePickingTask, setActivePickingTask] = useState(null);
   const activeInvoice = activePickingTask?.invoice || null;
+  const [cancelModal, setCancelModal] = useState({ open: false });
 
   const { user } = useAuth();
 
@@ -63,7 +65,7 @@ export default function MyInvoiceListPage() {
     };
 
     es.onerror = () => {
-      console.error("SSE connection error");
+      // SSE connection closed - normal behavior during server restarts or timeouts
       es.close();
     };
 
@@ -331,6 +333,39 @@ export default function MyInvoiceListPage() {
     }
   };
 
+  const handleCancelPicking = async () => {
+    if (!activeInvoice || !user?.email) {
+      toast.error("Cannot cancel at this time");
+      return;
+    }
+
+    setCancelModal({ open: true });
+  };
+
+  const confirmCancelPicking = async () => {
+    try {
+      setLoading(true);
+      
+      await api.post("/sales/cancel-session/", {
+        invoice_no: activeInvoice.invoice_no,
+        user_email: user.email,
+        session_type: "PICKING",
+        cancel_reason: "User cancelled picking"
+      });
+
+      toast.success("Picking cancelled. Invoice is now available for anyone to pick.");
+      
+      await loadActivePicking();
+      await loadTodayCompletedPicking();
+      
+    } catch (err) {
+      console.error("Cancel error:", err);
+      toast.error(err.response?.data?.message || "Failed to cancel picking");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatTime = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
@@ -524,6 +559,14 @@ export default function MyInvoiceListPage() {
                   <div className="flex gap-3 pt-2">
                     <button onClick={handleSendInvoiceToReview} disabled={isReviewInvoice || !hasIssues} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${hasIssues ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
                       Send Invoice to Review
+                    </button>
+                    {/* ✅ ADD THIS CANCEL BUTTON */}
+                    <button
+                      onClick={handleCancelPicking}
+                      disabled={isReviewInvoice || loading}
+                      className="flex-1 py-3 font-semibold rounded-lg transition-all bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel Picking
                     </button>
                     <button onClick={handleCompletePicking} disabled={!canCompletePicking} className={`flex-1 py-3 font-semibold rounded-lg transition-all ${allItemsPicked && !hasIssues ? (isReInvoiced ? "bg-teal-600 hover:bg-teal-700" : "bg-teal-600 hover:bg-teal-700") + " text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
                       {hasIssues ? "Resolve Issues First" : allItemsPicked ? (isReInvoiced ? "✓ Complete Re-pick" : "Complete Picking") : `Pick ${totalItems - pickedCount} More`}
@@ -739,6 +782,17 @@ export default function MyInvoiceListPage() {
           </div>
         </div>
       )}
+      {/* Cancel Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={cancelModal.open}
+        onClose={() => setCancelModal({ open: false })}
+        onConfirm={confirmCancelPicking}
+        title="Cancel Picking"
+        message={`Are you sure you want to cancel picking for ${activeInvoice?.invoice_no}?\n\nThe invoice will be returned to the picking list and can be picked by you or any other user.`}
+        confirmText="Yes, Cancel Picking"
+        cancelText="No, Keep Picking"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
     </div>
   );
 }

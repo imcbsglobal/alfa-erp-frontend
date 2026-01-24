@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
+import ConfirmationModal from '../../../components/ConfirmationModal';
 
 export default function MyPackingListPage() {
   const [loading, setLoading] = useState(false);
@@ -13,6 +14,7 @@ export default function MyPackingListPage() {
   const [reviewChecks, setReviewChecks] = useState({});
   const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
+  const [cancelModal, setCancelModal] = useState({ open: false });
   
   const { user } = useAuth();
 
@@ -59,7 +61,7 @@ export default function MyPackingListPage() {
     };
 
     es.onerror = () => {
-      console.error("Packing SSE connection error");
+      // SSE connection closed - normal behavior during server restarts or timeouts
       es.close();
     };
 
@@ -334,6 +336,44 @@ export default function MyPackingListPage() {
     }
   };
 
+  const handleCancelPacking = async () => {
+    if (!activeInvoice || !user?.email) {
+      toast.error("Cannot cancel at this time");
+      return;
+    }
+
+    if (isLockedForReview) {
+      toast.error("Cannot cancel an invoice under review");
+      return;
+    }
+
+    setCancelModal({ open: true });
+  };
+
+  const confirmCancelPacking = async () => {
+    try {
+      setLoading(true);
+      
+      await api.post("/sales/cancel-session/", {
+        invoice_no: activeInvoice.invoice_no,
+        user_email: user.email,
+        session_type: "PACKING",
+        cancel_reason: "User cancelled packing"
+      });
+
+      toast.success("Packing cancelled. Invoice is now available for anyone to pack.");
+      
+      await loadActivePacking();
+      await loadTodayCompletedPacking();
+      
+    } catch (err) {
+      console.error("Cancel error:", err);
+      toast.error(err.response?.data?.message || "Failed to cancel packing");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatTime = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
@@ -582,6 +622,13 @@ export default function MyPackingListPage() {
                       }`}
                     >
                       {isLockedForReview ? "Under Review" : "Send Invoice to Review"}
+                    </button>
+                    <button
+                      onClick={handleCancelPacking}
+                      disabled={isLockedForReview || loading}
+                      className="flex-1 py-3 font-semibold rounded-lg transition-all bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel Packing
                     </button>
                     <button
                       onClick={handleCompletePacking}
@@ -920,6 +967,17 @@ export default function MyPackingListPage() {
           </div>
         </div>
       )}
+      {/* Cancel Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={cancelModal.open}
+        onClose={() => setCancelModal({ open: false })}
+        onConfirm={confirmCancelPacking}
+        title="Cancel Packing"
+        message={`Are you sure you want to cancel packing for ${activeInvoice?.invoice_no}?\n\nThe invoice will be returned to the packing list and can be packed by you or any other user.`}
+        confirmText="Yes, Cancel Packing"
+        cancelText="No, Keep Packing"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
     </div>
   );
 }

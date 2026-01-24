@@ -152,6 +152,53 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                       <p className="text-xs text-gray-500">Delivery Type</p>
                       <p className="text-sm font-medium text-gray-900">{getTypeLabel(deliveryData.delivery_type)}</p>
                     </div>
+
+                    {/* COUNTER PICKUP (DIRECT) DETAILS */}
+                    {deliveryData.delivery_type === "DIRECT" && (
+                      <>
+                        <div>
+                          <p className="text-xs text-gray-500">Pickup Mode</p>
+                          <p className="text-sm font-semibold text-teal-700">
+                            {deliveryData.counter_sub_mode === "patient" ? "Direct Patient" : "Direct Company"}
+                          </p>
+                        </div>
+
+                        {deliveryData.counter_sub_mode === "patient" && (
+                          <>
+                            <div>
+                              <p className="text-xs text-gray-500">Patient Name</p>
+                              <p className="text-sm font-medium text-gray-900">{deliveryData.pickup_person_name || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Patient Phone</p>
+                              <p className="text-sm font-medium text-gray-900">{deliveryData.pickup_person_phone || "—"}</p>
+                            </div>
+                          </>
+                        )}
+
+                        {deliveryData.counter_sub_mode === "company" && (
+                          <>
+                            <div>
+                              <p className="text-xs text-gray-500">Company Name</p>
+                              <p className="text-sm font-medium text-gray-900">{deliveryData.pickup_company_name || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Company ID</p>
+                              <p className="text-sm font-medium text-gray-900">{deliveryData.pickup_company_id || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Contact Person</p>
+                              <p className="text-sm font-medium text-gray-900">{deliveryData.pickup_person_name || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Contact Phone</p>
+                              <p className="text-sm font-medium text-gray-900">{deliveryData.pickup_person_phone || "—"}</p>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+
                     <div>
                       <p className="text-xs text-gray-500">Status</p>
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(deliveryData.delivery_status)}`}>

@@ -70,7 +70,12 @@ export default function LoginPage() {
         return;
       }
 
-      navigate("/dashboard", { replace: true });
+      // Redirect based on role - only ADMIN and SUPERADMIN see dashboard
+      if (user.role === "SUPERADMIN" || user.role === "ADMIN") {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/invoices", { replace: true });
+      }
     } catch (err) {
       setErrors({
         general:

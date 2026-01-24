@@ -122,14 +122,11 @@ export default function CommonInvoiceView() {
   const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return "—";
     const date = new Date(dateTimeStr);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = String(hours % 12 || 12).padStart(2, '0');
-    return `${day}/${month}/${year} ${displayHours}:${minutes} ${ampm}`;
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const getWorkflowInfo = (inv) => {
@@ -239,7 +236,7 @@ export default function CommonInvoiceView() {
             </h2>
             <div className="space-y-2">
               <MobileInfoRow label="Invoice Number" value={invoice.invoice_no} />
-              <MobileInfoRow label="Invoice Date" value={formatDate(invoice.invoice_date)} />
+              <MobileInfoRow label="Date & Time" value={`${formatDate(invoice.invoice_date)} & ${formatDateTime(invoice.created_at)}`} />
               <MobileInfoRow label="Salesman" value={invoice.salesman?.name} />
               <MobileInfoRow label="Created By" value={invoice.created_by} />
               <MobileInfoRow label="Status" value={invoice.status} />
@@ -299,7 +296,7 @@ export default function CommonInvoiceView() {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-gray-500">MRP:</span>
-                      <span className="ml-1 font-semibold text-gray-900">{item.mrp?.toFixed(2)}</span>
+                      <span className="ml-1 font-semibold text-gray-900">{item.mrp != null ? Number(item.mrp).toFixed(2) : '0.00'}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Batch:</span>
@@ -353,7 +350,7 @@ export default function CommonInvoiceView() {
 
           <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-4 text-center shadow-md`}>
             <p className="text-sm font-bold tracking-wider mb-1">Total Amount</p>
-            <p className="text-2xl font-bold">{invoice.total_amount?.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{invoice.total != null ? Number(invoice.total).toFixed(2) : '0.00'}</p>
           </div>
         </div>
 
@@ -370,7 +367,7 @@ export default function CommonInvoiceView() {
                   <h2 className="text-sm font-bold text-gray-900">Invoice Info</h2>
                 </div>
                 <div className="space-y-2">
-                  <CompactInfoRowInline label1="Invoice No" value1={invoice.invoice_no} label2="Date" value2={formatDate(invoice.invoice_date)} />
+                  <CompactInfoRowInline label1="Invoice No" value1={invoice.invoice_no} label2="Date & Time" value2={`${formatDate(invoice.invoice_date)} & ${formatDateTime(invoice.created_at)}`} />
                   <CompactInfoRowInline label1="Salesman" value1={invoice.salesman?.name} label2="Created By" value2={invoice.created_by} />
                   <CompactInfoRowInline label1="Status" value1={invoice.status} label2="Priority" value2={invoice.priority || "LOW"} />
                 </div>
@@ -410,7 +407,7 @@ export default function CommonInvoiceView() {
               {/* Total Amount */}
               <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-3 text-center`}>
                 <p className="text-xs font-bold mb-1">Total Amount</p>
-                <p className="text-2xl font-bold">{invoice.total_amount?.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{invoice.total != null ? Number(invoice.total).toFixed(2) : '0.00'}</p>
               </div>
 
             </div>
@@ -464,9 +461,9 @@ export default function CommonInvoiceView() {
                       </div>
 
                       <div className="col-span-1 text-xs font-semibold text-gray-900 text-right">
-                        {item.mrp?.toFixed(2)}
+                        {item.mrp != null ? Number(item.mrp).toFixed(2) : '0.00'}
                       </div>
-
+                      
                       <div className="col-span-2 text-xs text-center text-gray-700 overflow-hidden">
                         <div className="truncate" title={item.batch_no}>{item.batch_no || "—"}</div>
                       </div>

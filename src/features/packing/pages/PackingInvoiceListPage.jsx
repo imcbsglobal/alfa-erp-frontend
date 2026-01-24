@@ -29,6 +29,16 @@ function formatTime(timeStr) {
   }
 }
 
+function formatDateTime(dateString) {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 function formatDuration(startTime) {
   if (!startTime) return "N/A";
   const start = new Date(startTime);
@@ -67,12 +77,12 @@ export default function PackingInvoiceListPage() {
   // SSE Live Updates
   useEffect(() => {
     const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
     eventSource.onmessage = (event) => {
       try {
         const invoice = JSON.parse(event.data);
-        
         if (invoice.status === "PICKED") {
-          setInvoices((prev) => {
+          setInvoices(prev => {
             const exists = prev.find(inv => inv.id === invoice.id);
             if (exists) {
               return prev.map(inv => inv.id === invoice.id ? invoice : inv);
@@ -80,42 +90,31 @@ export default function PackingInvoiceListPage() {
             return [invoice, ...prev];
           });
         } else {
-          setInvoices((prev) => prev.filter(inv => inv.id !== invoice.id));
+          setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
         }
       } catch (e) {
         console.error("Invalid SSE invoice:", e);
       }
     };
 
-    eventSource.onerror = (error) => {
-      console.error("SSE connection error:", error);
+    eventSource.onerror = () => {
+      // SSE connection closed - normal behavior during server restarts or timeouts
       eventSource.close();
     };
 
-    return () => {
-      console.log("Closing SSE connection");
-      eventSource.close();
-    };
+    return () => eventSource.close();
   }, []);
 
   const loadInvoices = async () => {
     setLoading(true);
     try {
       const res = await api.get("/sales/invoices/", {
-        params: { status: "PICKED", page_size: 100 }
+        params: { status: "PICKED", page_size: 100 },
       });
-      
-      const invoiceList = res.data.results || [];
-      console.log("Loaded invoices:", invoiceList.length);
-      setInvoices(invoiceList);
+      setInvoices(res.data.results || []);
     } catch (err) {
       console.error("Failed to load invoices:", err);
-      
-      const errorMessage = err.response?.data?.message 
-        || "Failed to load invoices. Please try again.";
-      
-      toast.error(errorMessage);
-      setInvoices([]);
+      toast.error("Failed to load invoices");
     } finally {
       setLoading(false);
     }
@@ -132,15 +131,11 @@ export default function PackingInvoiceListPage() {
       } else {
         setOngoingTasks([]);
       }
+      setLoadingOngoing(false);
     } catch (err) {
       console.error("Failed to load ongoing tasks:", err);
-      
-      if (err.response?.status !== 404) {
-        toast.error("Failed to load ongoing tasks");
-      }
-      
+      toast.error("Failed to load ongoing tasks");
       setOngoingTasks([]);
-    } finally {
       setLoadingOngoing(false);
     }
   };
@@ -155,84 +150,128 @@ export default function PackingInvoiceListPage() {
     toast.success("Invoices refreshed");
   };
 
-  const handlePackClick = (invoice) => {
+  const handlePackClick = async (invoice) => {
+    await loadInvoices();
+
     if (invoice.status !== "PICKED") {
-      toast.error("Only picked invoices can be packed");
+      toast.error("This invoice is no longer available for packing");
       return;
     }
-    
-    if (!user?.email) {
-      toast.error("User session invalid. Please log in again.");
-      return;
-    }
-    
+
     setSelectedInvoice(invoice);
     setShowPackModal(true);
   };
 
   const handlePackInvoice = async (employeeEmail) => {
-    if (!employeeEmail || !employeeEmail.trim()) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-
     try {
-      // Check for active packing session
+      // First check if there's already an active packing session
+      console.log("Checking for active packing session...");
       const activeRes = await api.get("/sales/packing/active/");
+      console.log("Active packing response:", activeRes.data);
+      
       if (activeRes.data?.data) {
         const activeInvoice = activeRes.data.data.invoice;
+        console.log("Active invoice found:", activeInvoice);
         setActiveInvoiceData(activeInvoice);
         setShowPackModal(false);
         setShowActiveWarning(true);
         return;
       }
 
+      // No active session, proceed with starting packing
       await api.post("/sales/packing/start/", {
         invoice_no: selectedInvoice.invoice_no,
-        user_email: employeeEmail.trim(),
+        user_email: employeeEmail,
         notes: "Packing started",
       });
 
       setShowPackModal(false);
       setSelectedInvoice(null);
       await loadInvoices();
-      toast.success(`Packing started for invoice ${selectedInvoice.invoice_no}`);
-    } catch (err) {
-      console.error("Start packing error:", err);
-      
-      const msg = err.response?.data?.errors?.invoice_no?.[0];
 
-      if (msg?.includes("already exists")) {
-        const activeRes = await api.get("/sales/packing/active/");
-        if (activeRes.data?.data) {
-          const inv = activeRes.data.data.invoice;
-          setActiveInvoiceData(inv);
+      toast.success(`Packing started for ${selectedInvoice.invoice_no}`);
+    } catch (err) {
+      console.error("Error in handlePackInvoice:", err);
+      console.log("Error response:", err.response?.data);
+      console.log("Error status:", err.response?.status);
+      
+      // Check if it's a 409 Conflict error (active session exists)
+      if (err.response?.status === 409) {
+        console.log("409 Conflict - Active session detected, fetching details...");
+        try {
+          const activeRes = await api.get("/sales/packing/active/");
+          console.log("Fetched active session:", activeRes.data);
+          
+          // Try different possible response structures
+          const activeInvoice = activeRes.data?.data?.invoice || 
+                               activeRes.data?.invoice || 
+                               activeRes.data?.data;
+          
+          if (activeInvoice && (activeInvoice.id || activeInvoice.invoice_no)) {
+            console.log("Active invoice details:", activeInvoice);
+            setActiveInvoiceData(activeInvoice);
+            setShowPackModal(false);
+            setShowActiveWarning(true);
+            return;
+          }
+          
+          // If we can't get invoice details, try to extract from error response
+          const errorInvoiceNo = err.response?.data?.invoice_no || 
+                                err.response?.data?.data?.invoice_no ||
+                                err.response?.data?.details?.invoice_no;
+          
+          if (errorInvoiceNo) {
+            console.log("Using invoice number from error:", errorInvoiceNo);
+            setActiveInvoiceData({ invoice_no: errorInvoiceNo });
+            setShowPackModal(false);
+            setShowActiveWarning(true);
+            return;
+          }
+          
+          // Last resort - show generic warning
+          console.log("Could not get invoice details, showing generic warning");
+          setActiveInvoiceData({ invoice_no: "Unknown" });
           setShowPackModal(false);
           setShowActiveWarning(true);
+          return;
+        } catch (activeErr) {
+          console.error("Failed to fetch active session:", activeErr);
+          // Still show warning even if fetch fails
+          setActiveInvoiceData({ invoice_no: "Unknown" });
+          setShowPackModal(false);
+          setShowActiveWarning(true);
+          return;
         }
-        return;
       }
       
-      const errorMessage = err.response?.data?.message 
-        || err.response?.data?.error
-        || err.response?.data?.detail
-        || "Failed to start packing";
-      
-      toast.error(errorMessage);
+      // Check for other error messages indicating active session
+      const msg = err.response?.data?.errors?.invoice_no?.[0];
+      const errorMessage = err.response?.data?.message || '';
+
+      if (msg?.includes("already exists") || 
+          errorMessage.toLowerCase().includes("active") ||
+          errorMessage.toLowerCase().includes("already")) {
+        console.log("Active session error detected from message, fetching details...");
+        try {
+          const activeRes = await api.get("/sales/packing/active/");
+          console.log("Fetched active session:", activeRes.data);
+          
+          if (activeRes.data?.data) {
+            const inv = activeRes.data.data.invoice;
+            setActiveInvoiceData(inv);
+            setShowPackModal(false);
+            setShowActiveWarning(true);
+            return;
+          }
+        } catch (activeErr) {
+          console.error("Failed to fetch active session:", activeErr);
+        }
+      }
+
+      toast.error(err.response?.data?.message || "Failed to start packing");
     }
   };
 
-  const handleGoToActiveBill = () => {
-    if (activeInvoiceData) {
-      const path = user?.role === "PACKER" 
-        ? `/ops/packing/invoices/view/${activeInvoiceData.id}`
-        : `/packing/invoices/view/${activeInvoiceData.id}/packing`;
-      navigate(path);
-    }
-    setShowActiveWarning(false);
-  };
-
-  // Sort by invoice_date (latest first) + paginate
   const sortedInvoices = [...invoices].sort(
     (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
   );
@@ -270,16 +309,32 @@ export default function PackingInvoiceListPage() {
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
+      case "INVOICED":
+        return "bg-yellow-100 text-yellow-700 border-yellow-300";
+      case "PICKING":
+        return "bg-blue-100 text-blue-700 border-blue-300";
       case "PICKED":
         return "bg-green-100 text-green-700 border-green-300";
       case "PACKING":
         return "bg-purple-100 text-purple-700 border-purple-300";
       case "PACKED":
-        return "bg-indigo-100 text-indigo-700 border-indigo-300";
+        return "bg-emerald-100 text-emerald-700 border-emerald-300";
+      case "DISPATCHED":
+        return "bg-teal-100 text-teal-700 border-teal-300";
+      case "DELIVERED":
+        return "bg-gray-200 text-gray-700 border-gray-300";
+      case "REVIEW":
+        return "bg-red-100 text-red-700 border-red-300";
       default:
         return "bg-gray-100 text-gray-700 border-gray-300";
     }
   };
+
+  const getStatusLabel = (status) => status || "PICKED";
+
+  // Add debug logging
+  console.log("showActiveWarning:", showActiveWarning);
+  console.log("activeInvoiceData:", activeInvoiceData);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -313,7 +368,7 @@ export default function PackingInvoiceListPage() {
             </div>
           ) : invoices.length === 0 ? (
             <div className="py-20 text-center text-gray-500">
-              No picked invoices ready for packing
+              No invoices found
             </div>
           ) : (
             <>
@@ -323,7 +378,7 @@ export default function PackingInvoiceListPage() {
                     <tr>
                       <th className="px-4 py-3 text-left">Invoice</th>
                       <th className="px-4 py-3 text-left">Priority</th>
-                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Date / Created</th>
                       <th className="px-4 py-3 text-left">Customer</th>
                       <th className="px-4 py-3 text-left">Created By</th>
                       <th className="px-4 py-3 text-right">Amount</th>
@@ -354,8 +409,9 @@ export default function PackingInvoiceListPage() {
                             {inv.priority || "—"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm">
-                          {formatDate(inv.invoice_date)}
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-medium">{formatDate(inv.invoice_date)}</p>
+                          <p className="text-xs text-gray-500">{formatDateTime(inv.created_at)}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
@@ -367,25 +423,27 @@ export default function PackingInvoiceListPage() {
                           {inv.salesman?.name}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {inv.total_amount?.toFixed(2)}
+                          {inv.total?.toFixed(2)}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center ">
                           <span
                             className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
                               inv.status
                             )}`}
                           >
-                            {inv.status}
+                            {getStatusLabel(inv.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => handlePackClick(inv)}
-                              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-                            >
-                              Pack
-                            </button>
+                            {inv.status === "PICKED" && (
+                              <button
+                                onClick={() => handlePackClick(inv)}
+                                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                              >
+                                Pack
+                              </button>
+                            )}
                             <button
                               onClick={() => handleViewInvoice(inv.id)}
                               className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
@@ -420,14 +478,14 @@ export default function PackingInvoiceListPage() {
         invoiceNumber={selectedInvoice?.invoice_no}
       />
 
-      {/* Active Packing Warning Modal */}
+      {/* Active Bill Warning Modal */}
       {showActiveWarning && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-[9999]"
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
             onClick={() => setShowActiveWarning(false)}
           />
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
               className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
               onClick={(e) => e.stopPropagation()}
@@ -477,10 +535,10 @@ export default function PackingInvoiceListPage() {
       {showOngoingModal && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-[9999]"
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
             onClick={() => setShowOngoingModal(false)}
           />
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
               className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
@@ -504,7 +562,7 @@ export default function PackingInvoiceListPage() {
                   </div>
                 ) : ongoingTasks.length === 0 ? (
                   <div className="py-20 text-center text-gray-500">
-                    No ongoing packing tasks
+                    No ongoing tasks
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -512,7 +570,7 @@ export default function PackingInvoiceListPage() {
                       <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                         <tr>
                           <th className="px-4 py-3 text-left">Invoice</th>
-                          <th className="px-4 py-3 text-left">Employee</th>
+                          <th className="px-4 py-3 text-left">Date / Created</th>
                           <th className="px-4 py-3 text-left">Customer</th>
                           <th className="px-4 py-3 text-left">Date</th>
                           <th className="px-4 py-3 text-left">Start Time</th>

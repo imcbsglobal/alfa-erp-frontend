@@ -207,7 +207,7 @@ export default function PackingDetailModal({ isOpen, onClose, invoiceId }) {
                   <div className="bg-gray-50 border-t border-gray-200 px-3 sm:px-4 py-3 flex justify-end">
                     <div className="text-right">
                       <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Amount</p>
-                      <p className="text-xl sm:text-2xl font-bold text-teal-600">{invoice.total_amount?.toFixed(2)}</p>
+                      <p className="text-xl sm:text-2xl font-bold text-teal-600">{invoice.total?.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>

@@ -134,13 +134,17 @@ const DeliveryDispatchPage = () => {
   const formatDateTime = (dateString) => {
     if (!dateString) return '—';
     const date = new Date(dateString);
-    return date.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
+    return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true
     });
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
+    const [y, m, d] = dateStr.split("-");
+    return `${d}/${m}/${y}`;
   };
 
   const formatDuration = (startTime) => {
@@ -213,7 +217,7 @@ const DeliveryDispatchPage = () => {
                     <tr>
                       <th className="px-4 py-3 text-left">Invoice</th>
                       <th className="px-4 py-3 text-left">Priority</th>
-                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Date / Created</th>
                       <th className="px-4 py-3 text-left">Customer</th>
                       <th className="px-4 py-3 text-left">Items</th>
                       <th className="px-4 py-3 text-right">Amount</th>
@@ -244,8 +248,9 @@ const DeliveryDispatchPage = () => {
                             {bill.priority || "—"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm">
-                          {formatDateTime(bill.invoice_date)}
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-medium">{formatDate(bill.invoice_date)}</p>
+                          <p className="text-xs text-gray-500">{formatDateTime(bill.created_at)}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium">{bill.customer?.name || '—'}</p>
@@ -255,7 +260,7 @@ const DeliveryDispatchPage = () => {
                           {bill.items?.length || 0} items
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {bill.total_amount?.toFixed(2) || '0.00'}
+                          {bill.total?.toFixed(2) || '0.00'}
                         </td>
                         <td className="px-4 py-3">
                           <span className="px-3 py-1 rounded-full border text-xs font-bold bg-emerald-100 text-emerald-700 border-emerald-300">

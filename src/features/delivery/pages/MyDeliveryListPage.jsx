@@ -3,6 +3,7 @@ import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import { Truck, Package, CheckCircle, Clock, MapPin, PlayCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import ConfirmationModal from '../../../components/ConfirmationModal';
 
 export default function MyDeliveryListPage() {
   const [pendingDeliveries, setPendingDeliveries] = useState([]);
@@ -18,6 +19,7 @@ export default function MyDeliveryListPage() {
   const [submitting, setSubmitting] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const [locationData, setLocationData] = useState(null);
+  const [cancelModal, setCancelModal] = useState({ open: false, delivery: null });
 
   const { user } = useAuth();
 
@@ -290,6 +292,43 @@ export default function MyDeliveryListPage() {
     }
   };
 
+  const handleCancelDelivery = async (delivery) => {
+    if (!delivery || !user?.email) {
+      toast.error("Cannot cancel at this time");
+      return;
+    }
+
+    if (delivery.delivery_status === 'DELIVERED') {
+      toast.error("Cannot cancel a completed delivery");
+      return;
+    }
+
+    setCancelModal({ open: true, delivery });
+  };
+
+  const confirmCancelDelivery = async () => {
+    try {
+      setLoading(true);
+      
+      await api.post("/sales/cancel-session/", {
+        invoice_no: cancelModal.delivery.invoice_no,
+        user_email: user.email,
+        session_type: "DELIVERY",
+        cancel_reason: "User cancelled delivery"
+      });
+
+      toast.success("Delivery cancelled. Invoice is now available for anyone to deliver.");
+      
+      await loadAllDeliveries();
+      
+    } catch (err) {
+      console.error("Cancel error:", err);
+      toast.error(err.response?.data?.message || "Failed to cancel delivery");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatTime = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
@@ -408,7 +447,7 @@ export default function MyDeliveryListPage() {
                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Invoice Details</h4>
                         <div className="space-y-1 text-sm">
                           <p><span className="text-gray-500">Items:</span> {invoice.items?.length || 0}</p>
-                          <p><span className="text-gray-500">Total Amount:</span> ₹{invoice.total_amount?.toFixed(2)}</p>
+                          <p><span className="text-gray-500">Total Amount:</span> ₹{invoice.total?.toFixed(2)}</p>
                         </div>
                       </div>
 
@@ -510,6 +549,17 @@ export default function MyDeliveryListPage() {
                       </div>
                     </div>
                   )}
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancelDelivery(activeDelivery);
+                    }}
+                    disabled={loading}
+                    className="w-full py-3 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-semibold transition-all shadow-md border border-red-300 mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel Delivery
+                  </button>
 
                   <button
                     onClick={(e) => {
@@ -824,6 +874,17 @@ export default function MyDeliveryListPage() {
           </div>
         </div>
       )}
+      {/* Cancel Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={cancelModal.open}
+        onClose={() => setCancelModal({ open: false, delivery: null })}
+        onConfirm={confirmCancelDelivery}
+        title="Cancel Delivery"
+        message={`Are you sure you want to cancel delivery for ${cancelModal.delivery?.invoice_no}?\n\nThe invoice will be returned to the delivery list and can be delivered by you or any other user.`}
+        confirmText="Yes, Cancel Delivery"
+        cancelText="No, Keep Delivery"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
     </div>
   );
 }

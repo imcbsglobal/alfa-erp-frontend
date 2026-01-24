@@ -41,6 +41,7 @@ import CourierDeliveryListPage from "../features/delivery/pages/CourierDeliveryL
 import CompanyDeliveryListPage from "../features/delivery/pages/CompanyDeliveryListPage";
 
 import CommonInvoiceView from "../components/CommonInvoiceView";
+import DeveloperSettingsPage from "../pages/DeveloperSettingsPage";
 
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
@@ -58,9 +59,9 @@ export default function AppRouter() {
           <Route
             path="/dashboard"
             element={
-              user?.role === "SUPERADMIN"
+              (user?.role === "SUPERADMIN" || user?.role === "ADMIN")
                 ? <SuperAdminDashboard />
-                : <UserDashboard />
+                : <Navigate to="/invoices" replace />
             }
           />
           
@@ -109,6 +110,9 @@ export default function AppRouter() {
           {/* History */}
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/history/consolidate" element={<InvoiceHistoryView />} />
+
+          {/* Developer Options - SUPERADMIN ONLY */}
+          <Route path="/developer/settings" element={<DeveloperSettingsPage />} />
         </Route>
       </Route>
 

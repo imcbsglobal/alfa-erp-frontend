@@ -191,7 +191,22 @@ export default function AddUserPage() {
       }
     } catch (error) {
       console.error("Create/Update user error:", error?.response?.data);
-      toast.error("Failed to save user");
+      
+      // Handle specific validation errors from backend
+      if (error?.response?.data?.email) {
+        const emailError = Array.isArray(error.response.data.email) 
+          ? error.response.data.email[0] 
+          : error.response.data.email;
+        setErrors(prev => ({ ...prev, email: emailError }));
+        toast.error(emailError);
+      } else if (error?.response?.data?.non_field_errors) {
+        const errorMsg = error.response.data.non_field_errors[0];
+        toast.error(errorMsg);
+      } else if (error?.response?.data?.detail) {
+        toast.error(error.response.data.detail);
+      } else {
+        toast.error("Failed to save user");
+      }
     } finally {
       setLoading(false);
     }

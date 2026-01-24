@@ -77,3 +77,6 @@ export const deleteCourier = async (id) => {
 // Add this export for updating/patching invoices
 export const updateInvoice = (data) =>
   api.patch("/sales/update/invoice/", data);
+
+export const cancelSession = (data) =>
+  api.post("/sales/cancel-session/", data);

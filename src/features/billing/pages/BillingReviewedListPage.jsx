@@ -11,6 +11,16 @@ function formatDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
+function formatDateTime(dateString) {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -55,7 +65,7 @@ export default function BillingReviewedListPage() {
     };
 
     es.onerror = () => {
-      console.error("SSE connection error");
+      // SSE connection closed - normal behavior during server restarts or timeouts
       es.close();
     };
 
@@ -256,7 +266,7 @@ export default function BillingReviewedListPage() {
                     <tr>
                       <th className="px-4 py-3 text-left font-semibold">Invoice</th>
                       <th className="px-4 py-3 text-left font-semibold">Priority</th>
-                      <th className="px-4 py-3 text-left font-semibold">Date</th>
+                      <th className="px-4 py-3 text-left font-semibold">Date / Created</th>
                       <th className="px-4 py-3 text-left font-semibold">Customer</th>
                       <th className="px-4 py-3 text-left font-semibold">Created By</th>
                       <th className="px-4 py-3 text-right font-semibold">Amount</th>
@@ -300,8 +310,9 @@ export default function BillingReviewedListPage() {
                           </span>
                         </td>
 
-                        <td className="px-4 py-3 text-sm text-gray-700">
-                          {formatDate(inv.invoice_date)}
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-medium">{formatDate(inv.invoice_date)}</p>
+                          <p className="text-xs text-gray-500">{formatDateTime(inv.created_at)}</p>
                         </td>
 
                         <td className="px-4 py-3">
@@ -316,7 +327,7 @@ export default function BillingReviewedListPage() {
                         </td>
 
                         <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                          {inv.total_amount?.toLocaleString()}
+                          {inv.total?.toLocaleString()}
                         </td>
 
                         <td className="px-4 py-3 text-center">

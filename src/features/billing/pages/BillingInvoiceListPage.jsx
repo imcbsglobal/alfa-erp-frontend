@@ -16,6 +16,16 @@ function formatAmount(amount) {
   return parseFloat(amount).toFixed(2);
 }
 
+function formatDateTime(dateString) {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -80,7 +90,8 @@ export default function BillingInvoiceListPage() {
     };
 
     es.onerror = (error) => {
-      console.error("SSE connection error:", error);
+      // SSE connection closed - this is normal behavior when server restarts
+      // or connection times out. Connection will auto-reconnect when needed.
       es.close();
     };
 
@@ -282,7 +293,7 @@ export default function BillingInvoiceListPage() {
                     <tr>
                       <th className="px-4 py-3 text-left">Invoice</th>
                       <th className="px-4 py-3 text-left">Priority</th>
-                      <th className="px-4 py-3 text-left">Date</th>
+                      <th className="px-4 py-3 text-left">Date / Created</th>
                       <th className="px-4 py-3 text-left">Customer</th>
                       <th className="px-4 py-3 text-left">Created By</th>
                       <th className="px-4 py-3 text-right">Amount</th>
@@ -294,7 +305,7 @@ export default function BillingInvoiceListPage() {
                     {currentItems.map((inv) => (
                       <tr
                         key={inv.id}
-                        className={`transition hover:bg-gray-50 ${
+                        className={`transition hover:bg-grey-50 ${
                           inv.priority === "HIGH" ? "bg-red-50" : ""
                         }`}
                       >
@@ -310,8 +321,9 @@ export default function BillingInvoiceListPage() {
                             {inv.priority || "—"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm">
-                        {formatDate(inv.invoice_date)}
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-medium">{formatDate(inv.invoice_date)}</p>
+                          <p className="text-xs text-gray-500">{formatDateTime(inv.created_at)}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
@@ -323,7 +335,7 @@ export default function BillingInvoiceListPage() {
                           {inv.salesman?.name}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {formatAmount(inv.total_amount)}
+                          {formatAmount(inv.total)}
                         </td>
                         <td className="px-4 py-3">
                           <span
