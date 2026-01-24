@@ -10,7 +10,6 @@ const DeveloperSettingsPage = () => {
   const [selectedTable, setSelectedTable] = useState(null);
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [resettingSequences, setResettingSequences] = useState(false);
 
   useEffect(() => {
     loadTableStats();
@@ -64,25 +63,6 @@ const DeveloperSettingsPage = () => {
       toast.error(errorMsg);
     } finally {
       setDeleting(false);
-    }
-  };
-
-  const handleResetSequences = async () => {
-    if (!window.confirm('Reset all database auto-increment sequences? This will restart IDs from 1.')) {
-      return;
-    }
-
-    setResettingSequences(true);
-    try {
-      const response = await api.post('/developer/reset-sequences/');
-      if (response.data.success) {
-        toast.success(response.data.message);
-      }
-    } catch (error) {
-      console.error('Failed to reset sequences:', error);
-      toast.error('Failed to reset sequences');
-    } finally {
-      setResettingSequences(false);
     }
   };
 
@@ -155,10 +135,9 @@ const DeveloperSettingsPage = () => {
           <div className="flex items-start">
             <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
             <div>
-              <h3 className="text-red-800 font-semibold">⚠️ Danger Zone - SUPERADMIN Only</h3>
+              <h3 className="text-red-800 font-semibold">⚠️ Caution - SUPERADMIN Only</h3>
               <p className="text-red-700 text-sm mt-1">
                 These operations are irreversible and will permanently delete data from the database.
-                Use with extreme caution. Always backup data before performing these operations.
               </p>
             </div>
           </div>
@@ -223,15 +202,6 @@ const DeveloperSettingsPage = () => {
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   Refresh Stats
-                </button>
-                
-                <button
-                  onClick={handleResetSequences}
-                  disabled={resettingSequences}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  <Settings className={`w-4 h-4 ${resettingSequences ? 'animate-spin' : ''}`} />
-                  Reset Sequences
                 </button>
               </div>
               

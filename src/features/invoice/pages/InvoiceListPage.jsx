@@ -69,8 +69,6 @@ export default function InvoiceListPage() {
   const [ongoingTasks, setOngoingTasks] = useState([]);
   const [loadingOngoing, setLoadingOngoing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showActiveWarning, setShowActiveWarning] = useState(false);
-  const [activeInvoiceData, setActiveInvoiceData] = useState(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -175,9 +173,9 @@ export default function InvoiceListPage() {
       if (activeRes.data?.data) {
         const activeInvoice = activeRes.data.data.invoice;
         console.log("Active invoice found:", activeInvoice);
-        setActiveInvoiceData(activeInvoice);
+        const customerName = activeInvoice?.customer?.name ? ` for ${activeInvoice.customer.name}` : '';
+        toast.error(`You already have an active picking session for Invoice #${activeInvoice?.invoice_no}${customerName}`, { duration: 7000 });
         setShowPickModal(false);
-        setShowActiveWarning(true);
         return;
       }
 
@@ -212,9 +210,9 @@ export default function InvoiceListPage() {
           
           if (activeInvoice && (activeInvoice.id || activeInvoice.invoice_no)) {
             console.log("Active invoice details:", activeInvoice);
-            setActiveInvoiceData(activeInvoice);
+            const customerName = activeInvoice?.customer?.name ? ` for ${activeInvoice.customer.name}` : '';
+            toast.error(`You already have an active picking session for Invoice #${activeInvoice?.invoice_no}${customerName}`, { duration: 7000 });
             setShowPickModal(false);
-            setShowActiveWarning(true);
             return;
           }
           
@@ -225,24 +223,21 @@ export default function InvoiceListPage() {
           
           if (errorInvoiceNo) {
             console.log("Using invoice number from error:", errorInvoiceNo);
-            setActiveInvoiceData({ invoice_no: errorInvoiceNo });
+            toast.error(`You already have an active picking session for Invoice #${errorInvoiceNo}`, { duration: 7000 });
             setShowPickModal(false);
-            setShowActiveWarning(true);
             return;
           }
           
           // Last resort - show generic warning
           console.log("Could not get invoice details, showing generic warning");
-          setActiveInvoiceData({ invoice_no: "Unknown" });
+          toast.error("You already have an active picking session", { duration: 7000 });
           setShowPickModal(false);
-          setShowActiveWarning(true);
           return;
         } catch (activeErr) {
           console.error("Failed to fetch active session:", activeErr);
           // Still show warning even if fetch fails
-          setActiveInvoiceData({ invoice_no: "Unknown" });
+          toast.error("You already have an active picking session", { duration: 7000 });
           setShowPickModal(false);
-          setShowActiveWarning(true);
           return;
         }
       }
@@ -261,14 +256,34 @@ export default function InvoiceListPage() {
           
           if (activeRes.data?.data) {
             const inv = activeRes.data.data.invoice;
-            setActiveInvoiceData(inv);
+            const customerName = inv?.customer?.name ? ` for ${inv.customer.name}` : '';
+            toast.error(`You already have an active picking session for Invoice #${inv?.invoice_no}${customerName}`, { duration: 7000 });
             setShowPickModal(false);
-            setShowActiveWarning(true);
             return;
           }
         } catch (activeErr) {
           console.error("Failed to fetch active session:", activeErr);
         }
+      }
+
+      // Check for user not found vs privilege not given
+      const userEmailError = err.response?.data?.errors?.user_email?.[0] || err.response?.data?.errors?.user_email || '';
+      
+      // User doesn't exist in database
+      if (err.response?.status === 404 || 
+          userEmailError.toLowerCase().includes('user not found') ||
+          userEmailError.toLowerCase().includes('please scan a valid email') ||
+          err.response?.data?.detail?.toLowerCase().includes('user not found')) {
+        toast.error("No user found with this email address", { duration: 5000 });
+        return;
+      }
+      
+      // User exists but doesn't have privilege/menu access
+      if (errorMessage === 'Privilege Not Given' || 
+          userEmailError.toLowerCase().includes('does not have access') ||
+          userEmailError.toLowerCase().includes('please contact admin')) {
+        toast.error("Privilege Not Given - User does not have access to picking functionality", { duration: 5000 });
+        return;
       }
 
       toast.error(err.response?.data?.message || "Failed to start picking");
@@ -335,10 +350,6 @@ export default function InvoiceListPage() {
 
   const getStatusLabel = (status) => status || "INVOICED";
 
-  // Add debug logging
-  console.log("showActiveWarning:", showActiveWarning);
-  console.log("activeInvoiceData:", activeInvoiceData);
-
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -381,7 +392,7 @@ export default function InvoiceListPage() {
                     <tr>
                       <th className="px-4 py-3 text-left">Invoice</th>
                       <th className="px-4 py-3 text-left">Priority</th>
-                      <th className="px-4 py-3 text-left">Date / Created</th>
+                      <th className="px-4 py-3 text-left">Date</th>
                       <th className="px-4 py-3 text-left">Customer</th>
                       <th className="px-4 py-3 text-left">Created By</th>
                       <th className="px-4 py-3 text-right">Amount</th>
@@ -481,59 +492,6 @@ export default function InvoiceListPage() {
         invoiceNumber={selectedInvoice?.invoice_no}
       />
 
-      {/* Active Bill Warning Modal */}
-      {showActiveWarning && (
-        <>
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50"
-            onClick={() => setShowActiveWarning(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
-              className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <h2 className="text-xl font-bold text-white">
-                    Active Picking Session
-                  </h2>
-                </div>
-
-                <button
-                  onClick={() => setShowActiveWarning(false)}
-                  className="text-white text-2xl font-bold leading-none hover:bg-white hover:bg-opacity-20 rounded-lg px-3 py-1 transition"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="p-6">
-                <div className="mb-6">
-                  <p className="text-gray-700 text-lg mb-4">
-                    You already have an active picking session for:
-                  </p>
-                  <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
-                    <p className="text-2xl font-bold text-orange-900 mb-2">
-                      Invoice #{activeInvoiceData?.invoice_no}
-                    </p>
-                    {activeInvoiceData?.customer?.name && (
-                      <p className="text-sm text-gray-600">
-                        Customer: {activeInvoiceData.customer.name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Ongoing Work Modal */}
       {showOngoingModal && (
         <>
@@ -573,7 +531,7 @@ export default function InvoiceListPage() {
                       <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                         <tr>
                           <th className="px-4 py-3 text-left">Invoice</th>
-                          <th className="px-4 py-3 text-left">Date / Created</th>
+                          <th className="px-4 py-3 text-left">Date</th>
                           <th className="px-4 py-3 text-left">Customer</th>
                           <th className="px-4 py-3 text-left">Date</th>
                           <th className="px-4 py-3 text-left">Start Time</th>

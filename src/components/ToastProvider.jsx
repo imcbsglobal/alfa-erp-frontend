@@ -3,24 +3,34 @@ import { Toaster } from "react-hot-toast";
 export default function ToastProvider() {
   return (
     <Toaster
-      position="top-right"
+      position="top-center"
       toastOptions={{
-        duration: 3000,
+        duration: 5000,
         style: {
-          borderRadius: "10px",
-          background: "#000",
-          color: "#fff",
+          borderRadius: "12px",
+          fontSize: "18px",
+          padding: "20px 28px",
+          maxWidth: "600px",
+          minWidth: "400px",
         },
         success: {
+          style: {
+            background: "#10b981",
+            color: "#fff",
+          },
           iconTheme: {
-            primary: "#10b981",   // teal-green
-            secondary: "#000",
+            primary: "#fff",
+            secondary: "#10b981",
           },
         },
         error: {
+          style: {
+            background: "#ef4444",
+            color: "#fff",
+          },
           iconTheme: {
-            primary: "#ef4444",   // red
-            secondary: "#000",
+            primary: "#fff",
+            secondary: "#ef4444",
           },
         },
       }}

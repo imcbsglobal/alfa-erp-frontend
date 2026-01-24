@@ -74,7 +74,28 @@ export default function LoginPage() {
       if (user.role === "SUPERADMIN" || user.role === "ADMIN") {
         navigate("/dashboard", { replace: true });
       } else {
-        navigate("/invoices", { replace: true });
+        // For USER role, find first accessible page from their menus
+        // Prioritize child menus over parent menus for more specific routing
+        let redirectUrl = null;
+        
+        for (const menu of menus || []) {
+          if (menu.children && menu.children.length > 0) {
+            // If menu has children, use first child's URL
+            redirectUrl = menu.children[0].url;
+            break;
+          } else if (menu.url) {
+            // Otherwise use the menu's own URL
+            redirectUrl = menu.url;
+            break;
+          }
+        }
+        
+        if (redirectUrl) {
+          navigate(redirectUrl, { replace: true });
+        } else {
+          // Fallback to history page
+          navigate("/history", { replace: true });
+        }
       }
     } catch (err) {
       setErrors({

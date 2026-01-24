@@ -266,7 +266,7 @@ export default function BillingReviewedListPage() {
                     <tr>
                       <th className="px-4 py-3 text-left font-semibold">Invoice</th>
                       <th className="px-4 py-3 text-left font-semibold">Priority</th>
-                      <th className="px-4 py-3 text-left font-semibold">Date / Created</th>
+                      <th className="px-4 py-3 text-left font-semibold">Date</th>
                       <th className="px-4 py-3 text-left font-semibold">Customer</th>
                       <th className="px-4 py-3 text-left font-semibold">Created By</th>
                       <th className="px-4 py-3 text-right font-semibold">Amount</th>
