@@ -386,241 +386,106 @@ export default function MyPackingListPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-2 py-2 sm:py-3">
-        {/* Header */}
         <div className="mb-2">
           <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-800">My Packed Invoices</h1>
         </div>
 
-        {/* Active Bill Section - Compact */}
         {activeInvoice && (
           <div className="mb-3">
-            {/* Section Header */}
             <div className="mb-1.5 flex items-center gap-1.5">
-              <svg
-                className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
               <h2 className="text-sm sm:text-base font-semibold text-gray-700">Active Bill</h2>
+              {isReInvoiced && (
+                <span className="ml-1 px-2 py-0.5 bg-teal-100 text-teal-700 rounded-full text-[10px] sm:text-xs font-bold border border-teal-300 animate-pulse">
+                  ✓ CORRECTED
+                </span>
+              )}
             </div>
-            <div
-              className={`rounded-lg shadow overflow-hidden border-2 transition
-                ${isLockedForReview
-                  ? "bg-gray-100 border-orange-400 opacity-70"
-                  : isReInvoiced
-                    ? "bg-teal-50 border-teal-500"
-                    : "bg-white border-teal-500"}
-              `}
-            >
-              {/* Compact Header */}
-              <div
-                onClick={() =>
-                  setExpandedInvoice(
-                    expandedInvoice === activeInvoice.id ? null : activeInvoice.id
-                  )
-                }
-                className="p-2 sm:p-3 bg-teal-50 border-b border-teal-200 cursor-pointer"
-              >
+            <div className={`rounded-lg shadow overflow-hidden border-2 ${isLockedForReview ? "bg-gray-100 border-orange-400 opacity-70" : isReInvoiced ? "bg-teal-50 border-teal-500" : "bg-white border-teal-500"}`}>
+              <div onClick={() => toggleExpand(activeInvoice.id)} className={`p-2 sm:p-3 border-b cursor-pointer ${isReInvoiced ? 'bg-teal-100' : 'bg-teal-50'} border-teal-200`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-2 h-2 flex-shrink-0 bg-teal-500 rounded-full animate-pulse"></div>
+                    <div className={`w-1.5 h-1.5 flex-shrink-0 rounded-full animate-pulse ${isReInvoiced ? 'bg-teal-600' : 'bg-teal-500'}`}></div>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-xs sm:text-sm text-gray-900 truncate">
-                        #{activeInvoice.invoice_no}
-                      </h3>
-                      <p className="text-[10px] sm:text-xs text-gray-600 truncate">
-                        {activeInvoice.customer?.name} • {packedCount}/{totalItems} packed
-                      </p>
+                      <h3 className="font-bold text-xs sm:text-sm text-gray-900 truncate">#{activeInvoice.invoice_no}</h3>
+                      <p className="text-[10px] sm:text-xs text-gray-600 truncate">{activeInvoice.customer?.name} • {packedCount}/{totalItems}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedInvoice(
-                        expandedInvoice === activeInvoice.id ? null : activeInvoice.id
-                      );
-                    }}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    <svg
-                      className={`w-4 h-4 transition-transform ${
-                        expandedInvoice === activeInvoice.id ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
+                  <svg className={`w-4 h-4 transition-transform ${expandedInvoice === activeInvoice.id ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
               </div>
 
-              {/* Expanded Details */}
               {expandedInvoice === activeInvoice.id && (
                 <div className="p-2 sm:p-3 space-y-2">
+                  {isReInvoiced && activeInvoice.resolution_notes && (
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-teal-50 to-teal-100 border border-teal-400">
+                      <div className="flex items-start gap-2">
+                        <svg className="w-4 h-4 text-teal-700 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="font-bold text-teal-900 text-xs sm:text-sm mb-1">✓ Invoice Corrected - Re-pack</p>
+                          <div className="bg-white rounded p-1.5 border border-teal-200">
+                            <p className="text-[9px] sm:text-[10px] text-teal-600 font-semibold mb-0.5">Resolution:</p>
+                            <p className="text-[10px] sm:text-xs text-teal-800">{activeInvoice.resolution_notes}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {isLockedForReview && (
                     <div className="p-2 rounded-lg bg-orange-50 border border-orange-300">
-                      <p className="font-semibold text-orange-800 text-xs sm:text-sm">
-                        Invoice sent to Billing Review
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-orange-700 mt-0.5">
-                        This invoice is locked and cannot be modified.
-                      </p>
+                      <p className="font-semibold text-orange-800 text-xs">Invoice Sent to Billing Review</p>
+                      <p className="text-[10px] sm:text-xs text-orange-700 mt-0.5">This invoice is locked and cannot be modified.</p>
                     </div>
                   )}
 
                   {activeInvoice.items.map((item) => (
-                    <div
-                      key={item.id}
-                      onClick={() => {
-                        if (isLockedForReview) return;
-                        toggleItemPacked(item.id);
-                      }}  
-                      className={`p-2 rounded-lg border cursor-pointer transition-all ${
-                        packedItems[item.id]
-                          ? "bg-teal-50 border-teal-300"
-                          : "bg-white border-gray-200"
-                      }`}
-                    >
+                    <div key={item.id} onClick={() => !isLockedForReview && toggleItemPacked(item.id)} className={`p-2 rounded-lg border cursor-pointer transition-all ${packedItems[item.id] ? "bg-teal-50 border-teal-300" : "bg-white border-gray-200"}`}>
                       <div className="flex items-center gap-2">
-                        {/* Checkbox */}
-                        <div
-                          onClick={() => {
-                            if (isLockedForReview) return;
-                            toggleItemPacked(item.id);
-                          }}
-                          className="cursor-pointer"
-                        >
-                          <div
-                            className={`w-6 h-6 sm:w-7 sm:h-7 rounded flex items-center justify-center flex-shrink-0 ${
-                              packedItems[item.id]
-                                ? "bg-teal-600"
-                                : "bg-white border-2 border-gray-300"
-                            }`}
-                          >
-                            <svg
-                              className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${
-                                packedItems[item.id] ? "text-white" : "text-gray-400"
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
+                        <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded flex items-center justify-center flex-shrink-0 ${isLockedForReview ? "bg-gray-300" : packedItems[item.id] ? "bg-teal-600" : "bg-white border-2 border-gray-300"}`}>
+                          <svg className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${packedItems[item.id] ? "text-white" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
                         </div>
-
-                        {/* Item Details */}
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="font-semibold text-sm text-gray-900">
-                                {item.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {item.shelf_location && `📍 ${item.shelf_location}`}
-                              </p>
-                            </div>
-                            <div className="text-right ml-2">
-                              <span className="font-bold text-gray-900">
-                                {formatQuantity(item.quantity, 'pcs', false)}
-                              </span>
-                              <span className="text-xs text-gray-500 ml-1">pcs</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="font-semibold text-xs sm:text-sm text-gray-900 truncate">{item.name}</p>
+                            <div className="text-right flex-shrink-0">
+                              <span className="font-bold text-xs sm:text-sm text-gray-900">{formatQuantity(item.quantity, 'pcs', false)}</span>
+                              <span className="text-[9px] sm:text-[10px] text-gray-500 ml-0.5">pcs</span>
                             </div>
                           </div>
-                          
-                          {/* Compact Details */}
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600">
-                            {item.batch_no && <span>Batch: {item.batch_no}</span>}
-                            {item.expiry_date && (
-                              <span>
-                                Exp: {formatDate(item.expiry_date)}
-                              </span>
-                            )}
-                            {item.mrp && <span>MRP: {formatMRP(item.mrp)}</span>}
+                          <div className="mt-0.5 text-[9px] sm:text-[10px] text-gray-600 flex flex-wrap gap-x-2 gap-y-0.5">
+                            <span>📍 <b>{item.shelf_location || "—"}</b></span>
+                            <span>Pack: <b>{item.packing || "—"}</b></span>
+                            <span>MRP: <b>{formatMRP(item.mrp)}</b></span>
+                            <span>Batch: <b>{item.batch_no || "—"}</b></span>
                           </div>
                         </div>
-
-                        {/* Report Issue Button */}
-                        <button
-                          onClick={(e) => {e.stopPropagation();openReviewPopup(item);}}
-                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition"
-                          title="Report Issue"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                            />
+                        <button disabled={isLockedForReview} onClick={(e) => { e.stopPropagation(); !isLockedForReview && openReviewPopup(item); }} className={`p-1.5 rounded-lg transition flex-shrink-0 ${isLockedForReview ? "text-gray-400" : "text-orange-600 hover:bg-orange-50"}`}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
                         </button>
                       </div>
                     </div>
                   ))}
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
-                    <button
-                      onClick={handleCancelPacking}
-                      disabled={isLockedForReview || loading}
-                      className="flex-1 py-2.5 sm:py-3 text-sm sm:text-base font-semibold rounded-lg transition-all bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Cancel Packing
+                  <div className="flex flex-col sm:flex-row gap-1.5 pt-1">
+                    <button onClick={handleSendInvoiceToReview} disabled={isLockedForReview || !hasIssues} className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${hasIssues ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
+                      Send to Review
                     </button>
-                    <button
-                      onClick={handleSendInvoiceToReview}
-                      disabled={isLockedForReview || loading || !hasIssues}
-                      className={`flex-1 py-3 font-semibold rounded-lg transition-all ${
-                        isLockedForReview
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : hasIssues
-                            ? "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      }`}
-                    >
-                      {isLockedForReview ? "Under Review" : "Send Invoice to Review"}
+                    <button onClick={handleCompletePacking} disabled={isLockedForReview || !allItemsPacked || hasIssues} className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${allItemsPacked && !hasIssues ? "bg-teal-600 hover:bg-teal-700 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
+                      {hasIssues ? "Resolve Issues" : allItemsPacked ? (isReInvoiced ? "✓ Complete" : "Complete") : `Pack ${totalItems - packedCount}`}
                     </button>
-                    <button
-                      onClick={handleCompletePacking}
-                      disabled={isLockedForReview || !allItemsPacked || hasIssues}
-                      className={`flex-1 py-3 font-semibold rounded-lg transition-all ${
-                        allItemsPacked && !hasIssues
-                          ? "bg-teal-600 hover:bg-teal-700 text-white"
-                          : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      }`}
-                    >
-                      {hasIssues
-                        ? "Resolve Issues First"
-                        : allItemsPacked
-                          ? "Complete Packing"
-                          : `Pack ${totalItems - packedCount} More`}
+                    <button onClick={handleCancelPacking} disabled={isLockedForReview || loading} className="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 disabled:opacity-50">
+                      Cancel
                     </button>
                   </div>
                 </div>
@@ -629,23 +494,20 @@ export default function MyPackingListPage() {
           </div>
         )}
 
-        {/* Completed Bills Section - Responsive + Expandable */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {/* Header */}
-            <div className="px-3 sm:px-6 py-3 sm:py-4 bg-white border-b border-gray-200 flex items-center gap-2">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h2 className="text-base sm:text-lg font-semibold text-gray-700">
-                Completed Invoices Today
-              </h2>
-            </div>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-3 py-2 bg-white border-b flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 className="text-sm sm:text-base font-semibold text-gray-700">Completed Today</h2>
+          </div>
 
-            {completedInvoices.length === 0 ? (
-              <div className="text-center py-12 sm:py-16">
-                <p className="text-gray-500 text-base sm:text-lg">No completed invoices yet</p>
-              </div>
-            ) : (
+          {completedInvoices.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 text-sm">No completed invoices yet</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
               <>
                 {/* ===== DESKTOP TABLE ===== */}
                 <div className="hidden lg:block">
@@ -761,8 +623,9 @@ export default function MyPackingListPage() {
                   ))}
                 </div>
               </>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Issue Report Popup */}

@@ -4,7 +4,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { Truck, Package, CheckCircle, Clock, MapPin, PlayCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import ConfirmationModal from '../../../components/ConfirmationModal';
-import { formatDate, getTodayISOString, formatNumber, formatCoordinate, formatTime } from '../../../utils/formatters';
+import { formatDate, getTodayISOString, formatNumber, formatCoordinate, formatTime, formatAmount } from '../../../utils/formatters';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -156,10 +156,10 @@ export default function MyDeliveryListPage() {
         }
       });
       
-      // Filter for deliveries assigned to current user that haven't started
+      // Filter for deliveries assigned to current user with TO_CONSIDER status
       const pending = (res.data?.results || []).filter(delivery => 
-        delivery.delivery_info?.delivery_user_email === user.email &&
-        !delivery.delivery_info?.start_time
+        delivery.delivery_info?.email === user.email &&
+        delivery.delivery_info?.delivery_status === 'TO_CONSIDER'
       );
       
       setPendingDeliveries(pending);
@@ -232,9 +232,10 @@ export default function MyDeliveryListPage() {
       const payload = {
         invoice_no: invoice.invoice_no,
         user_email: user.email,
+        delivery_type: 'INTERNAL'
       };
 
-      await api.post("/sales/delivery/start-assigned/", payload);
+      await api.post("/sales/delivery/assign/", payload);
       toast.success("Delivery started successfully!");
       
       await loadAllDeliveries();
@@ -307,10 +308,13 @@ export default function MyDeliveryListPage() {
 
       // Add location data for company delivery
       if (completeModal.delivery.delivery_type === 'INTERNAL' && locationData) {
-        payload.delivery_latitude = locationData.latitude;
-        payload.delivery_longitude = locationData.longitude;
+        // Round coordinates to 6 decimal places to fit backend validation
+        // Backend expects max 10 digits for latitude (e.g., -90.123456)
+        // and max 11 digits for longitude (e.g., -180.123456)
+        payload.delivery_latitude = parseFloat(locationData.latitude.toFixed(6));
+        payload.delivery_longitude = parseFloat(locationData.longitude.toFixed(6));
         payload.delivery_location_address = locationData.address;
-        payload.delivery_location_accuracy = locationData.accuracy;
+        payload.delivery_location_accuracy = Math.round(locationData.accuracy);
       }
 
       await api.post("/sales/delivery/complete/", payload);
@@ -320,8 +324,42 @@ export default function MyDeliveryListPage() {
       
       await loadAllDeliveries();
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.detail || err.response?.data?.message || "Failed to complete delivery");
+      console.error('Complete delivery error:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Full error response data:', JSON.stringify(err.response?.data, null, 2));
+      
+      // Extract detailed error message
+      const errorData = err.response?.data;
+      let errorMessage = "Failed to complete delivery";
+      
+      if (errorData) {
+        // Check for errors object with validation details
+        if (errorData.errors && typeof errorData.errors === 'object') {
+          console.error('Validation errors:', errorData.errors);
+          // Extract first validation error
+          const firstErrorKey = Object.keys(errorData.errors)[0];
+          const firstErrorValue = errorData.errors[firstErrorKey];
+          if (Array.isArray(firstErrorValue)) {
+            errorMessage = `${firstErrorKey}: ${firstErrorValue[0]}`;
+          } else {
+            errorMessage = `${firstErrorKey}: ${firstErrorValue}`;
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (typeof errorData === 'object') {
+          // If it's a validation error object, extract first error
+          const firstError = Object.values(errorData)[0];
+          if (Array.isArray(firstError)) {
+            errorMessage = firstError[0];
+          } else if (typeof firstError === 'string') {
+            errorMessage = firstError;
+          }
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -557,7 +595,7 @@ export default function MyDeliveryListPage() {
                         {activeDelivery.items.map((item, idx) => (
                           <div key={idx} className="flex justify-between text-sm">
                             <span className="text-gray-700">{item.name}</span>
-                            <span className="font-medium">Qty: {formatQuantity(item.quantity, 'pcs', false)}</span>
+                            <span className="font-medium">Qty: {formatNumber(item.quantity)}</span>
                           </div>
                         ))}
                       </div>
