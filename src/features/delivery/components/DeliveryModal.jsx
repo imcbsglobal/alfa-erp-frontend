@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Truck, Package, User, Phone, Building, Hash, Mail } from 'lucide-react';
+import { formatAmount, formatItemCount } from '../../../utils/formatters';
 
 const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
   const [step, setStep] = useState(1);
@@ -520,8 +521,8 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                     <p className="text-sm text-gray-600 mt-0.5">{invoice?.customer?.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-gray-900">₹{invoice?.total_amount?.toFixed(2)}</p>
-                    <p className="text-xs text-gray-500">{invoice?.items?.length || 0} items</p>
+                    <p className="font-semibold text-gray-900">{formatAmount(invoice?.total_amount)}</p>
+                    <p className="text-xs text-gray-500">{formatItemCount(invoice?.items?.length)}</p>
                   </div>
                 </div>
               </div>
@@ -644,8 +645,8 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                     <p className="font-semibold text-gray-900">{invoice?.invoice_no}</p>
                     <p className="text-sm text-gray-600 mt-1">{invoice?.customer?.name}</p>
                     <div className="flex items-center justify-between mt-2">
-                      <p className="text-xs text-gray-500">{invoice?.items?.length || 0} items</p>
-                      <p className="font-semibold text-gray-900">₹{invoice?.total_amount?.toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">{formatItemCount(invoice?.items?.length)}</p>
+                      <p className="font-semibold text-gray-900">{formatAmount(invoice?.total_amount)}</p>
                     </div>
                   </div>
                 </div>

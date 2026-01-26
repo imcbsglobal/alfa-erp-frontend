@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Pagination from "../../../components/Pagination";
 import { getPackingHistory } from "../../../services/sales";
 import PackingDetailModal from "../../../components/PackingDetailModal";
+import { formatDate, formatTime } from '../../../utils/formatters';
 
 export default function PackingHistory() {
   const navigate = useNavigate();
@@ -189,26 +190,14 @@ export default function PackingHistory() {
                     <td className="px-3 sm:px-6 py-3">
                       <div className="text-sm text-gray-600">
                         <p className="font-medium">
-                          {new Date(h.start_time).toLocaleDateString("en-IN", {
-                            year: "2-digit",
-                            month: "2-digit",
-                            day: "2-digit",
-                          })}
+                          {formatDate(h.start_time)}
                         </p>
                         <p className="text-xs text-gray-600">
-                          {new Date(h.start_time).toLocaleTimeString("en-IN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: true,
-                          })}
+                          {formatTime(h.start_time)}
                           {h.end_time && (
                             <>
                               {" to "}
-                              {new Date(h.end_time).toLocaleTimeString("en-IN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                              })}
+                              {formatTime(h.end_time)}
                             </>
                           )}
                         </p>

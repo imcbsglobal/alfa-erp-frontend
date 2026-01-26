@@ -201,7 +201,7 @@ const DeveloperSettingsPage = () => {
                   className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh Stats
+                  Refresh Status
                 </button>
               </div>
               

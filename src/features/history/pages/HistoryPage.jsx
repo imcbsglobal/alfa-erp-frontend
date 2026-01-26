@@ -22,18 +22,17 @@ export default function HistoryPage() {
 
   return (
     <div className="p-4 sm:p-6">
-    <div className="flex justify-between mx-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">History</h1>
-      {/* <br /> */}
+      {/* Title */}
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">History</h1>
 
-       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 sm:gap-4 mb-5 justify-end">
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 sm:gap-4 mb-5">
         {tabBtn("Picking", "picking")}
         {tabBtn("Packing", "packing")}
         {tabBtn("Delivery", "delivery")}
       </div>
-    </div>
 
+      {/* Tab Content */}
       {tab === "picking" && <PickingHistory />}
       {tab === "packing" && <PackingHistory />}
       {tab === "delivery" && <DeliveryHistory />}

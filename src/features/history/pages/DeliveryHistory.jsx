@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Pagination from "../../../components/Pagination";
 import { getDeliveryHistory } from "../../../services/sales";
 import DeliveryDetailModal from "../../../components/DeliveryDetailModal";
+import { formatDateTime } from '../../../utils/formatters';
 
 export default function DeliveryHistory() {
   const navigate = useNavigate();
@@ -66,18 +67,6 @@ export default function DeliveryHistory() {
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
     return `${hours}h ${mins}m`;
-  };
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
   };
 
   const getShortLocation = (address) => {

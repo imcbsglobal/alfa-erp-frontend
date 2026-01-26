@@ -4,27 +4,7 @@ import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
-
-function formatDate(dateStr) {
-  if (!dateStr) return "—";
-  const [y, m, d] = dateStr.split("-");
-  return `${d}/${m}/${y}`;
-}
-
-function formatAmount(amount) {
-  if (!amount) return "0.00";
-  return parseFloat(amount).toFixed(2);
-}
-
-function formatDateTime(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
-}
+import { formatDateDDMMYYYY, formatNumber, formatTime, formatAmount } from '../../../utils/formatters';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
@@ -89,9 +69,8 @@ export default function BillingInvoiceListPage() {
       }
     };
 
-    es.onerror = (error) => {
-      // SSE connection closed - this is normal behavior when server restarts
-      // or connection times out. Connection will auto-reconnect when needed.
+    es.onerror = () => {
+      // SSE connection closed - normal behavior during server restarts or timeouts
       es.close();
     };
 
@@ -232,47 +211,50 @@ export default function BillingInvoiceListPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Invoice Management
-          </h1>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-semibold text-gray-700">Status:</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <option value="ALL">All</option>
-                <option value="INVOICED">Invoiced</option> 
-                <option value="PICKED">Picked</option>
-                <option value="PACKED">Packed</option>
-                <option value="DISPATCHED">Dispatched</option>
-                <option value="DELIVERED">Delivered</option>
-              </select>
-            </div>
+        {/* Header - Responsive */}
+        <div className="mb-6">
+          {/* Desktop: flex-row, Mobile: flex-col */}
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-800">
+              Invoice Management
+            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-700">Status:</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                >
+                  <option value="ALL">All</option>
+                  <option value="INVOICED">Invoiced</option> 
+                  <option value="PICKED">Picked</option>
+                  <option value="PACKED">Packed</option>
+                  <option value="DISPATCHED">Dispatched</option>
+                  <option value="DELIVERED">Delivered</option>
+                </select>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-semibold text-gray-700">Rows:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-700">Rows:</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
 
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-            >
-              Refresh
-            </button>
+              <button
+                onClick={handleRefresh}
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -322,8 +304,8 @@ export default function BillingInvoiceListPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <p className="text-sm font-medium">{formatDate(inv.invoice_date)}</p>
-                          <p className="text-xs text-gray-500">{formatDateTime(inv.created_at)}</p>
+                          <p className="text-sm font-medium">{formatDateDDMMYYYY(inv.invoice_date)}</p>
+                          <p className="text-xs text-gray-500">{formatTime(inv.created_at)}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>

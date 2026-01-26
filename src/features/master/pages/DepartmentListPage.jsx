@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
 import Pagination from "../../../components/Pagination";
+import { formatDate } from '../../../utils/formatters';
 import {
   getDepartments,
   updateDepartment,
@@ -430,7 +431,7 @@ export default function DepartmentListPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {dept.created_at || dept.createdAt ? new Date(dept.created_at || dept.createdAt).toLocaleDateString() : "-"}
+                          {formatDate(dept.created_at || dept.createdAt)}
                         </td>
                         {canManageDepartments && (
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -457,7 +458,7 @@ export default function DepartmentListPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900">{dept.name}</p>
                         <p className="text-sm text-gray-500 mt-1">
-                          Created: {dept.created_at || dept.createdAt ? new Date(dept.created_at || dept.createdAt).toLocaleDateString() : "-"}
+                          Created: {formatDate(dept.created_at || dept.createdAt)}
                         </p>
                       </div>
                     </div>

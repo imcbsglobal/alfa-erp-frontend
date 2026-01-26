@@ -1,46 +1,40 @@
 import { useEffect, useState } from "react";
 import { X, User, Mail, Phone, Clock, CheckCircle, Package, Truck, FileText, AlertTriangle } from "lucide-react";
+import { formatDetailedDateTime } from "../utils/formatters";
 
 export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, invoiceData }) {
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
 
   useEffect(() => {
-    if (isOpen && invoiceNo) {
-      setLoading(false);
-      // Set active section based on current status
-      if (invoiceData.delivery) {
-        setActiveSection("delivery");
-      } else if (invoiceData.packing) {
-        setActiveSection("packing");
-      } else if (invoiceData.picking) {
-        setActiveSection("picking");
-      }
+    if (!isOpen || !invoiceNo || !invoiceData) return;
+
+    setLoading(false);
+
+    if (invoiceData.delivery) {
+      setActiveSection("delivery");
+    } else if (invoiceData.packing) {
+      setActiveSection("packing");
+    } else if (invoiceData.picking) {
+      setActiveSection("picking");
     }
   }, [isOpen, invoiceNo, invoiceData]);
 
   if (!isOpen) return null;
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   const formatDuration = (minutes) => {
-    if (!minutes) return "-";
-    if (minutes < 60) return `${Math.round(minutes)} min`;
-    const hours = Math.floor(minutes / 60);
-    const mins = Math.round(minutes % 60);
+    const num = Number(minutes);
+
+    if (!Number.isFinite(num) || num <= 0) return "-";
+
+    if (num < 60) return `${Math.round(num)} min`;
+
+    const hours = Math.floor(num / 60);
+    const mins = Math.round(num % 60);
+
     return `${hours}h ${mins}m`;
   };
+
 
   const statusBadge = (status) => {
     const styles = {
@@ -82,7 +76,8 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
     return "pending";
   };
 
-  const isRepick = invoiceData.picking?.notes?.includes('[RE-PICK]');
+  const isRepick = typeof invoiceData.picking?.notes === "string" &&
+    invoiceData.picking.notes.includes("[RE-PICK]");
 
   // Helper function to get return info for a specific stage
   const getReturnInfo = (stage) => {
@@ -182,7 +177,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                         {invoiceData.return_info.returned_at && (
                           <div>
                             <span className="font-medium text-red-800">Returned At:</span>
-                            <span className="ml-2 text-red-700">{formatDateTime(invoiceData.return_info.returned_at)}</span>
+                            <span className="ml-2 text-red-700">{formatDetailedDateTime(invoiceData.return_info.returned_at)}</span>
                           </div>
                         )}
                       </div>
@@ -332,7 +327,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <Clock size={14} />
                               <span className="font-medium text-xs">Start Time</span>
                             </div>
-                            <p className="text-gray-900 text-xs">{formatDateTime(invoiceData.picking.start_time)}</p>
+                            <p className="text-gray-900 text-xs">{formatDetailedDateTime(invoiceData.picking.start_time)}</p>
                           </div>
 
                           <div>
@@ -340,7 +335,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <Clock size={14} />
                               <span className="font-medium text-xs">End Time</span>
                             </div>
-                            <p className="text-gray-900 text-xs">{formatDateTime(invoiceData.picking.end_time)}</p>
+                            <p className="text-gray-900 text-xs">{formatDetailedDateTime(invoiceData.picking.end_time)}</p>
                           </div>
                         </div>
 
@@ -408,7 +403,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <Clock size={14} />
                               <span className="font-medium text-xs">Start Time</span>
                             </div>
-                            <p className="text-gray-900 text-xs">{formatDateTime(invoiceData.packing.start_time)}</p>
+                            <p className="text-gray-900 text-xs">{formatDetailedDateTime(invoiceData.packing.start_time)}</p>
                           </div>
 
                           <div>
@@ -416,7 +411,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <Clock size={14} />
                               <span className="font-medium text-xs">End Time</span>
                             </div>
-                            <p className="text-gray-900 text-xs">{formatDateTime(invoiceData.packing.end_time)}</p>
+                            <p className="text-gray-900 text-xs">{formatDetailedDateTime(invoiceData.packing.end_time)}</p>
                           </div>
                         </div>
 
@@ -517,7 +512,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <Clock size={14} />
                               <span className="font-medium text-xs">Start Time</span>
                             </div>
-                            <p className="text-gray-900 text-xs">{formatDateTime(invoiceData.delivery.start_time)}</p>
+                            <p className="text-gray-900 text-xs">{formatDetailedDateTime(invoiceData.delivery.start_time)}</p>
                           </div>
 
                           <div>
@@ -525,7 +520,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <Clock size={14} />
                               <span className="font-medium text-xs">End Time</span>
                             </div>
-                            <p className="text-gray-900 text-xs">{formatDateTime(invoiceData.delivery.end_time)}</p>
+                            <p className="text-gray-900 text-xs">{formatDetailedDateTime(invoiceData.delivery.end_time)}</p>
                           </div>
                         </div>
 

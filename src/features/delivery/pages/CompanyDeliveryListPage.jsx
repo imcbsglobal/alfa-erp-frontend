@@ -5,6 +5,9 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import Pagination from "../../../components/Pagination";
 import ActiveUsersDock from '../../../components/ActiveUsersDock';
+import { formatNumber, formatAmount, formatDateTime } from '../../../utils/formatters';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 const CompanyDeliveryListPage = () => {
   const [deliveries, setDeliveries] = useState([]);
@@ -18,6 +21,34 @@ const CompanyDeliveryListPage = () => {
   useEffect(() => {
     loadCompanyDeliveries();
   }, [currentPage, searchTerm]);
+
+  // SSE live updates for company delivery assignments
+  useEffect(() => {
+    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (!data.invoice_no) return;
+
+        // Reload when company delivery is assigned
+        if (data.delivery_type === 'INTERNAL' && 
+            data.delivery_status === 'TO_CONSIDER') {
+          console.log('🏢 Company delivery update:', data.invoice_no);
+          loadCompanyDeliveries();
+        }
+      } catch (e) {
+        console.error('Company delivery SSE parse error:', e);
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+    };
+
+    return () => es.close();
+  }, []); // Empty dependency - SSE monitors global company delivery updates
 
   const loadCompanyDeliveries = async () => {
     setLoading(true);
@@ -53,18 +84,6 @@ const CompanyDeliveryListPage = () => {
     navigate(`/delivery/invoices/view/${billId}/company-delivery`);
   };
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
-
   const getTimeSinceAssignment = (dateString) => {
     if (!dateString) return '';
     const now = new Date();
@@ -82,32 +101,34 @@ const CompanyDeliveryListPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">
-              Company Delivery - Consider List
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Deliveries assigned to staff members • Awaiting completion
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by invoice, customer, or staff..."
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            />
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+        {/* Header - Responsive */}
+        <div className="mb-6">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">
+                Company Delivery - Consider List
+              </h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search invoice, customer, or staff..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
+              />
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -167,7 +188,7 @@ const CompanyDeliveryListPage = () => {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <p className="font-semibold text-gray-900">
-                              {delivery.total?.toFixed(2) || '0.00'}
+                              {formatAmount(delivery.total)}
                             </p>
                             <p className="text-xs text-gray-500">
                               {delivery.items?.length || 0} items

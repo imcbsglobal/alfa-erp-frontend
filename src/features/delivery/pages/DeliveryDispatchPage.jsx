@@ -7,6 +7,9 @@ import { useAuth } from "../../auth/AuthContext";
 import DeliveryStatusBadge from '../components/DeliveryStatusBadge';
 import toast from 'react-hot-toast';
 import Pagination from "../../../components/Pagination";
+import { formatNumber, formatAmount, formatTime } from '../../../utils/formatters';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 const DeliveryDispatchPage = () => {
   const navigate = useNavigate();
@@ -28,6 +31,33 @@ const DeliveryDispatchPage = () => {
   useEffect(() => {
     loadPackedInvoices();
   }, [currentPage, searchTerm]);
+
+  // SSE live updates for packed invoices ready for delivery
+  useEffect(() => {
+    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (!data.invoice_no) return;
+
+        // Reload when invoice becomes PACKED or delivery is assigned
+        if (data.status === 'PACKED' || data.delivery_status) {
+          console.log('📦 Dispatch page update:', data.invoice_no);
+          loadPackedInvoices();
+        }
+      } catch (e) {
+        console.error('Dispatch SSE parse error:', e);
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+    };
+
+    return () => es.close();
+  }, []); // Empty dependency - SSE monitors global packed invoice updates
 
   const loadPackedInvoices = async () => {
     setLoading(true);
@@ -131,22 +161,6 @@ const DeliveryDispatchPage = () => {
     navigate(`/delivery/invoices/view/${billId}/delivery`);
   };
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "—";
-    const [y, m, d] = dateStr.split("-");
-    return `${d}/${m}/${y}`;
-  };
-
   const formatDuration = (startTime) => {
     if (!startTime) return "N/A";
     const start = new Date(startTime);
@@ -178,24 +192,36 @@ const DeliveryDispatchPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Dispatch Management
-          </h1>
-          <div className="flex gap-2">
-            <button
-              onClick={handleShowOngoingWork}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-            >
-              Ongoing Work
-            </button>
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-            >
-              Refresh
-            </button>
+        {/* Header - Responsive */}
+        <div className="mb-6">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-800">
+              Dispatch Management
+            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search invoice or customer..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
+              />
+              <button
+                onClick={handleShowOngoingWork}
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
+              >
+                Ongoing Work
+              </button>
+              <button
+                onClick={handleRefresh}
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -260,7 +286,7 @@ const DeliveryDispatchPage = () => {
                           {bill.items?.length || 0} items
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {bill.total?.toFixed(2) || '0.00'}
+                          {formatAmount(bill.total)}
                         </td>
                         <td className="px-4 py-3">
                           <span className="px-3 py-1 rounded-full border text-xs font-bold bg-emerald-100 text-emerald-700 border-emerald-300">
@@ -370,7 +396,7 @@ const DeliveryDispatchPage = () => {
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {delivery.start_time
-                                ? new Date(delivery.start_time).toLocaleTimeString()
+                                ? formatTime(delivery.start_time)
                                 : "N/A"}
                             </td>
                             <td className="px-4 py-3 text-sm">

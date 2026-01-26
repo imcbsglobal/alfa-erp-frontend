@@ -138,6 +138,7 @@ export default function UserControlPage() {
   const [availableMenus, setAvailableMenus] = useState([]);
   const [userPermissions, setUserPermissions] = useState({});
   const [expandedMenus, setExpandedMenus] = useState({});
+  const [showMobileUserList, setShowMobileUserList] = useState(true);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -207,8 +208,22 @@ export default function UserControlPage() {
     }
   };
 
+  // Get unique job roles for filter
+  const uniqueRoles = ["ALL", ...new Set(users.map(u => u.job_title_name).filter(Boolean))];
+
+  const filteredUsers = users.filter((u) => {
+    const name = u.name || u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim();
+    const email = u.email || "";
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = name.toLowerCase().includes(searchLower) || email.toLowerCase().includes(searchLower);
+    const matchesRole = roleFilter === "ALL" || u.job_title_name === roleFilter;
+    
+    return matchesSearch && matchesRole;
+  });
+
   const handleUserSelect = (user) => {
     setSelectedUser(user);
+    setShowMobileUserList(false);
   };
 
   const togglePermission = (menuId) => {
@@ -256,19 +271,6 @@ export default function UserControlPage() {
       setSaveLoading(false);
     }
   };
-
-  // Get unique job roles for filter
-  const uniqueRoles = ["ALL", ...new Set(users.map(u => u.job_title_name).filter(Boolean))];
-
-  const filteredUsers = users.filter((u) => {
-    const name = u.name || u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim();
-    const email = u.email || "";
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = name.toLowerCase().includes(searchLower) || email.toLowerCase().includes(searchLower);
-    const matchesRole = roleFilter === "ALL" || u.job_title_name === roleFilter;
-    
-    return matchesSearch && matchesRole;
-  });
 
   const MenuItem = ({ menu, level = 0 }) => {
     const enabled = !!userPermissions[menu.id];
@@ -338,14 +340,32 @@ export default function UserControlPage() {
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-2 flex-shrink-0">
-        <h1 className="text-xl font-bold text-gray-800">User Access Control</h1>
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-2 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Mobile back button - only show on mobile when user is selected */}
+          {selectedUser && (
+            <button
+              onClick={() => {
+                setShowMobileUserList(true);
+                setSelectedUser(null);
+              }}
+              className="lg:hidden p-1 hover:bg-gray-100 rounded"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+          <h1 className="text-lg sm:text-xl font-bold text-gray-800">User Access Control</h1>
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
         {/* User List Sidebar */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200">
+        <div className={`${
+          showMobileUserList ? 'block' : 'hidden'
+        } lg:block w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col`}>
+          <div className="p-3 sm:p-4 border-b border-gray-200">
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-sm font-semibold text-gray-700">Users</h2>
               <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
@@ -396,7 +416,7 @@ export default function UserControlPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+          <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <svg className="w-8 h-8 animate-spin text-teal-600" fill="none" viewBox="0 0 24 24">
@@ -420,7 +440,7 @@ export default function UserControlPage() {
                   <button
                     key={u.id}
                     onClick={() => handleUserSelect(u)}
-                    className={`w-full text-left px-4 py-2.5 border-b border-gray-100 transition-colors ${
+                    className={`w-full text-left px-3 sm:px-4 py-2.5 border-b border-gray-100 transition-colors ${
                       isSelected
                         ? "bg-teal-50 border-l-4 border-l-teal-600"
                         : "hover:bg-gray-50 border-l-4 border-l-transparent"
@@ -428,16 +448,16 @@ export default function UserControlPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-8 h-8 rounded-full flex-shrink-0 ${
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex-shrink-0 ${
                           u.role === "ADMIN"
                             ? "bg-purple-500"
                             : "bg-teal-500"
-                        } flex items-center justify-center text-white font-semibold text-xs`}
+                        } flex items-center justify-center text-white font-semibold text-xs sm:text-sm`}
                       >
                         {userInitial}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-sm truncate text-gray-800 uppercase">
                             {u.name || u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || "Unknown User"}
                           </p>
@@ -467,21 +487,23 @@ export default function UserControlPage() {
         </div>
 
         {/* Permissions Panel */}
-        <div className="flex-1 flex flex-col bg-white">
+        <div className={`${
+          !showMobileUserList ? 'block' : 'hidden'
+        } lg:block flex-1 flex flex-col bg-white`}>
           {!selectedUser ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center p-4">
               <div className="text-center">
-                <svg className="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-12 sm:w-16 h-12 sm:h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                <h3 className="text-lg font-semibold text-gray-800 mb-1">Select a User</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1">Select a User</h3>
                 <p className="text-sm text-gray-500">Choose a user to manage permissions</p>
               </div>
             </div>
           ) : (
             <>
-              <div className="border-b border-gray-200 px-6 py-2 bg-gray-50 flex-shrink-0">
-                <div className="flex items-center justify-between">
+              <div className="border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-2 bg-gray-50 flex-shrink-0">
+                <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-full flex-shrink-0 ${
@@ -493,8 +515,8 @@ export default function UserControlPage() {
                       {(selectedUser.name || selectedUser.full_name || selectedUser.email || "U").charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-base font-bold text-gray-800 uppercase">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-sm sm:text-base font-bold text-gray-800 uppercase">
                           {selectedUser.name || selectedUser.full_name || `${selectedUser.first_name || ""} ${selectedUser.last_name || ""}`.trim() || "Unknown User"}
                         </h2>
                         <span
@@ -509,11 +531,11 @@ export default function UserControlPage() {
                           {selectedUser.role}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{selectedUser.email}</p>
+                      <p className="text-xs sm:text-sm text-gray-600">{selectedUser.email}</p>
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <button
                       onClick={() => {
                         const updates = {};
@@ -526,13 +548,13 @@ export default function UserControlPage() {
                         walk(availableMenus);
                         setUserPermissions(updates);
                       }}
-                      className="px-3 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 rounded hover:bg-teal-100 transition-colors"
+                      className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 rounded hover:bg-teal-100 transition-colors"
                     >
                       Select All
                     </button>
                     <button
                       onClick={() => setUserPermissions({})}
-                      className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                      className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
                     >
                       Clear All
                     </button>
@@ -540,17 +562,17 @@ export default function UserControlPage() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+              <div className="flex-1 overflow-y-auto">
                 {availableMenus.map(menu => (
                   <MenuItem key={menu.id} menu={menu} />
                 ))}
               </div>
 
-              <div className="border-t border-gray-200 px-6 py-2 bg-gray-50 flex-shrink-0">
+              <div className="border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-2 bg-gray-50 flex-shrink-0">
                 <button
                   onClick={handleSavePermissions}
                   disabled={saveLoading}
-                  className="w-full py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-md hover:bg-teal-700 transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 sm:py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-md hover:bg-teal-700 transition-colors font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saveLoading ? (
                     <>

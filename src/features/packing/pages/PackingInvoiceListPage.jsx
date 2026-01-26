@@ -6,53 +6,9 @@ import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import ActiveUsersDock from '../../../components/ActiveUsersDock';
+import { formatDateDDMMYYYY, formatTime, formatDuration, formatNumber, formatDate, formatDateTime } from '../../../utils/formatters';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
-
-function formatDate(dateStr) {
-  if (!dateStr) return "—";
-  const [y, m, d] = dateStr.split("-");
-  return `${d}/${m}/${y}`;
-}
-
-function formatTime(timeStr) {
-  if (!timeStr) return "N/A";
-  try {
-    const date = new Date(timeStr);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  } catch (e) {
-    return "N/A";
-  }
-}
-
-function formatDateTime(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
-}
-
-function formatDuration(startTime) {
-  if (!startTime) return "N/A";
-  const start = new Date(startTime);
-  const now = new Date();
-  const diffMs = now - start;
-  const diffMins = Math.floor(diffMs / 60000);
-  const hours = Math.floor(diffMins / 60);
-  const mins = diffMins % 60;
-  
-  if (hours > 0) {
-    return `${hours}h ${mins}m`;
-  }
-  return `${mins}m`;
-}
 
 export default function PackingInvoiceListPage() {
   const { user } = useAuth();
@@ -66,6 +22,7 @@ export default function PackingInvoiceListPage() {
   const [ongoingTasks, setOngoingTasks] = useState([]);
   const [loadingOngoing, setLoadingOngoing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -101,7 +58,7 @@ export default function PackingInvoiceListPage() {
     };
 
     return () => eventSource.close();
-  }, []);
+  }, []); // Empty dependency - SSE monitors global picked invoice updates
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -291,10 +248,21 @@ export default function PackingInvoiceListPage() {
     (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
   );
 
+  // Filter by search term
+  const filteredInvoices = sortedInvoices.filter(inv => {
+    if (!searchTerm.trim()) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      inv.invoice_no?.toLowerCase().includes(search) ||
+      inv.customer?.name?.toLowerCase().includes(search) ||
+      inv.customer?.code?.toLowerCase().includes(search)
+    );
+  });
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sortedInvoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
+  const currentItems = filteredInvoices.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -350,24 +318,37 @@ export default function PackingInvoiceListPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Packing Management
-          </h1>
-          <div className="flex gap-2">
-            <button
-              onClick={handleShowOngoingWork}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-            >
-              Ongoing Work
-            </button>
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-            >
-              Refresh
-            </button>
+        {/* Header - Responsive */}
+        <div className="mb-6">
+          {/* Desktop: flex-row, Mobile: flex-col */}
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-800">
+              Packing Management
+            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search invoice or customer..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
+              />
+              <button
+                onClick={handleShowOngoingWork}
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
+              >
+                Ongoing Work
+              </button>
+              <button
+                onClick={handleRefresh}
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -422,7 +403,7 @@ export default function PackingInvoiceListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-sm font-medium">{formatDate(inv.invoice_date)}</p>
-                          <p className="text-xs text-gray-500">{formatDateTime(inv.created_at)}</p>
+                          <p className="text-xs text-gray-500">{formatTime(inv.created_at)}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
@@ -434,7 +415,7 @@ export default function PackingInvoiceListPage() {
                           {inv.salesman?.name}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {inv.total?.toFixed(2)}
+                          {formatNumber(inv.total, 2, '0.00')}
                         </td>
                         <td className="px-4 py-3 text-center ">
                           <span
@@ -470,7 +451,7 @@ export default function PackingInvoiceListPage() {
               </div>
               <Pagination
                 currentPage={currentPage}
-                totalItems={sortedInvoices.length}
+                totalItems={filteredInvoices.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={handlePageChange}
                 label="invoices"

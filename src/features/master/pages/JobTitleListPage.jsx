@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
 import Pagination from "../../../components/Pagination";
+import { formatDate } from '../../../utils/formatters';
 import {
   getJobTitles,
   updateJobTitle,
@@ -572,11 +573,7 @@ export default function JobTitleListPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {job.created_at || job.createdAt
-                            ? new Date(
-                                job.created_at || job.createdAt
-                              ).toLocaleDateString()
-                            : "-"}
+                          {formatDate(job.created_at || job.createdAt)}
                         </td>
                         {canManageJobTitles && (
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -702,9 +699,7 @@ export default function JobTitleListPage() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Created:</span>
                       <span className="text-gray-900 font-medium">
-                        {job.created_at || job.createdAt
-                          ? new Date(job.created_at || job.createdAt).toLocaleDateString()
-                          : "-"}
+                        {formatDate(job.created_at || job.createdAt)}
                       </span>
                     </div>
                   </div>

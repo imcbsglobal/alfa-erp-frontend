@@ -2,12 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
-
-function formatDate(dateStr) {
-  if (!dateStr) return "—";
-  const [y, m, d] = dateStr.split("-");
-  return `${d}-${m}-${y}`;
-}
+import { formatDateDDMMYYYY, formatNumber, formatTime, formatMRP, formatQuantity, formatAmount } from "../../../utils/formatters";
 
 export default function BillingInvoiceViewPage() {
   const { user } = useAuth();
@@ -51,16 +46,6 @@ export default function BillingInvoiceViewPage() {
   const totalPages = invoice ? Math.ceil(invoice.items.length / itemsPerPage) : 0;
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
-
-  const formatDateTime = (dateTimeStr) => {
-    if (!dateTimeStr) return "—";
-    const date = new Date(dateTimeStr);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
 
   if (loading) {
     return (
@@ -150,7 +135,7 @@ export default function BillingInvoiceViewPage() {
               <MobileInfoRow label="Invoice Number" value={invoice.invoice_no} />
               <MobileInfoRow
                 label="Date & Time"
-                value={`${formatDate(invoice.invoice_date)} & ${formatDateTime(invoice.created_at)}`}
+                value={`${formatDateDDMMYYYY(invoice.invoice_date)} & ${formatTime(invoice.created_at)}`}
               />
               <MobileInfoRow label="Salesman" value={invoice.salesman?.name} />
               <MobileInfoRow label="Created By" value={invoice.created_by} />
@@ -204,12 +189,12 @@ export default function BillingInvoiceViewPage() {
                         <p className="text-xs text-gray-500">Pack: {item.packing}</p>
                       )}
                     </div>
-                    <span className="text-sm font-bold text-teal-600">Qty: {item.quantity}</span>
+                    <span className="text-sm font-bold text-teal-600">Qty: {formatQuantity(item.quantity, 'pcs', false)}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-gray-500">MRP:</span>
-                      <span className="ml-1 font-semibold text-gray-900">{item.mrp != null ? Number(item.mrp).toFixed(2) : '0.00'}</span>
+                      <span className="ml-1 font-semibold text-gray-900">{formatMRP(item.mrp)}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Batch:</span>
@@ -217,7 +202,7 @@ export default function BillingInvoiceViewPage() {
                     </div>
                     <div>
                       <span className="text-gray-500">Exp Date:</span>
-                      <span className="ml-1 text-gray-700">{formatDate(item.expiry_date)}</span>
+                      <span className="ml-1 text-gray-700">{formatDateDDMMYYYY(item.expiry_date)}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Remarks:</span>
@@ -263,7 +248,7 @@ export default function BillingInvoiceViewPage() {
 
           <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-4 text-center shadow-md">
             <p className="text-sm font-bold tracking-wider mb-1">Total Amount</p>
-            <p className="text-2xl font-bold">{invoice.total != null ? Number(invoice.total).toFixed(2) : '0.00'}</p>
+            <p className="text-2xl font-bold">{formatAmount(invoice.total)}</p>
           </div>
         </div>
 
@@ -280,7 +265,7 @@ export default function BillingInvoiceViewPage() {
                   <h2 className="text-sm font-bold text-gray-900">Invoice Info</h2>
                 </div>
                 <div className="space-y-2">
-                  <CompactInfoRowInline label1="Invoice No"value1={invoice.invoice_no}label2="Date & Time"value2={`${formatDate(invoice.invoice_date)} & ${formatDateTime(invoice.created_at)}`}/>
+                  <CompactInfoRowInline label1="Invoice No"value1={invoice.invoice_no}label2="Date & Time"value2={`${formatDateDDMMYYYY(invoice.invoice_date)} & ${formatTime(invoice.created_at)}`}/>
                   <CompactInfoRowInline label1="Salesman" value1={invoice.salesman?.name} label2="Created By" value2={invoice.created_by} />
                 </div>
               </div>
@@ -322,7 +307,7 @@ export default function BillingInvoiceViewPage() {
               {/* Total Amount */}
               <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg p-3 text-center">
                 <p className="text-xs font-bold mb-1">Total Amount</p>
-                <p className="text-2xl font-bold">{invoice.total != null ? Number(invoice.total).toFixed(2) : '0.00'}</p>
+                <p className="text-2xl font-bold">{formatAmount(invoice.total)}</p>
               </div>
 
             </div>
@@ -372,11 +357,11 @@ export default function BillingInvoiceViewPage() {
                       </div>
 
                       <div className="col-span-1 text-xs text-center font-semibold text-gray-800">
-                        {item.quantity}
+                        {formatQuantity(item.quantity, 'pcs', false)}
                       </div>
 
                       <div className="col-span-1 text-xs font-semibold text-gray-900 text-right">
-                        {item.mrp != null ? Number(item.mrp).toFixed(2) : '0.00'}
+                        {formatMRP(item.mrp)}
                       </div>
 
                       <div className="col-span-2 text-xs text-center text-gray-700 overflow-hidden">
@@ -384,7 +369,7 @@ export default function BillingInvoiceViewPage() {
                       </div>
 
                       <div className="col-span-2 text-xs text-center text-gray-600">
-                        {formatDate(item.expiry_date)}
+                        {formatDateDDMMYYYY(item.expiry_date)}
                       </div>
 
                       <div className="col-span-1 text-xs text-center text-gray-500 overflow-hidden">

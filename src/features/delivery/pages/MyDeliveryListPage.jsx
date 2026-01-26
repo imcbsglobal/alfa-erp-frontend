@@ -4,6 +4,9 @@ import { useAuth } from "../../auth/AuthContext";
 import { Truck, Package, CheckCircle, Clock, MapPin, PlayCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import ConfirmationModal from '../../../components/ConfirmationModal';
+import { formatDate, getTodayISOString, formatNumber, formatCoordinate, formatTime } from '../../../utils/formatters';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export default function MyDeliveryListPage() {
   const [pendingDeliveries, setPendingDeliveries] = useState([]);
@@ -94,6 +97,38 @@ export default function MyDeliveryListPage() {
     loadAllDeliveries();
   }, []);
 
+  // SSE live updates for delivery assignments and status changes
+  useEffect(() => {
+    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (!data.invoice_no) return;
+
+        // Reload deliveries when:
+        // 1. Invoice is PACKED (new delivery assignment possible)
+        // 2. Delivery is assigned to current user
+        // 3. Delivery status changes
+        if (data.status === 'PACKED' || 
+            data.delivery_status || 
+            data.delivery_assigned_to === user?.email) {
+          console.log('🚚 My Delivery update received:', data.invoice_no);
+          loadAllDeliveries();
+        }
+      } catch (e) {
+        console.error('My Delivery SSE parse error:', e);
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+    };
+
+    return () => es.close();
+  }, [user?.email]); // Include user email to prevent stale closure
+
   const loadAllDeliveries = async () => {
     try {
       setLoading(true);
@@ -168,7 +203,7 @@ export default function MyDeliveryListPage() {
 
   const loadTodayCompletedDeliveries = async () => {
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayISOString();
       const res = await api.get("/sales/delivery/history/", {
         params: {
           search: user.email,
@@ -329,26 +364,6 @@ export default function MyDeliveryListPage() {
     }
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    });
-  };
-
   const toggleExpand = (deliveryId) => {
     setExpandedDelivery(expandedDelivery === deliveryId ? null : deliveryId);
   };
@@ -375,45 +390,45 @@ export default function MyDeliveryListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-2 py-2 sm:py-3">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">My Delivery Tasks</h1>
+        <div className="mb-2">
+          <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-800">My Delivery Tasks</h1>
         </div>
 
         {/* Pending Deliveries Section */}
         {pendingDeliveries.length > 0 && (
-          <div className="mb-6">
-            <div className="mb-3 flex items-center gap-2">
-              <Package className="w-6 h-6 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-700">Pending Deliveries</h2>
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+          <div className="mb-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              <h2 className="text-sm sm:text-base font-semibold text-gray-700">Pending Deliveries</h2>
+              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] sm:text-xs font-semibold">
                 {pendingDeliveries.length}
               </span>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {pendingDeliveries.map((invoice) => (
                 <div key={invoice.id} className="bg-white rounded-lg border-2 border-blue-200 shadow overflow-hidden">
                   <div
                     onClick={() => toggleExpand(invoice.id)}
-                    className="p-4 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
+                    className="p-2 sm:p-3 bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <div>
-                          <h3 className="font-bold text-gray-900">
-                            Invoice #{invoice.invoice_no}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-2 h-2 flex-shrink-0 bg-blue-500 rounded-full"></div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-xs sm:text-sm text-gray-900 truncate">
+                            #{invoice.invoice_no}
                           </h3>
-                          <p className="text-xs text-gray-600">
+                          <p className="text-[10px] sm:text-xs text-gray-600 truncate">
                             {invoice.customer?.name} • {getDeliveryTypeLabel(invoice.delivery_type)}
                           </p>
                         </div>
                       </div>
                       <button className="text-gray-500 hover:text-gray-700">
                         <svg
-                          className={`w-5 h-5 transition-transform ${
+                          className={`w-4 h-4 transition-transform ${
                             expandedDelivery === invoice.id ? "rotate-180" : ""
                           }`}
                           fill="none"
@@ -432,7 +447,7 @@ export default function MyDeliveryListPage() {
                   </div>
 
                   {expandedDelivery === invoice.id && (
-                    <div className="p-4 space-y-3">
+                    <div className="p-2 sm:p-3 space-y-2">
                       <div className="bg-gray-50 rounded-lg p-3">
                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Customer Information</h4>
                         <div className="space-y-1 text-sm">
@@ -447,7 +462,7 @@ export default function MyDeliveryListPage() {
                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Invoice Details</h4>
                         <div className="space-y-1 text-sm">
                           <p><span className="text-gray-500">Items:</span> {invoice.items?.length || 0}</p>
-                          <p><span className="text-gray-500">Total Amount:</span> ₹{invoice.total?.toFixed(2)}</p>
+                          <p><span className="text-gray-500">Total Amount:</span> {formatAmount(invoice.total)}</p>
                         </div>
                       </div>
 
@@ -456,9 +471,9 @@ export default function MyDeliveryListPage() {
                           e.stopPropagation();
                           handleStartDelivery(invoice);
                         }}
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                        className="w-full py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5"
                       >
-                        <PlayCircle className="w-5 h-5" />
+                        <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         Start Delivery
                       </button>
                     </div>
@@ -471,33 +486,32 @@ export default function MyDeliveryListPage() {
 
         {/* Active Delivery Section */}
         {activeDelivery && (
-          <div className="mb-6">
-            <div className="mb-3 flex items-center gap-2">
-              <Truck className="w-6 h-6 text-teal-600" />
-              <h2 className="text-lg font-semibold text-gray-700">Active Delivery</h2>
-              <span className="text-sm text-gray-500">Currently in progress</span>
+          <div className="mb-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
+              <h2 className="text-sm sm:text-base font-semibold text-gray-700">Active Delivery</h2>
             </div>
 
             <div className="bg-white rounded-lg border-2 border-teal-500 shadow overflow-hidden">
               <div
                 onClick={() => toggleExpand(activeDelivery.id)}
-                className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer hover:bg-teal-100 transition-colors"
+                className="p-2 sm:p-3 bg-teal-50 border-b border-teal-200 cursor-pointer hover:bg-teal-100 transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
-                    <div>
-                      <h3 className="font-bold text-gray-900">
-                        Invoice #{activeDelivery.invoice_no}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-2 h-2 flex-shrink-0 bg-teal-500 rounded-full animate-pulse"></div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-xs sm:text-sm text-gray-900 truncate">
+                        #{activeDelivery.invoice_no}
                       </h3>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-[10px] sm:text-xs text-gray-600 truncate">
                         {activeDelivery.customer_name} • {getDeliveryTypeLabel(activeDelivery.delivery_type)}
                       </p>
                     </div>
                   </div>
                   <button className="text-gray-500 hover:text-gray-700">
                     <svg
-                      className={`w-5 h-5 transition-transform ${
+                      className={`w-4 h-4 transition-transform ${
                         expandedDelivery === activeDelivery.id ? "rotate-180" : ""
                       }`}
                       fill="none"
@@ -516,7 +530,7 @@ export default function MyDeliveryListPage() {
               </div>
 
               {expandedDelivery === activeDelivery.id && (
-                <div className="p-4 space-y-3">
+                <div className="p-2 sm:p-3 space-y-2">
                   <div className="bg-gray-50 rounded-lg p-3">
                     <h4 className="text-sm font-semibold text-gray-700 mb-2">Customer Information</h4>
                     <div className="space-y-1 text-sm">
@@ -543,7 +557,7 @@ export default function MyDeliveryListPage() {
                         {activeDelivery.items.map((item, idx) => (
                           <div key={idx} className="flex justify-between text-sm">
                             <span className="text-gray-700">{item.name}</span>
-                            <span className="font-medium">Qty: {item.quantity}</span>
+                            <span className="font-medium">Qty: {formatQuantity(item.quantity, 'pcs', false)}</span>
                           </div>
                         ))}
                       </div>
@@ -556,7 +570,7 @@ export default function MyDeliveryListPage() {
                       handleCancelDelivery(activeDelivery);
                     }}
                     disabled={loading}
-                    className="w-full py-3 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-semibold transition-all shadow-md border border-red-300 mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-2 sm:py-2.5 bg-red-100 text-red-700 text-xs sm:text-sm hover:bg-red-200 rounded-lg font-semibold transition-all shadow-md border border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel Delivery
                   </button>
@@ -566,7 +580,7 @@ export default function MyDeliveryListPage() {
                       e.stopPropagation();
                       openCompleteModal(activeDelivery);
                     }}
-                    className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
+                    className="w-full py-2 sm:py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
                   >
                     Complete Delivery
                   </button>
@@ -578,9 +592,9 @@ export default function MyDeliveryListPage() {
 
         {/* Completed Deliveries Section */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 bg-white border-b border-gray-200 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-teal-600" />
-            <h2 className="text-lg font-semibold text-gray-700">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 bg-white border-b border-gray-200 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
+            <h2 className="text-base sm:text-lg font-semibold text-gray-700">
               Completed Deliveries Today
             </h2>
           </div>
@@ -784,7 +798,7 @@ export default function MyDeliveryListPage() {
                           <p className="text-xs font-medium text-green-800">Location Captured</p>
                           <p className="text-xs text-green-700 mt-1 break-words">{locationData.address}</p>
                           <p className="text-xs text-green-600 mt-1">
-                            Lat: {locationData.latitude.toFixed(6)}, Lon: {locationData.longitude.toFixed(6)}
+                            Lat: {formatCoordinate(locationData.latitude)}, Lon: {formatCoordinate(locationData.longitude)}
                           </p>
                           <p className="text-xs text-green-600">
                             Accuracy: ±{Math.round(locationData.accuracy)}m

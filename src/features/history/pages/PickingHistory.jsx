@@ -4,6 +4,7 @@ import Pagination from "../../../components/Pagination";
 import { useAuth } from "../../auth/AuthContext";
 import { getPickingHistory } from "../../../services/sales";
 import InvoiceDetailModal from "../../../components/InvoiceDetailModal";
+import { formatDate, formatTime } from '../../../utils/formatters';
 
 export default function PickingHistory() {
   const { user } = useAuth();
@@ -228,26 +229,14 @@ export default function PickingHistory() {
                     <td className="px-3 sm:px-6 py-3">
                       <div className="text-sm text-gray-600">
                         <p className="font-medium">
-                          {new Date(h.start_time).toLocaleDateString("en-IN", {
-                            year: "2-digit",
-                            month: "2-digit",
-                            day: "2-digit",
-                          })}
+                          {formatDate(h.start_time)}
                         </p>
                         <p className="text-xs text-gray-600">
-                          {new Date(h.start_time).toLocaleTimeString("en-IN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: true,
-                          })}
+                          {formatTime(h.start_time)}
                           {h.end_time && (
                             <>
                               {" to "}
-                              {new Date(h.end_time).toLocaleTimeString("en-IN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                              })}
+                              {formatTime(h.end_time)}
                             </>
                           )}
                         </p>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Pagination from "../../../components/Pagination";
 import { getPickingHistory, getPackingHistory, getDeliveryHistory } from "../../../services/sales";
 import ConsolidateDetailModal from "../../../components/ConsolidateDetailModal";
+import { formatDateTime } from '../../../utils/formatters';
 
 export default function InvoiceHistoryView() {
   const [history, setHistory] = useState([]);
@@ -152,18 +153,6 @@ export default function InvoiceHistoryView() {
     return `${hours}h ${mins}m`;
   };
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   const statusBadge = (status) => {
     const styles = {
       PREPARING: "bg-yellow-100 text-yellow-700 border-yellow-200",
@@ -219,12 +208,12 @@ export default function InvoiceHistoryView() {
             <input
               type="text"
               placeholder="Search invoice or customer..."
-              className="px-3 py-2 border border-gray-300 rounded-lg sm:w-64 w-full"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64"
             />
 
             <select

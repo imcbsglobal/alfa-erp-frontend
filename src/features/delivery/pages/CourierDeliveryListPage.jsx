@@ -3,6 +3,9 @@ import { Truck, Upload, X, CheckCircle } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { formatNumber, formatFileSize, formatDetailedDateTime, formatAmount } from '../../../utils/formatters';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 const CourierDeliveryListPage = () => {
   const [deliveries, setDeliveries] = useState([]);
@@ -20,6 +23,34 @@ const CourierDeliveryListPage = () => {
   useEffect(() => {
     loadCourierDeliveries();
   }, [currentPage, searchTerm]);
+
+  // SSE live updates for courier delivery assignments and POD uploads
+  useEffect(() => {
+    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (!data.invoice_no) return;
+
+        // Reload when courier delivery is assigned or POD is uploaded
+        if (data.delivery_type === 'COURIER' && 
+            (data.delivery_status === 'TO_CONSIDER' || data.pod_uploaded)) {
+          console.log('📦 Courier delivery update:', data.invoice_no);
+          loadCourierDeliveries();
+        }
+      } catch (e) {
+        console.error('Courier SSE parse error:', e);
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+    };
+
+    return () => es.close();
+  }, []); // Empty dependency - SSE monitors global courier delivery updates
 
   const loadCourierDeliveries = async () => {
     setLoading(true);
@@ -134,18 +165,6 @@ const CourierDeliveryListPage = () => {
     }
   };
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
-
   // Check if courier is assigned
   const isCourierAssigned = (delivery) => {
     return delivery.delivery_info?.courier_name ? true : false;
@@ -154,16 +173,31 @@ const CourierDeliveryListPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Courier Delivery - Consider List
-          </h1>
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-          >
-            Refresh
-          </button>
+        {/* Header - Responsive */}
+        <div className="mb-6">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-800">
+              Courier Delivery - Consider List
+            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search invoice or customer..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
+              />
+              <button
+                onClick={handleRefresh}
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow overflow-hidden">
@@ -213,10 +247,10 @@ const CourierDeliveryListPage = () => {
                           {delivery.items?.length || 0} items
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {delivery.total?.toFixed(2) || '0.00'}
+                          {formatAmount(delivery.total)}
                         </td>
                         <td className="px-4 py-3 text-sm">
-                          {formatDateTime(delivery.created_at)}
+                          {formatDetailedDateTime(delivery.created_at)}
                         </td>
                         <td className="px-4 py-3">
                           {isCourierAssigned(delivery) ? (
@@ -321,7 +355,7 @@ const CourierDeliveryListPage = () => {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-gray-900">{uploadModal.delivery?.total?.toFixed(2)}</p>
+                      <p className="font-semibold text-gray-900">{formatAmount(uploadModal.delivery?.total)}</p>
                       <p className="text-xs text-gray-500">{uploadModal.delivery?.items?.length || 0} items</p>
                     </div>
                   </div>
@@ -367,7 +401,7 @@ const CourierDeliveryListPage = () => {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900 text-sm truncate">{uploadedFile.name}</p>
                           <p className="text-xs text-gray-500">
-                            {(uploadedFile.size / 1024).toFixed(1)} KB
+                            {formatFileSize(uploadedFile.size)}
                           </p>
                         </div>
                         <button

@@ -3,6 +3,7 @@ import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import ConfirmationModal from '../../../components/ConfirmationModal';
+import { formatTime, formatDate, getTodayISOString, formatInvoiceDate, formatMRP, formatQuantity } from '../../../utils/formatters';
 
 export default function MyPackingListPage() {
   const [loading, setLoading] = useState(false);
@@ -66,7 +67,7 @@ export default function MyPackingListPage() {
     };
 
     return () => es.close();
-  }, []);
+  }, []); // Empty dependency - SSE monitors global invoice updates
 
   useEffect(() => {
     if (isReInvoiced && activeInvoice?.invoice_no) {
@@ -131,7 +132,7 @@ export default function MyPackingListPage() {
 
   const loadTodayCompletedPacking = async () => {
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayISOString();
       const res = await api.get("/sales/packing/history/", {
         params: { 
           status: "PACKED", 
@@ -374,26 +375,6 @@ export default function MyPackingListPage() {
     }
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    });
-  };
-
   const toggleExpand = (invoiceId) => {
     setExpandedInvoice(expandedInvoice === invoiceId ? null : invoiceId);
   };
@@ -404,19 +385,19 @@ export default function MyPackingListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-2 py-2 sm:py-3">
         {/* Header */}
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-800">My Packed Invoices</h1>
+        <div className="mb-2">
+          <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-800">My Packed Invoices</h1>
         </div>
 
         {/* Active Bill Section - Compact */}
         {activeInvoice && (
-          <div className="mb-6">
+          <div className="mb-3">
             {/* Section Header */}
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-1.5 flex items-center gap-1.5">
               <svg
-                className="w-6 h-6 text-teal-600"
+                className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -428,8 +409,7 @@ export default function MyPackingListPage() {
                   d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
                 />
               </svg>
-              <h2 className="text-lg font-semibold text-gray-700">Active Bill</h2>
-              <span className="text-sm text-gray-500">Currently in progress</span>
+              <h2 className="text-sm sm:text-base font-semibold text-gray-700">Active Bill</h2>
             </div>
             <div
               className={`rounded-lg shadow overflow-hidden border-2 transition
@@ -447,16 +427,16 @@ export default function MyPackingListPage() {
                     expandedInvoice === activeInvoice.id ? null : activeInvoice.id
                   )
                 }
-                className="p-4 bg-teal-50 border-b border-teal-200 cursor-pointer"
+                className="p-2 sm:p-3 bg-teal-50 border-b border-teal-200 cursor-pointer"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
-                    <div>
-                      <h3 className="font-bold text-gray-900">
-                        Invoice #{activeInvoice.invoice_no}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-2 h-2 flex-shrink-0 bg-teal-500 rounded-full animate-pulse"></div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-xs sm:text-sm text-gray-900 truncate">
+                        #{activeInvoice.invoice_no}
                       </h3>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-[10px] sm:text-xs text-gray-600 truncate">
                         {activeInvoice.customer?.name} • {packedCount}/{totalItems} packed
                       </p>
                     </div>
@@ -471,7 +451,7 @@ export default function MyPackingListPage() {
                     className="text-gray-500 hover:text-gray-700"
                   >
                     <svg
-                      className={`w-5 h-5 transition-transform ${
+                      className={`w-4 h-4 transition-transform ${
                         expandedInvoice === activeInvoice.id ? "rotate-180" : ""
                       }`}
                       fill="none"
@@ -491,13 +471,13 @@ export default function MyPackingListPage() {
 
               {/* Expanded Details */}
               {expandedInvoice === activeInvoice.id && (
-                <div className="p-4 space-y-3">
+                <div className="p-2 sm:p-3 space-y-2">
                   {isLockedForReview && (
-                    <div className="p-3 rounded-lg bg-orange-50 border border-orange-300">
-                      <p className="font-semibold text-orange-800">
+                    <div className="p-2 rounded-lg bg-orange-50 border border-orange-300">
+                      <p className="font-semibold text-orange-800 text-xs sm:text-sm">
                         Invoice sent to Billing Review
                       </p>
-                      <p className="text-sm text-orange-700 mt-1">
+                      <p className="text-[10px] sm:text-xs text-orange-700 mt-0.5">
                         This invoice is locked and cannot be modified.
                       </p>
                     </div>
@@ -510,13 +490,13 @@ export default function MyPackingListPage() {
                         if (isLockedForReview) return;
                         toggleItemPacked(item.id);
                       }}  
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                      className={`p-2 rounded-lg border cursor-pointer transition-all ${
                         packedItems[item.id]
                           ? "bg-teal-50 border-teal-300"
                           : "bg-white border-gray-200"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
                         {/* Checkbox */}
                         <div
                           onClick={() => {
@@ -526,14 +506,14 @@ export default function MyPackingListPage() {
                           className="cursor-pointer"
                         >
                           <div
-                            className={`w-8 h-8 rounded flex items-center justify-center ${
+                            className={`w-6 h-6 sm:w-7 sm:h-7 rounded flex items-center justify-center flex-shrink-0 ${
                               packedItems[item.id]
                                 ? "bg-teal-600"
                                 : "bg-white border-2 border-gray-300"
                             }`}
                           >
                             <svg
-                              className={`w-4 h-4 ${
+                              className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${
                                 packedItems[item.id] ? "text-white" : "text-gray-400"
                               }`}
                               fill="none"
@@ -563,7 +543,7 @@ export default function MyPackingListPage() {
                             </div>
                             <div className="text-right ml-2">
                               <span className="font-bold text-gray-900">
-                                {item.quantity}
+                                {formatQuantity(item.quantity, 'pcs', false)}
                               </span>
                               <span className="text-xs text-gray-500 ml-1">pcs</span>
                             </div>
@@ -574,13 +554,10 @@ export default function MyPackingListPage() {
                             {item.batch_no && <span>Batch: {item.batch_no}</span>}
                             {item.expiry_date && (
                               <span>
-                                Exp: {new Date(item.expiry_date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  year: 'numeric'
-                                })}
+                                Exp: {formatDate(item.expiry_date)}
                               </span>
                             )}
-                            {item.mrp && <span>MRP: {item.mrp}</span>}
+                            {item.mrp && <span>MRP: {formatMRP(item.mrp)}</span>}
                           </div>
                         </div>
 
@@ -609,7 +586,14 @@ export default function MyPackingListPage() {
                   ))}
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
+                    <button
+                      onClick={handleCancelPacking}
+                      disabled={isLockedForReview || loading}
+                      className="flex-1 py-2.5 sm:py-3 text-sm sm:text-base font-semibold rounded-lg transition-all bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel Packing
+                    </button>
                     <button
                       onClick={handleSendInvoiceToReview}
                       disabled={isLockedForReview || loading || !hasIssues}
@@ -622,13 +606,6 @@ export default function MyPackingListPage() {
                       }`}
                     >
                       {isLockedForReview ? "Under Review" : "Send Invoice to Review"}
-                    </button>
-                    <button
-                      onClick={handleCancelPacking}
-                      disabled={isLockedForReview || loading}
-                      className="flex-1 py-3 font-semibold rounded-lg transition-all bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Cancel Packing
                     </button>
                     <button
                       onClick={handleCompletePacking}
@@ -655,23 +632,23 @@ export default function MyPackingListPage() {
         {/* Completed Bills Section - Responsive + Expandable */}
           <div className="bg-white rounded-lg shadow overflow-hidden">
             {/* Header */}
-            <div className="px-6 py-4 bg-white border-b border-gray-200 flex items-center gap-2">
-              <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="px-3 sm:px-6 py-3 sm:py-4 bg-white border-b border-gray-200 flex items-center gap-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h2 className="text-lg font-semibold text-gray-700">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-700">
                 Completed Invoices Today
               </h2>
             </div>
 
             {completedInvoices.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-gray-500 text-lg">No completed invoices yet</p>
+              <div className="text-center py-12 sm:py-16">
+                <p className="text-gray-500 text-base sm:text-lg">No completed invoices yet</p>
               </div>
             ) : (
               <>
                 {/* ===== DESKTOP TABLE ===== */}
-                <div className="hidden md:block">
+                <div className="hidden lg:block">
                   <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                     <div className="grid grid-cols-12 gap-4 px-6 py-3 text-sm font-semibold">
                       <div className="col-span-2">Invoice</div>
@@ -722,7 +699,7 @@ export default function MyPackingListPage() {
                               {inv.items?.map((item, idx) => (
                                 <div key={idx} className="flex justify-between px-4 py-2 border-b last:border-b-0">
                                   <span>{item.name || item.item_name}</span>
-                                  <span>{item.quantity || item.qty} pcs</span>
+                                  <span>{formatQuantity(item.quantity || item.qty, 'pcs')}</span>
                                 </div>
                               ))}
                             </div>
@@ -775,7 +752,7 @@ export default function MyPackingListPage() {
                           {inv.items?.map((item, idx) => (
                             <div key={idx} className="flex justify-between border-b py-1">
                               <span>{item.name || item.item_name}</span>
-                              <span>{item.quantity || item.qty} pcs</span>
+                              <span>{formatQuantity(item.quantity || item.qty, 'pcs')}</span>
                             </div>
                           ))}
                         </div>
@@ -845,7 +822,7 @@ export default function MyPackingListPage() {
                   {reviewPopup.item?.expiry_date && (
                     <span>
                       Exp:{" "}
-                      {new Date(reviewPopup.item.expiry_date).toLocaleDateString()}
+                      {formatDate(reviewPopup.item.expiry_date)}
                     </span>
                   )}
                 </div>

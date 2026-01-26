@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatNumber, formatDetailedDateTime } from "../utils/formatters";
 
 export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
   const [loading, setLoading] = useState(false);
@@ -18,23 +19,10 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
 
   if (!isOpen || !deliveryData) return null;
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "—";
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  };
-
   const formatDuration = (minutes) => {
-    if (!minutes) return "In Progress";
-    return minutes.toFixed(2);
+    const num = Number(minutes);
+    if (!Number.isFinite(num)) return "In Progress";
+    return formatNumber(num);
   };
 
   const getStatusColor = (status) => {
@@ -127,12 +115,12 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Started</p>
-                    <p className="text-sm font-medium text-gray-900">{formatDateTime(deliveryData.start_time)}</p>
+                    <p className="text-sm font-medium text-gray-900">{formatDetailedDateTime(deliveryData.start_time)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Ended</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {deliveryData.end_time ? formatDateTime(deliveryData.end_time) : "In Progress"}
+                      {deliveryData.end_time ? formatDetailedDateTime(deliveryData.end_time) : "In Progress"}
                     </p>
                   </div>
                   <div>
@@ -297,13 +285,13 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                           <div className="flex justify-between items-center">
                             <span className="text-xs text-gray-500">Latitude:</span>
                             <span className="text-sm font-mono font-medium text-gray-900">
-                              {parseFloat(deliveryData.delivery_latitude).toFixed(6)}
+                              {formatNumber(deliveryData.delivery_latitude, 6)}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-xs text-gray-500">Longitude:</span>
                             <span className="text-sm font-mono font-medium text-gray-900">
-                              {parseFloat(deliveryData.delivery_longitude).toFixed(6)}
+                              {formatNumber(deliveryData.delivery_longitude, 6)}
                             </span>
                           </div>
                           {deliveryData.delivery_location_accuracy && (
@@ -458,7 +446,7 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
               {deliveryData.created_by_name && (
                 <div className="text-xs text-gray-500 pt-4 border-t">
                   Created by <span className="font-medium text-gray-700">{deliveryData.created_by_name}</span>
-                  {deliveryData.created_at && <span> on {formatDateTime(deliveryData.created_at)}</span>}
+                  {deliveryData.created_at && <span> on {formatDetailedDateTime(deliveryData.created_at)}</span>}
                 </div>
               )}
             </div>

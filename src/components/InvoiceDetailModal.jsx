@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import api from "../services/api";
+import { formatNumber, formatDateTime, formatInvoiceDate, formatMRP, formatQuantity, formatAmount, formatLineTotal } from "../utils/formatters";
 
 export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
   const [invoice, setInvoice] = useState(null);
@@ -82,7 +83,7 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                         <div>
                         <p className="text-xs text-gray-500 mb-1">Started</p>
                         <p className="font-semibold text-xs sm:text-sm text-gray-800">
-                            {new Date(invoice.start_time).toLocaleString()}
+                            {formatDateTime(invoice.start_time)}
                         </p>
                         </div>
 
@@ -90,7 +91,7 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                         <p className="text-xs text-gray-500 mb-1">Ended</p>
                         <p className="font-semibold text-xs sm:text-sm text-gray-800">
                             {invoice.end_time
-                            ? new Date(invoice.end_time).toLocaleString()
+                            ? formatDateTime(invoice.end_time)
                             : "In Progress"}
                         </p>
                         </div>
@@ -118,11 +119,7 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                     <div className="flex justify-between">
                       <span className="text-xs text-gray-500">Invoice Date</span>
                       <span className="text-xs sm:text-sm font-semibold text-gray-800">
-                        {new Date(invoice.invoice_date).toLocaleDateString('en-IN', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric'
-                        })}
+                        {formatInvoiceDate(invoice.invoice_date)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -178,12 +175,12 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                         <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-800">{item.shelf_location}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-800">{item.name}</td>
-                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-center text-gray-800">{item.quantity}</td>
-                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right text-gray-800">{item.mrp?.toFixed(2)}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-center text-gray-800">{formatQuantity(item.quantity, 'pcs', false)}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right text-gray-800">{formatMRP(item.mrp)}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-800">{item.batch_no}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-800">{item.expiry_date || '—'}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold text-gray-800">
-                            {(item.quantity * item.mrp).toFixed(2)}
+                            {formatLineTotal(item.quantity, item.mrp)}
                           </td>
                         </tr>
                       ))}
@@ -195,7 +192,7 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                 <div className="bg-gray-50 border-t border-gray-200 px-3 sm:px-4 py-3 flex justify-end">
                   <div className="text-right">
                     <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Amount</p>
-                    <p className="text-xl sm:text-2xl font-bold text-teal-600">{invoice.total?.toFixed(2)}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-teal-600">{formatAmount(invoice.total)}</p>
                   </div>
                 </div>
               </div>
