@@ -121,7 +121,7 @@ export default function PickingHistory() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Picking History</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <input
               type="text"
               placeholder="Search invoice or employee..."
@@ -162,6 +162,7 @@ export default function PickingHistory() {
 
             <input
               type="date"
+              placeholder="Filter by date"
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               value={filterDate}
               onChange={(e) => {

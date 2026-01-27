@@ -129,7 +129,7 @@ export default function DeliveryHistory() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Delivery History</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <input
               type="text"
               placeholder="Search invoice or details..."
@@ -171,6 +171,7 @@ export default function DeliveryHistory() {
 
             <input
               type="date"
+              placeholder="Filter by date"
               value={filterDate}
               onChange={(e) => {
                 setFilterDate(e.target.value);

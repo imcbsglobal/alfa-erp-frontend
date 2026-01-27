@@ -96,7 +96,7 @@ export default function PackingHistory() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Packing History</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Search */}
             <input
               type="text"
@@ -127,6 +127,7 @@ export default function PackingHistory() {
             {/* Date Filter */}
             <input
               type="date"
+              placeholder="Filter by date"
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               value={filterDate}
               onChange={(e) => {

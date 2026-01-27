@@ -204,7 +204,7 @@ export default function InvoiceHistoryView() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Complete Invoice History</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <input
               type="text"
               placeholder="Search invoice or customer..."
@@ -233,6 +233,7 @@ export default function InvoiceHistoryView() {
 
             <input
               type="date"
+              placeholder="Filter by date"
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               value={filterDate}
               onChange={(e) => {
@@ -522,27 +523,14 @@ export default function InvoiceHistoryView() {
         )}
 
         {/* PAGINATION */}
-        <div className="mt-6 flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            Showing {history.length} of {totalCount} invoices
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 border rounded-lg disabled:opacity-50 hover:bg-gray-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setCurrentPage(p => p + 1)}
-              disabled={currentPage * itemsPerPage >= totalCount}
-              className="px-4 py-2 border rounded-lg disabled:opacity-50 hover:bg-gray-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalCount}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          label="invoices"
+          colorScheme="teal"
+        />
       </div>
 
       {/* CONSOLIDATE DETAIL MODAL */}

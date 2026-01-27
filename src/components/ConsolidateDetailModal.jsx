@@ -356,7 +356,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                         )}
 
                         {/* Regular Notes */}
-                        {invoiceData.picking.notes && (
+                        {/* {invoiceData.picking.notes && (
                           <div className="mt-3">
                             <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
                               <FileText size={14} />
@@ -366,7 +366,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <p className="text-gray-800 text-xs whitespace-pre-line">{invoiceData.picking.notes}</p>
                             </div>
                           </div>
-                        )}
+                        )} */}
                       </div>
                     </div>
                   )}
@@ -432,7 +432,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                         )}
 
                         {/* Regular Notes */}
-                        {invoiceData.packing.notes && (
+                        {/* {invoiceData.packing.notes && (
                           <div className="mt-3">
                             <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
                               <FileText size={14} />
@@ -442,7 +442,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <p className="text-gray-800 text-xs whitespace-pre-line">{invoiceData.packing.notes}</p>
                             </div>
                           </div>
-                        )}
+                        )} */}
                       </div>
                     </div>
                   )}
@@ -541,7 +541,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                         )}
 
                         {/* Regular Notes */}
-                        {invoiceData.delivery.notes && (
+                        {/* {invoiceData.delivery.notes && (
                           <div className="mt-3">
                             <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
                               <FileText size={14} />
@@ -551,7 +551,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               <p className="text-gray-800 text-xs whitespace-pre-line">{invoiceData.delivery.notes}</p>
                             </div>
                           </div>
-                        )}
+                        )} */}
                       </div>
                     </div>
                   )}
