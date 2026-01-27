@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
-import { formatDateDDMMYYYY, formatNumber, formatTime, formatMRP, formatQuantity, formatAmount } from "../../../utils/formatters";
+import { formatDateDDMMYYYY, formatNumber, formatTime, formatMRP, formatQuantity, formatAmount, formatDateTime } from "../../../utils/formatters";
 
 export default function BillingInvoiceViewPage() {
   const { user } = useAuth();

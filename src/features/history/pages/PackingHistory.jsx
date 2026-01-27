@@ -93,15 +93,15 @@ export default function PackingHistory() {
     <>
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
         {/* HEADER + FILTER ROW */}
-        <div className="flex flex-col sm:flex-row sm:justify-between mb-4 gap-3 sm:items-center">
-          <h2 className="text-xl font-bold text-gray-800">Packing History</h2>
+        <div className="mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Packing History</h2>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Search */}
             <input
               type="text"
               placeholder="Search invoice or packer..."
-              className="px-3 py-2 border border-gray-300 rounded-lg sm:w-64 w-full"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -111,7 +111,7 @@ export default function PackingHistory() {
 
             {/* Status Filter */}
             <select
-              className="px-3 py-2 border border-gray-300 rounded-lg w-full sm:w-auto"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               value={filterStatus}
               onChange={(e) => {
                 setFilterStatus(e.target.value);
@@ -127,7 +127,7 @@ export default function PackingHistory() {
             {/* Date Filter */}
             <input
               type="date"
-              className="px-3 py-2 border border-gray-300 rounded-lg w-full sm:w-auto"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               value={filterDate}
               onChange={(e) => {
                 setFilterDate(e.target.value);

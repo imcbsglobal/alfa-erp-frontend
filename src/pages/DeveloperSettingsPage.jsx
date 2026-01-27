@@ -72,7 +72,6 @@ const DeveloperSettingsPage = () => {
       icon: <Package className="w-5 h-5" />,
       color: 'teal',
       tables: [
-        { key: 'all', label: 'All Data', description: 'Clear ALL data (invoices, customers, sessions, etc.)', danger: true },
         { key: 'invoices', label: 'Invoices', description: 'All invoices and related data (items, sessions, returns)' },
         { key: 'sessions', label: 'Sessions', description: 'All picking, packing, and delivery sessions' },
         { key: 'customers', label: 'Customers', description: 'Customer records' },
@@ -88,6 +87,14 @@ const DeveloperSettingsPage = () => {
         { key: 'users', label: 'Users', description: 'All non-SUPERADMIN users (keeps at least one SUPERADMIN)' },
         { key: 'departments', label: 'Departments', description: 'Organization departments' },
         { key: 'job_titles', label: 'Job Titles', description: 'Job title definitions' }
+      ]
+    },
+    {
+      name: 'Danger Zone',
+      icon: <AlertTriangle className="w-5 h-5" />,
+      color: 'red',
+      tables: [
+        { key: 'all', label: 'All Data', description: 'Clear ALL data (invoices, customers, sessions, etc.)', danger: true }
       ]
     }
   ];
@@ -222,7 +229,10 @@ const DeveloperSettingsPage = () => {
                   <div className="divide-y divide-gray-200">
                     {category.tables.map((table) => {
                       const tableStats = stats[table.key];
-                      const count = tableStats?.count || 0;
+                      // Calculate total for "all" data key
+                      const count = table.key === 'all' 
+                        ? Object.values(stats).reduce((sum, s) => sum + s.count, 0)
+                        : (tableStats?.count || 0);
                       
                       return (
                         <div key={table.key} className="p-4 hover:bg-gray-50 transition">
@@ -242,7 +252,7 @@ const DeveloperSettingsPage = () => {
                                   )}
                                 </div>
                                 <p className="text-sm text-gray-600">{table.description}</p>
-                                {tableStats && (
+                                {tableStats && table.key !== 'all' && (
                                   <p className="text-xs text-gray-500 mt-1">
                                     {tableStats.description}
                                   </p>

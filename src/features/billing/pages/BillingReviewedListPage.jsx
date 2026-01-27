@@ -4,7 +4,7 @@ import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
-import { formatDateDDMMYYYY, formatTime, formatAmount, formatDateTime } from '../../../utils/formatters';
+import { formatDateDDMMYYYY, formatNumber, formatTime, formatMRP, formatQuantity, formatAmount, formatDateTime } from "../../../utils/formatters";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
