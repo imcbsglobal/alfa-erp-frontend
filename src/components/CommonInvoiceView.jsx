@@ -335,7 +335,7 @@ export default function CommonInvoiceView() {
 
           <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-4 text-center shadow-md`}>
             <p className="text-sm font-bold tracking-wider mb-1">Total Amount</p>
-            <p className="text-2xl font-bold">{formatAmount(invoice.total)}</p>
+            <p className="text-2xl font-bold">{formatAmount(invoice.Total)}</p>
           </div>
         </div>
 
@@ -392,7 +392,7 @@ export default function CommonInvoiceView() {
               {/* Total Amount */}
               <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-3 text-center`}>
                 <p className="text-xs font-bold mb-1">Total Amount</p>
-                <p className="text-2xl font-bold">{formatAmount(invoice.total)}</p>
+                <p className="text-2xl font-bold">{formatAmount(invoice.Total)}</p>
               </div>
 
             </div>

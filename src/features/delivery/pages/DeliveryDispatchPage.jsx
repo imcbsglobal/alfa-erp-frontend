@@ -286,7 +286,7 @@ const DeliveryDispatchPage = () => {
                           {bill.items?.length || 0} items
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {formatAmount(bill.total)}
+                          {formatAmount(bill.Total)}
                         </td>
                         <td className="px-4 py-3">
                           <span className="px-3 py-1 rounded-full border text-xs font-bold bg-emerald-100 text-emerald-700 border-emerald-300">

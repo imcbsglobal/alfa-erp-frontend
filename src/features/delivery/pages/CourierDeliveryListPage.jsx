@@ -247,7 +247,7 @@ const CourierDeliveryListPage = () => {
                           {delivery.items?.length || 0} items
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {formatAmount(delivery.total)}
+                          {formatAmount(delivery.Total)}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {formatDetailedDateTime(delivery.created_at)}
@@ -355,7 +355,7 @@ const CourierDeliveryListPage = () => {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-gray-900">{formatAmount(uploadModal.delivery?.total)}</p>
+                      <p className="font-semibold text-gray-900">{formatAmount(uploadModal.delivery?.Total)}</p>
                       <p className="text-xs text-gray-500">{uploadModal.delivery?.items?.length || 0} items</p>
                     </div>
                   </div>

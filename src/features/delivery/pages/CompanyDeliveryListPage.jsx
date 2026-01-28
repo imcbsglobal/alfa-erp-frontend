@@ -188,7 +188,7 @@ const CompanyDeliveryListPage = () => {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <p className="font-semibold text-gray-900">
-                              {formatAmount(delivery.total)}
+                              {formatAmount(delivery.Total)}
                             </p>
                             <p className="text-xs text-gray-500">
                               {delivery.items?.length || 0} items

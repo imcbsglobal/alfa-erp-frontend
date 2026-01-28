@@ -548,7 +548,7 @@ export default function InvoiceListPage() {
                           {inv.salesman?.name}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {formatNumber(inv.total, 2, '0.00')}
+                          {formatNumber(inv.Total, 2, '0.00')}
                         </td>
                         <td className="px-4 py-3 text-center ">
                           <span

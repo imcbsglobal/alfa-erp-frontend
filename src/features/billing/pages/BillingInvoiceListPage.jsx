@@ -317,7 +317,7 @@ export default function BillingInvoiceListPage() {
                           {inv.salesman?.name}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">
-                          {formatAmount(inv.total)}
+                          {formatAmount(inv.Total)}
                         </td>
                         <td className="px-4 py-3">
                           <span

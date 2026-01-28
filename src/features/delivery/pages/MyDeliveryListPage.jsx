@@ -500,7 +500,7 @@ export default function MyDeliveryListPage() {
                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Invoice Details</h4>
                         <div className="space-y-1 text-sm">
                           <p><span className="text-gray-500">Items:</span> {invoice.items?.length || 0}</p>
-                          <p><span className="text-gray-500">Total Amount:</span> {formatAmount(invoice.total)}</p>
+                          <p><span className="text-gray-500">Total Amount:</span> {formatAmount(invoice.Total)}</p>
                         </div>
                       </div>
 

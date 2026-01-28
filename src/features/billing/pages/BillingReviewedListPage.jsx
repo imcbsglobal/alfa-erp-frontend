@@ -302,7 +302,7 @@ export default function BillingReviewedListPage() {
                       </div>
                       <div className="text-right ml-2">
                         <p className="text-xs text-gray-500 mb-0.5">Amount</p>
-                        <p className="font-bold text-base text-orange-600">{formatAmount(inv.total)}</p>
+                        <p className="font-bold text-base text-orange-600">{formatAmount(inv.Total)}</p>
                       </div>
                     </div>
 
@@ -416,7 +416,7 @@ export default function BillingReviewedListPage() {
                         </td>
 
                         <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                          {formatAmount(inv.total)}
+                          {formatAmount(inv.Total)}
                         </td>
 
                         <td className="px-4 py-3 text-center">

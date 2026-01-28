@@ -646,7 +646,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
                     <p className="text-sm text-gray-600 mt-1">{invoice?.customer?.name}</p>
                     <div className="flex items-center justify-between mt-2">
                       <p className="text-xs text-gray-500">{formatItemCount(invoice?.items?.length)}</p>
-                      <p className="font-semibold text-gray-900">{formatAmount(invoice?.total_amount)}</p>
+                      <p className="font-semibold text-gray-900">{formatAmount(invoice?.Total)}</p>
                     </div>
                   </div>
                 </div>
