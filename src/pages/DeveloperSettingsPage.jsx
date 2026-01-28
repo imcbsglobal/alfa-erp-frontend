@@ -10,10 +10,26 @@ const DeveloperSettingsPage = () => {
   const [selectedTable, setSelectedTable] = useState(null);
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [manualPickingEnabled, setManualPickingEnabled] = useState(false);
 
   useEffect(() => {
     loadTableStats();
+    loadDeveloperSettings();
   }, []);
+
+  const loadDeveloperSettings = async () => {
+    try {
+      const response = await api.get('/common/developer-settings/');
+      if (response.data.success) {
+        const enabled = response.data.data.enable_manual_picking_completion;
+        setManualPickingEnabled(enabled);
+        // Also sync to localStorage for backward compatibility
+        localStorage.setItem('enableManualPickingCompletion', enabled);
+      }
+    } catch (error) {
+      console.error('Failed to load developer settings:', error);
+    }
+  };
 
   const loadTableStats = async () => {
     setLoading(true);
@@ -244,17 +260,29 @@ const DeveloperSettingsPage = () => {
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={localStorage.getItem('enableManualPickingCompletion') === 'true'}
-                        onChange={(e) => {
-                          localStorage.setItem('enableManualPickingCompletion', e.target.checked);
-                          toast.success(e.target.checked ? 'Manual picking completion enabled' : 'Manual picking completion disabled');
-                          window.location.reload();
+                        checked={manualPickingEnabled}
+                        onChange={async (e) => {
+                          const enabled = e.target.checked;
+                          try {
+                            // Save to API (server-side)
+                            await api.put('/common/developer-settings/', {
+                              enable_manual_picking_completion: enabled
+                            });
+                            // Update local state
+                            setManualPickingEnabled(enabled);
+                            // Also save to localStorage for immediate UI update
+                            localStorage.setItem('enableManualPickingCompletion', enabled);
+                            toast.success(enabled ? 'Manual picking completion enabled - visible in both Picking dashboards' : 'Manual picking completion disabled');
+                          } catch (error) {
+                            console.error('Failed to update settings:', error);
+                            toast.error('Failed to update developer settings');
+                          }
                         }}
                         className="sr-only peer"
                       />
                       <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
                       <span className="ml-3 text-sm font-medium text-gray-900">
-                        {localStorage.getItem('enableManualPickingCompletion') === 'true' ? 'Enabled' : 'Disabled'}
+                        {manualPickingEnabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </label>
                   </div>

@@ -29,19 +29,33 @@ export default function InvoiceListPage() {
   const itemsPerPage = 10;
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [invoiceToComplete, setInvoiceToComplete] = useState(null);
-  const [isManualCompletionEnabled, setIsManualCompletionEnabled] = useState(
-    localStorage.getItem('enableManualPickingCompletion') === 'true'
-  );
+  const [isManualCompletionEnabled, setIsManualCompletionEnabled] = useState(false);
 
-  // Debug logging
+  // Fetch developer settings from API
   useEffect(() => {
-    console.log("🔍 InvoiceListPage Debug:", {
-      isManualCompletionEnabled,
-      currentUser: user,
-      userEmail: user?.email,
-      location: location.pathname
-    });
-  }, [isManualCompletionEnabled, user]);
+    const fetchDeveloperSettings = async () => {
+      try {
+        const response = await api.get('/common/developer-settings/');
+        const enabled = response.data.data.enable_manual_picking_completion;
+        console.log('🔧 Manual Completion Check (from API):', {
+          enabled,
+          currentPath: location.pathname,
+          userRole: user?.role,
+          userEmail: user?.email
+        });
+        setIsManualCompletionEnabled(enabled);
+      } catch (error) {
+        console.error('❌ Failed to fetch developer settings:', error);
+      }
+    };
+
+    fetchDeveloperSettings();
+    
+    // Poll for changes every 10 seconds
+    const interval = setInterval(fetchDeveloperSettings, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     loadInvoices();
@@ -106,10 +120,19 @@ export default function InvoiceListPage() {
 
       // If manual completion is enabled, also fetch bills that are currently being picked (PICKING status)
       if (isManualCompletionEnabled) {
+        console.log('📋 Fetching PICKING status invoices because manual completion is enabled');
         const preparingRes = await api.get("/sales/invoices/", {
           params: { status: "PICKING", page_size: 100 },
         });
         const preparingInvoices = preparingRes.data.results || [];
+        console.log('📋 PICKING invoices fetched:', {
+          count: preparingInvoices.length,
+          invoices: preparingInvoices.map(inv => ({
+            invoice_number: inv.invoice_number,
+            status: inv.status,
+            picker_info: inv.picker_info
+          }))
+        });
         
         // Merge both lists, ensuring no duplicates
         const invoiceMap = new Map();
@@ -117,11 +140,14 @@ export default function InvoiceListPage() {
           invoiceMap.set(inv.id, inv);
         });
         allInvoices = Array.from(invoiceMap.values());
+      } else {
+        console.log('⚠️ Manual completion is DISABLED - not fetching PICKING invoices');
       }
 
       setInvoices(allInvoices);
+      console.log('📊 Total invoices loaded:', allInvoices.length);
     } catch (err) {
-      console.error("Failed to load invoices:", err);
+      console.error("❌ Failed to load invoices:", err);
       toast.error("Failed to load invoices");
     } finally {
       setLoading(false);
@@ -544,15 +570,25 @@ export default function InvoiceListPage() {
                               </button>
                             )}
                             {/* Show Complete button if manual completion is enabled and invoice is being picked */}
-                            {isManualCompletionEnabled && inv.status === "PICKING" && inv.picker_info && (
-                              <button
-                                onClick={() => handleCompleteClick(inv)}
-                                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-                                title={`Complete picking for ${inv.picker_info.name}`}
-                              >
-                                Complete
-                              </button>
-                            )}
+                            {(() => {
+                              const shouldShow = isManualCompletionEnabled && inv.status === "PICKING" && inv.picker_info;
+                              console.log(`🔍 Complete Button Check for Invoice ${inv.invoice_number}:`, {
+                                isManualCompletionEnabled,
+                                status: inv.status,
+                                hasPickerInfo: !!inv.picker_info,
+                                pickerEmail: inv.picker_info?.email,
+                                shouldShow
+                              });
+                              return shouldShow ? (
+                                <button
+                                  onClick={() => handleCompleteClick(inv)}
+                                  className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                                  title={`Complete picking for ${inv.picker_info.name}`}
+                                >
+                                  Complete
+                                </button>
+                              ) : null;
+                            })()}
                             <button
                               onClick={() => handleViewInvoice(inv.id)}
                               className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
