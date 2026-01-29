@@ -245,7 +245,7 @@ export default function PackingInvoiceListPage() {
   };
 
   const sortedInvoices = [...invoices].sort(
-    (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
   // Filter by search term
@@ -408,7 +408,7 @@ export default function PackingInvoiceListPage() {
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
                           <p className="text-xs text-gray-500">
-                            {inv.customer?.area}
+                            {inv.customer?.area || inv.customer?.address1 || inv.temp_name || "—"}
                           </p>
                         </td>
                         <td className="px-4 py-3 text-sm">
@@ -528,7 +528,7 @@ export default function PackingInvoiceListPage() {
                             <td className="px-4 py-3">
                               <p className="font-medium">{task.customer_name || "—"}</p>
                               <p className="text-xs text-gray-500">
-                                {task.customer_address || "—"}
+                                {task.customer_address || task.customer?.area || task.customer?.address1 || task.temp_name || "—"}
                               </p>
                             </td>
                             <td className="px-4 py-3 text-sm">

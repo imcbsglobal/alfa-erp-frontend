@@ -235,7 +235,7 @@ export default function CommonInvoiceView() {
             <div className="space-y-2">
               <MobileInfoRow label="Customer Name" value={invoice.customer?.name} />
               <MobileInfoRow label="Customer Code" value={invoice.customer?.code} />
-              <MobileInfoRow label="Place" value={invoice.customer?.area} />
+              <MobileInfoRow label="Place" value={invoice.customer?.area || invoice.temp_name} />
               <MobileInfoRow label="Address" value={invoice.customer?.address1} />
               <MobileInfoRow label="Phone 1" value={invoice.customer?.phone1} />
               <MobileInfoRow label="Phone 2" value={invoice.customer?.phone2} />
@@ -365,7 +365,7 @@ export default function CommonInvoiceView() {
                 </div>
                 <div className="space-y-2">
                   <CompactInfoRowInline label1="Name" value1={invoice.customer?.name} label2="Code" value2={invoice.customer?.code} />
-                  <CompactInfoRowInline label1="Place" value1={invoice.customer?.area} label2="Address" value2={invoice.customer?.address1} />
+                  <CompactInfoRowInline label1="Place" value1={invoice.customer?.area || invoice.temp_name} label2="Address" value2={invoice.customer?.address1 || invoice.temp_name} />
                   <CompactInfoRowInline label1="Phone" value1={invoice.customer?.phone1} label2="Email" value2={invoice.customer?.email} />
                 </div>
               </div>

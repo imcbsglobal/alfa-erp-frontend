@@ -190,9 +190,9 @@ export default function BillingReviewedListPage() {
     }
   };
 
-  // Sort + paginate
+  // Sort + paginate (oldest first)
   const sortedInvoices = [...invoices].sort(
-    (a, b) => new Date(b.created_at || b.invoice_date) - new Date(a.created_at || a.invoice_date)
+    (a, b) => new Date(a.created_at || a.invoice_date) - new Date(b.created_at || b.invoice_date)
   );
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -298,7 +298,7 @@ export default function BillingReviewedListPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-gray-500 mb-0.5">Customer</p>
                         <p className="font-semibold text-sm text-gray-900 truncate">{inv.customer?.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{inv.customer?.area}</p>
+                        <p className="text-xs text-gray-500 truncate">{inv.customer?.area || inv.customer?.address1 || inv.temp_name || "—"}</p>
                       </div>
                       <div className="text-right ml-2">
                         <p className="text-xs text-gray-500 mb-0.5">Amount</p>

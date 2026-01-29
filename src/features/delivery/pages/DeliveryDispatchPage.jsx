@@ -280,7 +280,7 @@ const DeliveryDispatchPage = () => {
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium">{bill.customer?.name || '—'}</p>
-                          <p className="text-xs text-gray-500">{bill.customer?.area || ''}</p>
+                          <p className="text-xs text-gray-500">{bill.customer?.area || bill.customer?.address1 || bill.temp_name || ''}</p>
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {bill.items?.length || 0} items

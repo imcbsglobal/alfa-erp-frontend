@@ -180,11 +180,11 @@ export default function BillingInvoiceListPage() {
     return inv.status;
   };
 
-  // Sort latest first
+  // Sort oldest first (first pushed bill comes first)
   const sortedInvoices = [...invoices].sort((a, b) => {
     if (a._isLive && !b._isLive) return -1;
     if (!a._isLive && b._isLive) return 1;
-    return new Date(b.created_at) - new Date(a.created_at);
+    return new Date(a.created_at) - new Date(b.created_at); // Ascending order
   });
 
   // Apply status filter
@@ -310,7 +310,7 @@ export default function BillingInvoiceListPage() {
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
                           <p className="text-xs text-gray-500">
-                            {inv.customer?.area}
+                            {inv.customer?.area || inv.customer?.address1 || inv.temp_name || "—"}
                           </p>
                         </td>
                         <td className="px-4 py-3 text-sm">

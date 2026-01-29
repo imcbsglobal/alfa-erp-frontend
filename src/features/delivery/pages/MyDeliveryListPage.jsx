@@ -491,8 +491,8 @@ export default function MyDeliveryListPage() {
                         <div className="space-y-1 text-sm">
                           <p><span className="text-gray-500">Name:</span> {invoice.customer?.name}</p>
                           <p><span className="text-gray-500">Phone:</span> {invoice.customer?.phone1 || "-"}</p>
-                          <p><span className="text-gray-500">Address:</span> {invoice.customer?.address1 || "-"}</p>
-                          <p><span className="text-gray-500">Area:</span> {invoice.customer?.area || "-"}</p>
+                          <p><span className="text-gray-500">Address:</span> {invoice.customer?.address1 || invoice.temp_name || "-"}</p>
+                          <p><span className="text-gray-500">Area:</span> {invoice.customer?.area || invoice.temp_name || "-"}</p>
                         </div>
                       </div>
 
@@ -574,7 +574,7 @@ export default function MyDeliveryListPage() {
                     <div className="space-y-1 text-sm">
                       <p><span className="text-gray-500">Name:</span> {activeDelivery.customer_name}</p>
                       <p><span className="text-gray-500">Phone:</span> {activeDelivery.customer_phone || "-"}</p>
-                      <p><span className="text-gray-500">Address:</span> {activeDelivery.customer_address || "-"}</p>
+                      <p><span className="text-gray-500">Address:</span> {activeDelivery.customer_address || activeDelivery.temp_name || "-"}</p>
                     </div>
                   </div>
 
@@ -693,7 +693,7 @@ export default function MyDeliveryListPage() {
                               <p className="font-semibold">Customer</p>
                               <p>{del.customer_name}</p>
                               <p>{del.customer_phone || "-"}</p>
-                              <p>{del.customer_address || "-"}</p>
+                              <p>{del.customer_address || del.temp_name || "-"}</p>
                             </div>
                             <div>
                               <p className="font-semibold">Delivery Info</p>
@@ -747,7 +747,7 @@ export default function MyDeliveryListPage() {
                         <p className="font-semibold">Customer</p>
                         <p>{del.customer_name}</p>
                         <p>{del.customer_phone || "-"}</p>
-                        <p>{del.customer_address || "-"}</p>
+                        <p>{del.customer_address || del.temp_name || "-"}</p>
 
                         <p className="font-semibold mt-2">Delivery Info</p>
                         <p>Type: {getDeliveryTypeLabel(del.delivery_type)}</p>

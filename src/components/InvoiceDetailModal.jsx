@@ -149,7 +149,7 @@ export default function InvoiceDetailModal({ isOpen, onClose, invoiceId }) {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-xs text-gray-500 flex-shrink-0">Address</span>
-                      <span className="text-xs sm:text-sm font-semibold text-gray-800 text-right ml-2">{invoice.customer_address}</span>
+                      <span className="text-xs sm:text-sm font-semibold text-gray-800 text-right ml-2">{invoice.customer_address || invoice.temp_name}</span>
                     </div>
                   </div>
                 </div>

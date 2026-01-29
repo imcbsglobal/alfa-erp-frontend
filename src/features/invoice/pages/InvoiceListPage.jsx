@@ -30,6 +30,8 @@ export default function InvoiceListPage() {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [invoiceToComplete, setInvoiceToComplete] = useState(null);
   const [isManualCompletionEnabled, setIsManualCompletionEnabled] = useState(false);
+  const [showConfirmComplete, setShowConfirmComplete] = useState(false);
+  const [verifiedEmail, setVerifiedEmail] = useState('');
 
   // Fetch developer settings from API
   useEffect(() => {
@@ -80,12 +82,10 @@ export default function InvoiceListPage() {
     eventSource.onmessage = (event) => {
       try {
         const invoice = JSON.parse(event.data);
-        const manualCompletionEnabled = localStorage.getItem('enableManualPickingCompletion') === 'true';
         
-        // Keep invoice if it's INVOICED OR (PENDING and manual completion is enabled)
-        const shouldKeep = invoice.status === "INVOICED" || (invoice.status === "PICKING" && manualCompletionEnabled);
-        
-        if (shouldKeep) {
+        // Only keep INVOICED status invoices in main list
+        // PICKING invoices appear in Ongoing Work modal instead
+        if (invoice.status === "INVOICED") {
           setInvoices(prev => {
             const exists = prev.find(inv => inv.id === invoice.id);
             if (exists) {
@@ -94,6 +94,7 @@ export default function InvoiceListPage() {
             return [invoice, ...prev];
           });
         } else {
+          // Remove invoice if status changed from INVOICED
           setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
         }
       } catch (e) {
@@ -112,37 +113,12 @@ export default function InvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      // Fetch INVOICED status bills
+      // Fetch INVOICED status bills only
+      // When manual completion is enabled, PICKING invoices will appear in Ongoing Work modal instead
       const res = await api.get("/sales/invoices/", {
         params: { status: "INVOICED", page_size: 100 },
       });
-      let allInvoices = res.data.results || [];
-
-      // If manual completion is enabled, also fetch bills that are currently being picked (PICKING status)
-      if (isManualCompletionEnabled) {
-        console.log('📋 Fetching PICKING status invoices because manual completion is enabled');
-        const preparingRes = await api.get("/sales/invoices/", {
-          params: { status: "PICKING", page_size: 100 },
-        });
-        const preparingInvoices = preparingRes.data.results || [];
-        console.log('📋 PICKING invoices fetched:', {
-          count: preparingInvoices.length,
-          invoices: preparingInvoices.map(inv => ({
-            invoice_number: inv.invoice_number,
-            status: inv.status,
-            picker_info: inv.picker_info
-          }))
-        });
-        
-        // Merge both lists, ensuring no duplicates
-        const invoiceMap = new Map();
-        [...allInvoices, ...preparingInvoices].forEach(inv => {
-          invoiceMap.set(inv.id, inv);
-        });
-        allInvoices = Array.from(invoiceMap.values());
-      } else {
-        console.log('⚠️ Manual completion is DISABLED - not fetching PICKING invoices');
-      }
+      const allInvoices = res.data.results || [];
 
       setInvoices(allInvoices);
       console.log('📊 Total invoices loaded:', allInvoices.length);
@@ -157,14 +133,13 @@ export default function InvoiceListPage() {
   const loadOngoingTasks = async () => {
     setLoadingOngoing(true);
     try {
+      // Fetch from picking history API which has start_time and duration fields
+      // Use status=PREPARING to get ongoing picking sessions
       const res = await api.get("/sales/picking/history/?status=PREPARING");
-      const responseData = res.data?.results;
+      const responseData = res.data?.results || [];
+      
       console.log("Ongoing tasks data:", responseData);
-      if (responseData) {
-        setOngoingTasks(responseData);
-      } else {
-        setOngoingTasks([]);
-      }
+      setOngoingTasks(responseData);
       setLoadingOngoing(false);
     } catch (err) {
       console.error("Failed to load ongoing tasks:", err);
@@ -205,31 +180,57 @@ export default function InvoiceListPage() {
   const handleCompletePicking = async (employeeEmail) => {
     if (!invoiceToComplete) return;
 
-    try {
-      // Verify the email matches the user who picked it (case-insensitive comparison)
-      const pickerEmail = invoiceToComplete.picker_info?.email?.toLowerCase().trim();
-      const enteredEmail = employeeEmail?.toLowerCase().trim();
-      
-      if (pickerEmail !== enteredEmail) {
-        toast.error(`Email does not match! This invoice was picked by ${invoiceToComplete.picker_info?.name}.`, { duration: 6000 });
-        return;
-      }
+    // Verify the email matches the user who picked it (case-insensitive comparison)
+    // Handle both data structures: picker_info (from invoice API) or direct fields (from picking history API)
+    const pickerEmail = (invoiceToComplete.picker_info?.email || invoiceToComplete.picker_email)?.toLowerCase().trim();
+    const pickerName = invoiceToComplete.picker_info?.name || invoiceToComplete.picker_name;
+    const enteredEmail = employeeEmail?.toLowerCase().trim();
+    
+    if (!pickerEmail) {
+      toast.error("No picker information found for this invoice", { duration: 4000 });
+      return;
+    }
+    
+    if (pickerEmail !== enteredEmail) {
+      toast.error(`Email does not match! This invoice was picked by ${pickerName}.`, { duration: 6000 });
+      return;
+    }
 
+    // Email verified - now show confirmation
+    setVerifiedEmail(employeeEmail.trim());
+    setShowCompleteModal(false);
+    setShowConfirmComplete(true);
+  };
+
+  const handleConfirmCompleteYes = async () => {
+    try {
       await api.post("/sales/picking/complete/", {
         invoice_no: invoiceToComplete.invoice_no,
-        user_email: employeeEmail.trim(),
-        notes: "Manual completion from Picking Management",
+        user_email: verifiedEmail,
+        notes: "Manual completion from Ongoing Work modal",
       });
 
       toast.success(`Picking completed for ${invoiceToComplete.invoice_no}`);
-      setShowCompleteModal(false);
+      setShowConfirmComplete(false);
       setInvoiceToComplete(null);
+      setVerifiedEmail('');
+      
+      // Reload ongoing tasks to update the modal
+      await loadOngoingTasks();
+      // Also reload main list in case any new invoices arrived
       await loadInvoices();
     } catch (err) {
       console.error("Error completing picking:", err);
       const errorMsg = err.response?.data?.message || err.response?.data?.errors?.invoice_no?.[0] || err.response?.data?.errors?.user_email?.[0] || "Failed to complete picking";
       toast.error(errorMsg, { duration: 4000 });
     }
+  };
+
+  const handleConfirmCompleteNo = () => {
+    setShowConfirmComplete(false);
+    setInvoiceToComplete(null);
+    setVerifiedEmail('');
+    toast.info('Completion cancelled');
   };
 
   const handlePickClick = async (invoice) => {
@@ -372,7 +373,7 @@ export default function InvoiceListPage() {
   };
 
   const sortedInvoices = [...invoices].sort(
-    (a, b) => new Date(b.invoice_date) - new Date(a.invoice_date)
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
   // Filter by search term
@@ -541,7 +542,7 @@ export default function InvoiceListPage() {
                         <td className="px-4 py-3">
                           <p>{inv.customer?.name}</p>
                           <p className="text-xs text-gray-500">
-                            {inv.customer?.area}
+                            {inv.customer?.area || inv.customer?.address1 || inv.temp_name || "—"}
                           </p>
                         </td>
                         <td className="px-4 py-3 text-sm">
@@ -569,26 +570,6 @@ export default function InvoiceListPage() {
                                 Pick
                               </button>
                             )}
-                            {/* Show Complete button if manual completion is enabled and invoice is being picked */}
-                            {(() => {
-                              const shouldShow = isManualCompletionEnabled && inv.status === "PICKING" && inv.picker_info;
-                              console.log(`🔍 Complete Button Check for Invoice ${inv.invoice_number}:`, {
-                                isManualCompletionEnabled,
-                                status: inv.status,
-                                hasPickerInfo: !!inv.picker_info,
-                                pickerEmail: inv.picker_info?.email,
-                                shouldShow
-                              });
-                              return shouldShow ? (
-                                <button
-                                  onClick={() => handleCompleteClick(inv)}
-                                  className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-                                  title={`Complete picking for ${inv.picker_info.name}`}
-                                >
-                                  Complete
-                                </button>
-                              ) : null;
-                            })()}
                             <button
                               onClick={() => handleViewInvoice(inv.id)}
                               className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
@@ -662,11 +643,12 @@ export default function InvoiceListPage() {
                       <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                         <tr>
                           <th className="px-4 py-3 text-left">Invoice</th>
-                          <th className="px-4 py-3 text-left">Date</th>
+                          <th className="px-4 py-3 text-left">{isManualCompletionEnabled ? 'Picker' : 'Date'}</th>
                           <th className="px-4 py-3 text-left">Customer</th>
                           <th className="px-4 py-3 text-left">Date</th>
                           <th className="px-4 py-3 text-left">Start Time</th>
                           <th className="px-4 py-3 text-left">Duration</th>
+                          {isManualCompletionEnabled && <th className="px-4 py-3 text-left">Actions</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -676,23 +658,38 @@ export default function InvoiceListPage() {
                               <p className="font-semibold">{task.invoice_no}</p>
                             </td>
                             <td className="px-4 py-3">
-                              <p className="font-medium">{task?.picker_name || "Current User"}</p>
+                              <p className="font-medium">{task?.picker_info?.name || task?.picker_name || "Current User"}</p>
                             </td>
                             <td className="px-4 py-3">
-                              <p className="font-medium">{task.customer_name || "—"}</p>
+                              <p className="font-medium">{task.customer?.name || task.customer_name || "—"}</p>
                               <p className="text-xs text-gray-500">
-                                {task.customer_address || "—"}
+                                {task.customer?.area || task.customer_address || task.customer?.address1 || task.temp_name || "—"}
                               </p>
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {formatDate(task?.invoice_date)}
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {formatTime(task.start_time)}
+                              {formatTime(task.start_time || task.picker_info?.picked_at)}
                             </td>
                             <td className="px-4 py-3 text-sm font-semibold">
-                              {formatDuration(task.start_time)}
+                              {formatDuration(task.start_time || task.picker_info?.picked_at)}
                             </td>
+                            {isManualCompletionEnabled && (
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => {
+                                    setInvoiceToComplete(task);
+                                    setShowCompleteModal(true);
+                                    setShowOngoingModal(false);
+                                  }}
+                                  className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-600 hover:to-cyan-700 transition-all"
+                                  title={`Complete picking for ${task.picker_info?.name || 'picker'}`}
+                                >
+                                  Complete
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -717,6 +714,60 @@ export default function InvoiceListPage() {
         title="Complete Picking"
         actionLabel="Complete"
       />
+
+      {/* Confirmation Modal */}
+      {showConfirmComplete && (
+        <>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            onClick={handleConfirmCompleteNo}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-4 rounded-t-xl">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Confirm Completion
+                </h2>
+              </div>
+
+              <div className="p-6">
+                <div className="mb-6">
+                  <p className="text-lg font-semibold text-gray-900 mb-2">
+                    Complete picking for Invoice #{invoiceToComplete?.invoice_no}?
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Picked by: <span className="font-semibold">{invoiceToComplete?.picker_info?.name || invoiceToComplete?.picker_name}</span>
+                  </p>
+                  <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                    ⚠️ This action will mark the picking as complete and move the invoice to packing stage. This cannot be undone.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleConfirmCompleteNo}
+                    className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                  >
+                    No, Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmCompleteYes}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all shadow-lg"
+                  >
+                    Yes, Complete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <ActiveUsersDock type="picking" />
     </div>

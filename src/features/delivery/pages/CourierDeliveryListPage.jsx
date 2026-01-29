@@ -237,7 +237,7 @@ const CourierDeliveryListPage = () => {
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium">{delivery.customer?.name || '—'}</p>
-                          <p className="text-xs text-gray-500">{delivery.customer?.area || ''}</p>
+                          <p className="text-xs text-gray-500">{delivery.customer?.area || delivery.customer?.address1 || delivery.temp_name || ''}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-sm">{delivery.customer?.phone1 || '—'}</p>

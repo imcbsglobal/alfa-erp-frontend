@@ -552,7 +552,7 @@ export default function MyPackingListPage() {
                             <p className="font-semibold">Customer</p>
                             <p>{inv.customer_name || "-"}</p>
                             <p>{inv.customer_phone || "-"}</p>
-                            <p>{inv.customer_address || "-"}</p>
+                            <p>{inv.customer_address || inv.temp_name || "-"}</p>
 
                             <p className="font-semibold mt-3">
                               Items ({inv.items?.length || 0})
@@ -606,7 +606,7 @@ export default function MyPackingListPage() {
                           <p className="font-semibold">Customer</p>
                           <p>{inv.customer_name || "-"}</p>
                           <p>{inv.customer_phone || "-"}</p>
-                          <p>{inv.customer_address || "-"}</p>
+                          <p>{inv.customer_address || inv.temp_name || "-"}</p>
 
                           <p className="font-semibold mt-3">
                             Items ({inv.items?.length || 0})

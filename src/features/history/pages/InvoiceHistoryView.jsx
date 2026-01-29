@@ -106,9 +106,9 @@ export default function InvoiceHistoryView() {
         }
       });
 
-      // Convert to array and sort by latest date
+      // Convert to array and sort by oldest first (ascending order)
       let combined = Array.from(invoiceMap.values()).sort(
-        (a, b) => b.latest_date - a.latest_date
+        (a, b) => a.latest_date - b.latest_date
       );
 
       // Apply status filter
