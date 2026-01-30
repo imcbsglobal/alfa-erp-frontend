@@ -42,6 +42,7 @@ import CompanyDeliveryListPage from "../features/delivery/pages/CompanyDeliveryL
 
 import CommonInvoiceView from "../components/CommonInvoiceView";
 import DeveloperSettingsPage from "../pages/DeveloperSettingsPage";
+import AdminPrivilegePage from "../pages/AdminPrivilegePage";
 
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
@@ -113,6 +114,9 @@ export default function AppRouter() {
 
           {/* Developer Options - SUPERADMIN ONLY */}
           <Route path="/developer/settings" element={<DeveloperSettingsPage />} />
+
+          {/* Admin Privilege - SUPERADMIN/ADMIN */}
+          <Route path="/admin/privilege" element={<AdminPrivilegePage />} />
         </Route>
       </Route>
 

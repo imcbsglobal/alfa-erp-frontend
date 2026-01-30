@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import ActiveUsersDock from '../../../components/ActiveUsersDock';
 import { formatDateDDMMYYYY, formatTime, formatDuration, formatNumber, formatDate, formatDateTime } from '../../../utils/formatters';
+import { X } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -326,16 +327,30 @@ export default function PackingInvoiceListPage() {
               Packing Management
             </h1>
             <div className="flex flex-wrap items-center gap-3">
-              <input
-                type="text"
-                placeholder="Search invoice or customer..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
-              />
+              <div className="relative w-full sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Search invoice or customer..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                    }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               <button
                 onClick={handleShowOngoingWork}
                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"

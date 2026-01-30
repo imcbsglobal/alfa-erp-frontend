@@ -130,16 +130,30 @@ export default function DeliveryHistory() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Delivery History</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <input
-              type="text"
-              placeholder="Search invoice or details..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search invoice or details..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+              />
+              {search && (
+                <button
+                  onClick={() => {
+                    setSearch('');
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
             <select
               value={filterType}
@@ -197,6 +211,7 @@ export default function DeliveryHistory() {
                     <th className="px-6 py-4 text-white text-left">Details</th>
                     <th className="px-6 py-4 text-white text-left">Status</th>
                     <th className="px-6 py-4 text-white text-left">Duration</th>
+                    <th className="px-6 py-4 text-white text-left">Notes</th>
                   </tr>
                 </thead>
 
@@ -289,12 +304,29 @@ export default function DeliveryHistory() {
                           <span className="text-gray-400">In Progress</span>
                         )}
                       </td>
+                      <td className="px-6 py-3">
+                        {h.notes ? (
+                          <div className="max-w-xs">
+                            <p className="text-sm text-gray-700 truncate" title={h.notes}>
+                              {h.notes.includes('[ADMIN OVERRIDE]') ? (
+                                <span className="text-orange-600 font-semibold">
+                                  {h.notes.split('\n').find(line => line.includes('[ADMIN OVERRIDE]')) || h.notes}
+                                </span>
+                              ) : (
+                                h.notes
+                              )}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
 
                   {history.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="text-center py-8 text-gray-500">
+                      <td colSpan="7" className="text-center py-8 text-gray-500">
                         No delivery records found
                       </td>
                     </tr>

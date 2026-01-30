@@ -98,16 +98,30 @@ export default function PackingHistory() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Search */}
-            <input
-              type="text"
-              placeholder="Search invoice or packer..."
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search invoice or packer..."
+                className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+              {search && (
+                <button
+                  onClick={() => {
+                    setSearch('');
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
             {/* Status Filter */}
             <select
@@ -164,6 +178,9 @@ export default function PackingHistory() {
                   <th className="px-3 sm:px-6 py-4 text-sm font-bold text-white">
                     Duration
                   </th>
+                  <th className="px-3 sm:px-6 py-4 text-sm font-bold text-white">
+                    Notes
+                  </th>
                 </tr>
               </thead>
 
@@ -213,12 +230,29 @@ export default function PackingHistory() {
                         <span className="text-gray-400">In Progress</span>
                       )}
                     </td>
+                    <td className="px-3 sm:px-6 py-3">
+                      {h.notes ? (
+                        <div className="max-w-xs">
+                          <p className="text-sm text-gray-700 truncate" title={h.notes}>
+                            {h.notes.includes('[ADMIN OVERRIDE]') ? (
+                              <span className="text-orange-600 font-semibold">
+                                {h.notes.split('\n').find(line => line.includes('[ADMIN OVERRIDE]')) || h.notes}
+                              </span>
+                            ) : (
+                              h.notes
+                            )}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
 
                 {history.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="text-center py-4 text-gray-500">
+                    <td colSpan="7" className="text-center py-4 text-gray-500">
                       No packing records found
                     </td>
                   </tr>

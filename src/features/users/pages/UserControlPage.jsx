@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import * as LucideIcons from "lucide-react";
+import { X } from "lucide-react";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import {
   getUsersApi,
@@ -364,8 +365,8 @@ export default function UserControlPage() {
         {/* User List Sidebar */}
         <div className={`${
           showMobileUserList ? 'block' : 'hidden'
-        } lg:block w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col`}>
-          <div className="p-3 sm:p-4 border-b border-gray-200">
+        } lg:block w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col h-full`}>
+          <div className="p-3 sm:p-4 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-sm font-semibold text-gray-700">Users</h2>
               <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
@@ -380,8 +381,17 @@ export default function UserControlPage() {
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                  className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
                 <svg
                   className="absolute left-2.5 top-2 h-4 w-4 text-gray-400"
                   fill="none"

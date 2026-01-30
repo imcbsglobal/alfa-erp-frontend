@@ -225,6 +225,14 @@ export const MENU_CONFIG = [
     isActive: (pathname) => pathname.includes("/master/"),
   },
   {
+    id: "admin-privilege",
+    label: "Advanced Control",
+    icon: Settings,
+    path: "/admin/privilege",
+    type: "single",
+    hasAccess: (user) => user?.role === "SUPERADMIN" || user?.role === "ADMIN",
+  },
+  {
     id: "developer",
     label: "Developer Options",
     icon: Database,
@@ -232,6 +240,7 @@ export const MENU_CONFIG = [
     type: "single",
     hasAccess: (user) => user?.role === "SUPERADMIN",
   },
+  
 ];
 
 // Page title mapping
@@ -269,4 +278,5 @@ export const PAGE_TITLES = {
   "/history": "History",
   "/history/consolidate": "Consolidate History",
   "/developer/settings": "Developer Options",
+  "/admin/privilege": "Advanced Control",
 };

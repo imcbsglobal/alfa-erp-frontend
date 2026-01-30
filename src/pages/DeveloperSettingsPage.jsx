@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Trash2, RefreshCw, AlertTriangle, TrendingUp, Package, Users, Briefcase, Building2, Settings } from 'lucide-react';
+import { Database, Trash2, RefreshCw, AlertTriangle, TrendingUp, Package, Users, Briefcase, Building2 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -10,26 +10,10 @@ const DeveloperSettingsPage = () => {
   const [selectedTable, setSelectedTable] = useState(null);
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [manualPickingEnabled, setManualPickingEnabled] = useState(false);
 
   useEffect(() => {
     loadTableStats();
-    loadDeveloperSettings();
   }, []);
-
-  const loadDeveloperSettings = async () => {
-    try {
-      const response = await api.get('/common/developer-settings/');
-      if (response.data.success) {
-        const enabled = response.data.data.enable_manual_picking_completion;
-        setManualPickingEnabled(enabled);
-        // Also sync to localStorage for backward compatibility
-        localStorage.setItem('enableManualPickingCompletion', enabled);
-      }
-    } catch (error) {
-      console.error('Failed to load developer settings:', error);
-    }
-  };
 
   const loadTableStats = async () => {
     setLoading(true);
@@ -53,8 +37,8 @@ const DeveloperSettingsPage = () => {
   };
 
   const handleConfirmClear = async () => {
-    if (confirmText !== 'DELETE') {
-      toast.error('Please type DELETE to confirm');
+    if (confirmText !== 'CLEAR') {
+      toast.error('Please type CLEAR to confirm');
       return;
     }
 
@@ -69,13 +53,14 @@ const DeveloperSettingsPage = () => {
         setShowConfirmModal(false);
         setSelectedTable(null);
         setConfirmText('');
+        // Reload stats to show current database state
         await loadTableStats();
       } else {
-        toast.error(response.data.message || 'Failed to clear data');
+        toast.error(response.data.message || 'Failed to clear view');
       }
     } catch (error) {
-      console.error('Failed to clear data:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to clear data';
+      console.error('Failed to clear view:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to clear view';
       toast.error(errorMsg);
     } finally {
       setDeleting(false);
@@ -88,11 +73,13 @@ const DeveloperSettingsPage = () => {
       icon: <Package className="w-5 h-5" />,
       color: 'teal',
       tables: [
-        { key: 'invoices', label: 'Invoices', description: 'All invoices and related data (items, sessions, returns)' },
-        { key: 'sessions', label: 'Sessions', description: 'All picking, packing, and delivery sessions' },
-        { key: 'customers', label: 'Customers', description: 'Customer records' },
-        { key: 'salesmen', label: 'Salesmen', description: 'Salesman records' },
-        { key: 'couriers', label: 'Couriers', description: 'Courier service providers' }
+        { key: 'invoices', label: 'Invoices', description: 'Clear invoices from view (database unchanged)' },
+        { key: 'picking_sessions', label: 'Picking Sessions', description: 'Clear picking sessions from view' },
+        { key: 'packing_sessions', label: 'Packing Sessions', description: 'Clear packing sessions from view' },
+        { key: 'delivery_sessions', label: 'Delivery Sessions', description: 'Clear delivery sessions from view' },
+        { key: 'customers', label: 'Customers', description: 'Clear customer records from view' },
+        { key: 'salesmen', label: 'Salesmen', description: 'Clear salesman records from view' },
+        { key: 'couriers', label: 'Couriers', description: 'Clear courier service providers from view' }
       ]
     },
     {
@@ -100,9 +87,9 @@ const DeveloperSettingsPage = () => {
       icon: <Users className="w-5 h-5" />,
       color: 'blue',
       tables: [
-        { key: 'users', label: 'Users', description: 'All non-SUPERADMIN users (keeps at least one SUPERADMIN)' },
-        { key: 'departments', label: 'Departments', description: 'Organization departments' },
-        { key: 'job_titles', label: 'Job Titles', description: 'Job title definitions' }
+        { key: 'users', label: 'Users', description: 'Clear non-SUPERADMIN users from view' },
+        { key: 'departments', label: 'Departments', description: 'Clear organization departments from view' },
+        { key: 'job_titles', label: 'Job Titles', description: 'Clear job title definitions from view' }
       ]
     },
     {
@@ -110,7 +97,7 @@ const DeveloperSettingsPage = () => {
       icon: <AlertTriangle className="w-5 h-5" />,
       color: 'red',
       tables: [
-        { key: 'all', label: 'All Data', description: 'Clear ALL data (invoices, customers, sessions, etc.)',  }
+        { key: 'all', label: 'All Data', description: 'Clear ALL data from view (database unchanged)' }
       ]
     }
   ];
@@ -118,6 +105,9 @@ const DeveloperSettingsPage = () => {
   const getIcon = (key) => {
     switch (key) {
       case 'invoices': return <Package className="w-5 h-5" />;
+      case 'picking_sessions': return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>;
+      case 'packing_sessions': return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>;
+      case 'delivery_sessions': return <TrendingUp className="w-5 h-5" />;
       case 'customers': return <Users className="w-5 h-5" />;
       case 'salesmen': return <Briefcase className="w-5 h-5" />;
       case 'couriers': return <TrendingUp className="w-5 h-5" />;
@@ -144,7 +134,7 @@ const DeveloperSettingsPage = () => {
         <div className="bg-gradient-to-r from-red-500 to-orange-600 text-white rounded-xl shadow-lg p-6 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-7 h-7" />
+              <Database className="w-7 h-7" />
             </div>
             <div>
               <h1 className="text-2xl font-bold">Developer Options</h1>
@@ -231,65 +221,6 @@ const DeveloperSettingsPage = () => {
               <p className="text-sm text-gray-500">Last updated: {new Date().toLocaleTimeString()}</p>
             </div>
 
-            {/* Developer Settings Section */}
-            <div className="mb-6">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-xl shadow p-4">
-                <div className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  <h2 className="text-lg font-bold">Feature Toggles</h2>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-b-xl shadow overflow-hidden">
-                <div className="p-6 space-y-4">
-
-                  {/* Manual Picking Completion */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">Manual Picking Completion</h3>
-                        <p className="text-sm text-gray-600">Allow manual completion of picked bills from Picking Management</p>
-                        <p className="text-xs text-gray-500 mt-1">When enabled, bills stay visible in Picking Management after being picked, with a "Complete" option for the user who picked them</p>
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={manualPickingEnabled}
-                        onChange={async (e) => {
-                          const enabled = e.target.checked;
-                          try {
-                            // Save to API (server-side)
-                            await api.put('/common/developer-settings/', {
-                              enable_manual_picking_completion: enabled
-                            });
-                            // Update local state
-                            setManualPickingEnabled(enabled);
-                            // Also save to localStorage for immediate UI update
-                            localStorage.setItem('enableManualPickingCompletion', enabled);
-                            toast.success(enabled ? 'Manual picking completion enabled - visible in both Picking dashboards' : 'Manual picking completion disabled');
-                          } catch (error) {
-                            console.error('Failed to update settings:', error);
-                            toast.error('Failed to update developer settings');
-                          }
-                        }}
-                        className="sr-only peer"
-                      />
-                      <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
-                      <span className="ml-3 text-sm font-medium text-gray-900">
-                        {manualPickingEnabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Table Categories */}
             {tableCategories.map((category) => (
               <div key={category.name} className="mb-6">
@@ -366,31 +297,31 @@ const DeveloperSettingsPage = () => {
       {showConfirmModal && selectedTable && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="bg-red-600 text-white p-4 rounded-t-xl">
+          <div className="bg-blue-600 text-white p-4 rounded-t-xl">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-6 h-6" />
-                <h3 className="text-lg font-bold">Confirm Data Deletion</h3>
+                <h3 className="text-lg font-bold">Confirm View Clear</h3>
               </div>
             </div>
             
             <div className="p-6">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="text-red-800 font-semibold">⚠️ This action cannot be undone!</p>
-                <p className="text-red-700 text-sm mt-1">
-                  You are about to permanently delete: <strong>{selectedTable.label}</strong>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-blue-800 font-semibold">ℹ️ Frontend View Only</p>
+                <p className="text-blue-700 text-sm mt-1">
+                  This will clear: <strong>{selectedTable.label}</strong> from your frontend view only. Database remains intact.
                 </p>
               </div>
               
               <p className="text-gray-700 mb-4">
-                Type <strong className="text-red-600">DELETE</strong> to confirm this action:
+                Type <strong className="text-blue-600">CLEAR</strong> to confirm this action:
               </p>
               
               <input
                 type="text"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="Type DELETE"
-                className="w-full px-4 py-2 border-2 border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 mb-4"
+                placeholder="Type CLEAR"
+                className="w-full px-4 py-2 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
                 autoFocus
               />
               
@@ -408,10 +339,10 @@ const DeveloperSettingsPage = () => {
                 </button>
                 <button
                   onClick={handleConfirmClear}
-                  disabled={confirmText !== 'DELETE' || deleting}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  disabled={confirmText !== 'CLEAR' || deleting}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
-                  {deleting ? 'Deleting...' : 'Delete Permanently'}
+                  {deleting ? 'Clearing...' : 'Clear View'}
                 </button>
               </div>
             </div>
