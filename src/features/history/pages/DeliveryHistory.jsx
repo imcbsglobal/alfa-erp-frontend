@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { X } from "lucide-react";
 import Pagination from "../../../components/Pagination";
 import { getDeliveryHistory } from "../../../services/sales";
 import DeliveryDetailModal from "../../../components/DeliveryDetailModal";
@@ -26,7 +27,7 @@ export default function DeliveryHistory() {
 
   useEffect(() => {
     load();
-  }, [currentPage, search, filterType, filterStatus, filterDate]);
+  }, [currentPage, filterType, filterStatus, filterDate]); // Removed 'search' - only trigger on manual button click
 
   const load = async () => {
     setLoading(true);
@@ -135,9 +136,12 @@ export default function DeliveryHistory() {
                 type="text"
                 placeholder="Search invoice or details..."
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentPage(1);
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setCurrentPage(1);
+                    load();
+                  }
                 }}
                 className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               />
@@ -154,6 +158,16 @@ export default function DeliveryHistory() {
                 </button>
               )}
             </div>
+
+            <button
+              onClick={() => {
+                setCurrentPage(1);
+                load();
+              }}
+              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-600 hover:to-cyan-700 transition-all shadow-md"
+            >
+              Search
+            </button>
 
             <select
               value={filterType}

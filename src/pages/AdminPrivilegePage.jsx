@@ -30,7 +30,13 @@ const AdminPrivilegePage = () => {
   const loadFeatureSettings = async () => {
     try {
       const response = await api.get('/common/developer-settings/');
-      setManualPickingEnabled(response.data.enable_manual_picking_completion || false);
+      console.log('📋 Full API response:', response.data);
+      
+      // Backend returns: { success: true, data: { enable_manual_picking_completion: true/false, ... } }
+      const enabled = response.data?.data?.enable_manual_picking_completion ?? false;
+      console.log('📋 Parsed enabled value:', enabled);
+      
+      setManualPickingEnabled(enabled);
     } catch (error) {
       console.error('Failed to load feature settings:', error);
     }

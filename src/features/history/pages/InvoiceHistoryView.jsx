@@ -21,7 +21,7 @@ export default function InvoiceHistoryView() {
 
   useEffect(() => {
     load();
-  }, [currentPage, search, filterStatus, filterDate]);
+  }, [currentPage, filterStatus, filterDate]); // Removed 'search' - only trigger on manual button click
 
   const load = async () => {
     setLoading(true);
@@ -205,16 +205,45 @@ export default function InvoiceHistoryView() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Complete Invoice History</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <input
-              type="text"
-              placeholder="Search invoice or customer..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search invoice or customer..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setCurrentPage(1);
+                    load();
+                  }
+                }}
+                className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+              />
+              {search && (
+                <button
+                  onClick={() => {
+                    setSearch('');
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
                 setCurrentPage(1);
+                load();
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
-            />
+              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-600 hover:to-cyan-700 transition-all shadow-md"
+            >
+              Search
+            </button>
 
             <select
               value={filterStatus}

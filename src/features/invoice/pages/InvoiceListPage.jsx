@@ -85,7 +85,7 @@ export default function InvoiceListPage() {
         const invoice = JSON.parse(event.data);
         
         // Only keep INVOICED status invoices in main list
-        // PICKING invoices appear in Ongoing Work modal instead
+        // Once picked, they move to Packing Management
         if (invoice.status === "INVOICED") {
           setInvoices(prev => {
             const exists = prev.find(inv => inv.id === invoice.id);
@@ -95,7 +95,7 @@ export default function InvoiceListPage() {
             return [invoice, ...prev];
           });
         } else {
-          // Remove invoice if status changed from INVOICED
+          // Remove invoice if status changed from INVOICED (moved to picking/packing)
           setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
         }
       } catch (e) {
@@ -114,8 +114,8 @@ export default function InvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      // Fetch INVOICED status bills only
-      // When manual completion is enabled, PICKING invoices will appear in Ongoing Work modal instead
+      // Fetch only INVOICED status bills - these are ready for picking
+      // Once status changes to PICKING or PICKED, they should not appear here
       const res = await api.get("/sales/invoices/", {
         params: { status: "INVOICED", page_size: 100 },
       });

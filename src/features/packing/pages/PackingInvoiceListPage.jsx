@@ -37,6 +37,8 @@ export default function PackingInvoiceListPage() {
     eventSource.onmessage = (event) => {
       try {
         const invoice = JSON.parse(event.data);
+        // Only keep PICKED status invoices - ready for packing
+        // Once packing starts/completes, remove from this list
         if (invoice.status === "PICKED") {
           setInvoices(prev => {
             const exists = prev.find(inv => inv.id === invoice.id);
@@ -46,6 +48,7 @@ export default function PackingInvoiceListPage() {
             return [invoice, ...prev];
           });
         } else {
+          // Remove invoice if status is not PICKED anymore
           setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
         }
       } catch (e) {
