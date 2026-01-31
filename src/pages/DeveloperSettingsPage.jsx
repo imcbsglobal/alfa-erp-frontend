@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Database, Trash2, RefreshCw, AlertTriangle, TrendingUp, Package, Users, Briefcase, Building2 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../features/auth/AuthContext';
 
 const DeveloperSettingsPage = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -12,19 +14,33 @@ const DeveloperSettingsPage = () => {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    console.log('👤 Current user:', user);
+    console.log('🔑 Access token exists:', !!localStorage.getItem('access_token'));
     loadTableStats();
   }, []);
 
   const loadTableStats = async () => {
     setLoading(true);
     try {
+      console.log('🔍 Fetching table stats from:', '/developer/table-stats/');
       const response = await api.get('/developer/table-stats/');
+      console.log('✅ Table stats response:', response.data);
       if (response.data.success) {
         setStats(response.data.stats);
       }
     } catch (error) {
-      console.error('Failed to load table stats:', error);
-      toast.error('Failed to load database statistics');
+      console.error('❌ Failed to load table stats:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      if (error.response?.status === 401) {
+        toast.error('Unauthorized: Only SUPERADMIN can access developer settings. Please ensure you are logged in as SUPERADMIN.', { duration: 6000 });
+      } else if (error.response?.status === 403) {
+        toast.error('Forbidden: You do not have permission to access developer settings', { duration: 6000 });
+      } else {
+        toast.error('Failed to load database statistics');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,15 +69,35 @@ const DeveloperSettingsPage = () => {
         setShowConfirmModal(false);
         setSelectedTable(null);
         setConfirmText('');
+        
         // Reload stats to show current database state
         await loadTableStats();
+        
+        // Broadcast event to trigger reload on all pages
+        window.dispatchEvent(new CustomEvent('dataCleared', { 
+          detail: { 
+            tableName: selectedTable.name,
+            timestamp: Date.now()
+          } 
+        }));
+        
+        // If clearing all or specific tables, notify components to refresh
+        if (selectedTable.name === 'all' || 
+            ['invoices', 'picking_sessions', 'packing_sessions', 'delivery_sessions'].includes(selectedTable.name)) {
+          // Trigger a hard refresh of data in open tabs/components
+          localStorage.setItem('lastDataClear', Date.now().toString());
+        }
       } else {
-        toast.error(response.data.message || 'Failed to clear view');
+        toast.error(response.data.message || 'Failed to clear data');
       }
     } catch (error) {
-      console.error('Failed to clear view:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to clear view';
-      toast.error(errorMsg);
+      console.error('Failed to clear data:', error);
+      if (error.response?.status === 401) {
+        toast.error('Unauthorized: Only SUPERADMIN can clear data');
+      } else {
+        const errorMsg = error.response?.data?.message || 'Failed to clear data';
+        toast.error(errorMsg);
+      }
     } finally {
       setDeleting(false);
     }
@@ -132,13 +168,20 @@ const DeveloperSettingsPage = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-500 to-orange-600 text-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <Database className="w-7 h-7" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <Database className="w-7 h-7" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Developer Options</h1>
+                <p className="text-white/90 text-sm">Database maintenance and data clearing tools</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">Developer Options</h1>
-              <p className="text-white/90 text-sm">Database maintenance and data clearing tools</p>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+              <p className="text-xs text-white/70">Logged in as</p>
+              <p className="font-semibold">{user?.email || 'Unknown'}</p>
+              <p className="text-xs text-white/90">Role: {user?.role || 'Unknown'}</p>
             </div>
           </div>
         </div>

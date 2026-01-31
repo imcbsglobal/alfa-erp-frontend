@@ -99,34 +99,53 @@ export default function MyDeliveryListPage() {
 
   // SSE live updates for delivery assignments and status changes
   useEffect(() => {
-    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+    let es = null;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000;
+    const baseDelay = 1000;
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    const connect = () => {
+      if (es) es.close();
 
-        if (!data.invoice_no) return;
+      es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
-        // Reload deliveries when:
-        // 1. Invoice is PACKED (new delivery assignment possible)
-        // 2. Delivery is assigned to current user
-        // 3. Delivery status changes
-        if (data.status === 'PACKED' || 
-            data.delivery_status || 
-            data.delivery_assigned_to === user?.email) {
-          console.log('🚚 My Delivery update received:', data.invoice_no);
-          loadAllDeliveries();
+      es.onmessage = (event) => {
+        reconnectAttempts = 0;
+        try {
+          const data = JSON.parse(event.data);
+
+          if (!data.invoice_no) return;
+
+          // Reload deliveries when:
+          // 1. Invoice is PACKED (new delivery assignment possible)
+          // 2. Delivery is assigned to current user
+          // 3. Delivery status changes
+          if (data.status === 'PACKED' || 
+              data.delivery_status || 
+              data.delivery_assigned_to === user?.email) {
+            console.log('🚚 My Delivery update received:', data.invoice_no);
+            loadAllDeliveries();
+          }
+        } catch (e) {
+          console.error('My Delivery SSE parse error:', e);
         }
-      } catch (e) {
-        console.error('My Delivery SSE parse error:', e);
-      }
+      };
+
+      es.onerror = () => {
+        es.close();
+        reconnectAttempts++;
+        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        reconnectTimeout = setTimeout(() => connect(), delay);
+      };
     };
 
-    es.onerror = () => {
-      es.close();
-    };
+    connect();
 
-    return () => es.close();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (es) es.close();
+    };
   }, [user?.email]); // Include user email to prevent stale closure
 
   const loadAllDeliveries = async () => {

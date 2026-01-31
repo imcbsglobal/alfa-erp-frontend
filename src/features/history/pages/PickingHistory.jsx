@@ -28,6 +28,18 @@ export default function PickingHistory() {
 
   useEffect(() => {
     load();
+
+    // Listen for data clear events from developer settings
+    const handleDataCleared = (event) => {
+      const { tableName } = event.detail;
+      if (tableName === 'all' || tableName === 'picking_sessions') {
+        console.log('🔄 Data cleared - reloading picking history...');
+        load();
+      }
+    };
+
+    window.addEventListener('dataCleared', handleDataCleared);
+    return () => window.removeEventListener('dataCleared', handleDataCleared);
   }, [currentPage, filterStatus, filterDate, filterRepick]); // Removed 'search' - only trigger on manual button click
 
   const load = async () => {

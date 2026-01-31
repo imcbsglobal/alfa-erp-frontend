@@ -26,30 +26,49 @@ const CourierDeliveryListPage = () => {
 
   // SSE live updates for courier delivery assignments and POD uploads
   useEffect(() => {
-    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+    let es = null;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000;
+    const baseDelay = 1000;
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    const connect = () => {
+      if (es) es.close();
 
-        if (!data.invoice_no) return;
+      es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
-        // Reload when courier delivery is assigned or POD is uploaded
-        if (data.delivery_type === 'COURIER' && 
-            (data.delivery_status === 'TO_CONSIDER' || data.pod_uploaded)) {
-          console.log('📦 Courier delivery update:', data.invoice_no);
-          loadCourierDeliveries();
+      es.onmessage = (event) => {
+        reconnectAttempts = 0;
+        try {
+          const data = JSON.parse(event.data);
+
+          if (!data.invoice_no) return;
+
+          // Reload when courier delivery is assigned or POD is uploaded
+          if (data.delivery_type === 'COURIER' && 
+              (data.delivery_status === 'TO_CONSIDER' || data.pod_uploaded)) {
+            console.log('📦 Courier delivery update:', data.invoice_no);
+            loadCourierDeliveries();
+          }
+        } catch (e) {
+          console.error('Courier SSE parse error:', e);
         }
-      } catch (e) {
-        console.error('Courier SSE parse error:', e);
-      }
+      };
+
+      es.onerror = () => {
+        es.close();
+        reconnectAttempts++;
+        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        reconnectTimeout = setTimeout(() => connect(), delay);
+      };
     };
 
-    es.onerror = () => {
-      es.close();
-    };
+    connect();
 
-    return () => es.close();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (es) es.close();
+    };
   }, []); // Empty dependency - SSE monitors global courier delivery updates
 
   const loadCourierDeliveries = async () => {

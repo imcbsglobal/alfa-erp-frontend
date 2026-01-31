@@ -35,38 +35,56 @@ export default function MyPackingListPage() {
 
 
   useEffect(() => {
-    const es = new EventSource(
-      `${import.meta.env.VITE_API_BASE_URL}/sales/sse/invoices/`
-    );
+    let es = null;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000;
+    const baseDelay = 1000;
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    const connect = () => {
+      if (es) es.close();
 
-        if (!data.invoice_no) return;
+      es = new EventSource(
+        `${import.meta.env.VITE_API_BASE_URL}/sales/sse/invoices/`
+      );
 
-        // ✅ Listen ONLY for re-invoiced PATCH
-        if (
-          data.type === "invoice_updated" &&
-          data.billing_status === "RE_INVOICED"
-        ) {
-          console.log(
-            "📦 Packing page received re-invoiced invoice:",
-            data.invoice_no
-          );
-          loadActivePacking();
+      es.onmessage = (event) => {
+        reconnectAttempts = 0;
+        try {
+          const data = JSON.parse(event.data);
+
+          if (!data.invoice_no) return;
+
+          // ✅ Listen ONLY for re-invoiced PATCH
+          if (
+            data.type === "invoice_updated" &&
+            data.billing_status === "RE_INVOICED"
+          ) {
+            console.log(
+              "📦 Packing page received re-invoiced invoice:",
+              data.invoice_no
+            );
+            loadActivePacking();
+          }
+        } catch (err) {
+          console.error("Packing SSE parse error", err);
         }
-      } catch (err) {
-        console.error("Packing SSE parse error", err);
-      }
+      };
+
+      es.onerror = () => {
+        es.close();
+        reconnectAttempts++;
+        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        reconnectTimeout = setTimeout(() => connect(), delay);
+      };
     };
 
-    es.onerror = () => {
-      // SSE connection closed - normal behavior during server restarts or timeouts
-      es.close();
-    };
+    connect();
 
-    return () => es.close();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (es) es.close();
+    };
   }, []); // Empty dependency - SSE monitors global invoice updates
 
   useEffect(() => {

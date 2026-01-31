@@ -25,6 +25,18 @@ export default function PackingHistory() {
 
   useEffect(() => {
     load();
+
+    // Listen for data clear events from developer settings
+    const handleDataCleared = (event) => {
+      const { tableName } = event.detail;
+      if (tableName === 'all' || tableName === 'packing_sessions') {
+        console.log('🔄 Data cleared - reloading packing history...');
+        load();
+      }
+    };
+
+    window.addEventListener('dataCleared', handleDataCleared);
+    return () => window.removeEventListener('dataCleared', handleDataCleared);
   }, [currentPage, filterStatus, filterDate]); // Removed 'search' - only trigger on manual button click
 
   const load = async () => {

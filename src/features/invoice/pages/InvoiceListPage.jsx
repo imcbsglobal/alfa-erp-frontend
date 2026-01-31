@@ -73,43 +73,83 @@ export default function InvoiceListPage() {
       }
     };
     
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [isManualCompletionEnabled, currentPage, searchTerm]);
-
-  // SSE Live Updates
-  useEffect(() => {
-    const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
-
-    eventSource.onmessage = (event) => {
-      try {
-        const invoice = JSON.parse(event.data);
-        
-        // Only keep INVOICED status invoices in main list
-        // Once picked, they move to Packing Management
-        if (invoice.status === "INVOICED") {
-          setInvoices(prev => {
-            const exists = prev.find(inv => inv.id === invoice.id);
-            if (exists) {
-              return prev.map(inv => inv.id === invoice.id ? invoice : inv);
-            }
-            return [invoice, ...prev];
-          });
-        } else {
-          // Remove invoice if status changed from INVOICED (moved to picking/packing)
-          setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
-        }
-      } catch (e) {
-        console.error("Invalid SSE invoice:", e);
+    // Listen for data clear events from developer settings
+    const handleDataCleared = (event) => {
+      const { tableName } = event.detail;
+      if (tableName === 'all' || tableName === 'invoices' || tableName === 'picking_sessions') {
+        console.log('🔄 Data cleared - reloading invoices...');
+        loadInvoices();
       }
     };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('dataCleared', handleDataCleared);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('dataCleared', handleDataCleared);
+    };
+  }, [isManualCompletionEnabled, currentPage, searchTerm]);
 
-    eventSource.onerror = () => {
-      // SSE connection closed - normal behavior during server restarts or timeouts
-      eventSource.close();
+  // SSE Live Updates with reconnection logic
+  useEffect(() => {
+    let eventSource = null;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000; // Max 30 seconds
+    const baseDelay = 1000; // Start with 1 second
+
+    const connect = () => {
+      // Clean up existing connection
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+      eventSource.onmessage = (event) => {
+        reconnectAttempts = 0; // Reset on successful message
+        try {
+          const invoice = JSON.parse(event.data);
+          
+          // Only keep INVOICED status invoices in main list
+          // Once picked, they move to Packing Management
+          if (invoice.status === "INVOICED") {
+            setInvoices(prev => {
+              const exists = prev.find(inv => inv.id === invoice.id);
+              if (exists) {
+                return prev.map(inv => inv.id === invoice.id ? invoice : inv);
+              }
+              return [invoice, ...prev];
+            });
+          } else {
+            // Remove invoice if status changed from INVOICED (moved to picking/packing)
+            setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
+          }
+        } catch (e) {
+          console.error("Invalid SSE invoice:", e);
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        
+        // Exponential backoff for reconnection
+        reconnectAttempts++;
+        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        
+        reconnectTimeout = setTimeout(() => {
+          connect();
+        }, delay);
+      };
     };
 
-    return () => eventSource.close();
+    connect();
+
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (eventSource) eventSource.close();
+    };
   }, []); // Empty dependency - SSE monitors global invoiced status updates
 
   const loadInvoices = async () => {

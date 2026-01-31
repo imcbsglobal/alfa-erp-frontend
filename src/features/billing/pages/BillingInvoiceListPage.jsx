@@ -30,51 +30,69 @@ export default function BillingInvoiceListPage() {
 
   // 🔴 SSE live updates
   useEffect(() => {
-    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+    let es = null;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000;
+    const baseDelay = 1000;
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    const connect = () => {
+      if (es) es.close();
 
-        // 🔴 Filter by salesman name - only show if matches logged-in user (unless admin)
-        const isAdmin = user?.role === "ADMIN" || user?.is_superuser;
-        const salesmanName = data.salesman?.name;
-        const userName = user?.username || user?.name;
-        
-        // Skip if not admin and salesman doesn't match logged-in user
-        if (!isAdmin && salesmanName !== userName) {
-          return;
+      es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+      es.onmessage = (event) => {
+        reconnectAttempts = 0;
+        try {
+          const data = JSON.parse(event.data);
+
+          // 🔴 Filter by salesman name - only show if matches logged-in user (unless admin)
+          const isAdmin = user?.role === "ADMIN" || user?.is_superuser;
+          const salesmanName = data.salesman?.name;
+          const userName = user?.username || user?.name;
+          
+          // Skip if not admin and salesman doesn't match logged-in user
+          if (!isAdmin && salesmanName !== userName) {
+            return;
+          }
+
+          setInvoices((prev) => {
+            // Remove if status is REVIEW (moved to reviewed list)
+            if (data.billing_status === "REVIEW") {
+              return prev.filter(i => i.id !== data.id);
+            }
+
+            // Normal update/add for non-REVIEW invoices
+            const idx = prev.findIndex((i) => i.id === data.id);
+            if (idx !== -1) {
+              // Update existing invoice
+              const copy = [...prev];
+              copy[idx] = { ...copy[idx], ...data };
+              return copy;
+            }
+            // Add new invoice at the beginning
+            return [{ ...data, _isLive: true }, ...prev];
+          });
+          setCurrentPage(1);
+        } catch (e) {
+          console.error("Bad SSE data", e);
         }
+      };
 
-        setInvoices((prev) => {
-          // Remove if status is REVIEW (moved to reviewed list)
-          if (data.billing_status === "REVIEW") {
-            return prev.filter(i => i.id !== data.id);
-          }
-
-          // Normal update/add for non-REVIEW invoices
-          const idx = prev.findIndex((i) => i.id === data.id);
-          if (idx !== -1) {
-            // Update existing invoice
-            const copy = [...prev];
-            copy[idx] = { ...copy[idx], ...data };
-            return copy;
-          }
-          // Add new invoice at the beginning
-          return [{ ...data, _isLive: true }, ...prev];
-        });
-        setCurrentPage(1);
-      } catch (e) {
-        console.error("Bad SSE data", e);
-      }
+      es.onerror = () => {
+        es.close();
+        reconnectAttempts++;
+        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        reconnectTimeout = setTimeout(() => connect(), delay);
+      };
     };
 
-    es.onerror = () => {
-      // SSE connection closed - normal behavior during server restarts or timeouts
-      es.close();
-    };
+    connect();
 
-    return () => es.close();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (es) es.close();
+    };
   }, [user]);
 
   const loadInvoices = async () => {

@@ -27,34 +27,52 @@ export default function BillingReviewedListPage() {
 
   // SSE live updates
   useEffect(() => {
-    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+    let es = null;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000;
+    const baseDelay = 1000;
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    const connect = () => {
+      if (es) es.close();
 
-        if (!data.invoice_no) return;
+      es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
-        // Reload if it's a review-related event
-        if (
-          data.type === "invoice_review" ||
-          data.type === "invoice_returned" ||
-          data.type === "invoice_updated"
-        ) {
-          loadInvoices();
-          toast.success(`Invoice ${data.invoice_no} updated`);
+      es.onmessage = (event) => {
+        reconnectAttempts = 0;
+        try {
+          const data = JSON.parse(event.data);
+
+          if (!data.invoice_no) return;
+
+          // Reload if it's a review-related event
+          if (
+            data.type === "invoice_review" ||
+            data.type === "invoice_returned" ||
+            data.type === "invoice_updated"
+          ) {
+            loadInvoices();
+            toast.success(`Invoice ${data.invoice_no} updated`);
+          }
+        } catch (e) {
+          console.error("Bad SSE data", e);
         }
-      } catch (e) {
-        console.error("Bad SSE data", e);
-      }
+      };
+
+      es.onerror = () => {
+        es.close();
+        reconnectAttempts++;
+        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        reconnectTimeout = setTimeout(() => connect(), delay);
+      };
     };
 
-    es.onerror = () => {
-      // SSE connection closed - normal behavior during server restarts or timeouts
-      es.close();
-    };
+    connect();
 
-    return () => es.close();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (es) es.close();
+    };
   }, []); // Empty dependency - SSE monitors global billing review updates
 
   const loadInvoices = async () => {

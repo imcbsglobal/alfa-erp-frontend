@@ -33,24 +33,48 @@ export default function MyInvoiceListPage() {
   }, []);
 
   useEffect(() => {
-    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (!data.invoice_no) return;
-        if (data.billing_status === "RE_INVOICED" && 
-            data.return_info?.returned_by_email === user?.email) {
-          loadActivePicking();
+    let es = null;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000;
+    const baseDelay = 1000;
+
+    const connect = () => {
+      if (es) es.close();
+
+      es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+      es.onmessage = (event) => {
+        reconnectAttempts = 0;
+        try {
+          const data = JSON.parse(event.data);
+          if (!data.invoice_no) return;
+          if (data.billing_status === "RE_INVOICED" && 
+              data.return_info?.returned_by_email === user?.email) {
+            loadActivePicking();
+          }
+          if (data.type === 'invoice_review' || data.type === 'invoice_returned') {
+            loadActivePicking();
+          }
+        } catch (e) {
+          console.error("Bad SSE data", e);
         }
-        if (data.type === 'invoice_review' || data.type === 'invoice_returned') {
-          loadActivePicking();
-        }
-      } catch (e) {
-        console.error("Bad SSE data", e);
-      }
+      };
+
+      es.onerror = () => {
+        es.close();
+        reconnectAttempts++;
+        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        reconnectTimeout = setTimeout(() => connect(), delay);
+      };
     };
-    es.onerror = () => es.close();
-    return () => es.close();
+
+    connect();
+
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (es) es.close();
+    };
   }, [user?.email]);
 
   useEffect(() => {

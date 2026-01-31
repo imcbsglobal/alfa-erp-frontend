@@ -30,33 +30,64 @@ const DeliveryDispatchPage = () => {
 
   useEffect(() => {
     loadPackedInvoices();
+
+    // Listen for data clear events from developer settings
+    const handleDataCleared = (event) => {
+      const { tableName } = event.detail;
+      if (tableName === 'all' || tableName === 'invoices' || tableName === 'delivery_sessions') {
+        console.log('🔄 Data cleared - reloading dispatch invoices...');
+        loadPackedInvoices();
+      }
+    };
+
+    window.addEventListener('dataCleared', handleDataCleared);
+    return () => window.removeEventListener('dataCleared', handleDataCleared);
   }, [currentPage, searchTerm]);
 
   // SSE live updates for packed invoices ready for delivery
   useEffect(() => {
-    const es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+    let es = null;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000;
+    const baseDelay = 1000;
 
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    const connect = () => {
+      if (es) es.close();
 
-        if (!data.invoice_no) return;
+      es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
-        // Reload when invoice becomes PACKED or delivery is assigned
-        if (data.status === 'PACKED' || data.delivery_status) {
-          console.log('📦 Dispatch page update:', data.invoice_no);
-          loadPackedInvoices();
+      es.onmessage = (event) => {
+        reconnectAttempts = 0;
+        try {
+          const data = JSON.parse(event.data);
+
+          if (!data.invoice_no) return;
+
+          // Reload when invoice becomes PACKED or delivery is assigned
+          if (data.status === 'PACKED' || data.delivery_status) {
+            console.log('📦 Dispatch page update:', data.invoice_no);
+            loadPackedInvoices();
+          }
+        } catch (e) {
+          console.error('Dispatch SSE parse error:', e);
         }
-      } catch (e) {
-        console.error('Dispatch SSE parse error:', e);
-      }
+      };
+
+      es.onerror = () => {
+        es.close();
+        reconnectAttempts++;
+        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        reconnectTimeout = setTimeout(() => connect(), delay);
+      };
     };
 
-    es.onerror = () => {
-      es.close();
-    };
+    connect();
 
-    return () => es.close();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (es) es.close();
+    };
   }, []); // Empty dependency - SSE monitors global packed invoice updates
 
   const loadPackedInvoices = async () => {
