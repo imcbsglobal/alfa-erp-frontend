@@ -28,6 +28,7 @@ export default function InvoiceListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const itemsPerPage = 10;
+  const [totalCount, setTotalCount] = useState(0);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [invoiceToComplete, setInvoiceToComplete] = useState(null);
   const [isManualCompletionEnabled, setIsManualCompletionEnabled] = useState(false);
@@ -74,7 +75,7 @@ export default function InvoiceListPage() {
     
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [isManualCompletionEnabled]);
+  }, [isManualCompletionEnabled, currentPage, searchTerm]);
 
   // SSE Live Updates
   useEffect(() => {
@@ -116,13 +117,25 @@ export default function InvoiceListPage() {
     try {
       // Fetch only INVOICED status bills - these are ready for picking
       // Once status changes to PICKING or PICKED, they should not appear here
-      const res = await api.get("/sales/invoices/", {
-        params: { status: "INVOICED", page_size: 100 },
-      });
+      // Implement server-side pagination to load all invoices
+      const params = {
+        status: "INVOICED",
+        page: currentPage,
+        page_size: itemsPerPage
+      };
+      
+      // Add search filter if present
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+      
+      const res = await api.get("/sales/invoices/", { params });
       const allInvoices = res.data.results || [];
+      const count = res.data.count || 0;
 
       setInvoices(allInvoices);
-      console.log('📊 Total invoices loaded:', allInvoices.length);
+      setTotalCount(count);
+      console.log('📊 Total invoices loaded:', allInvoices.length, 'of', count);
     } catch (err) {
       console.error("❌ Failed to load invoices:", err);
       toast.error("Failed to load invoices");
@@ -377,21 +390,8 @@ export default function InvoiceListPage() {
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
-  // Filter by search term
-  const filteredInvoices = sortedInvoices.filter(inv => {
-    if (!searchTerm.trim()) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      inv.invoice_no?.toLowerCase().includes(search) ||
-      inv.customer?.name?.toLowerCase().includes(search) ||
-      inv.customer?.code?.toLowerCase().includes(search)
-    );
-  });
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredInvoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+  // No need for client-side filtering and slicing anymore - API handles it
+  const currentItems = sortedInvoices;
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -600,7 +600,7 @@ export default function InvoiceListPage() {
               </div>
               <Pagination
                 currentPage={currentPage}
-                totalItems={filteredInvoices.length}
+                totalItems={totalCount}
                 itemsPerPage={itemsPerPage}
                 onPageChange={handlePageChange}
                 label="invoices"
