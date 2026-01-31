@@ -19,14 +19,15 @@ export default function BillingInvoiceListPage() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // Initial load
+  // Load when page, itemsPerPage, or statusFilter changes
   useEffect(() => {
     loadInvoices();
-  }, []);
+  }, [currentPage, itemsPerPage, statusFilter]);
 
   // 🔴 SSE live updates
   useEffect(() => {
@@ -98,29 +99,37 @@ export default function BillingInvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      let all = [];
-      let url = "/sales/billing/invoices/";
-
-      while (url) {
-        const res = await api.get(url);
-        all = all.concat(res.data.results || []);
-        url = res.data.next;
+      // Build query params for server-side filtering and pagination
+      const params = {
+        page: currentPage,
+        page_size: itemsPerPage
+      };
+      
+      // Add status filter if not "ALL"
+      if (statusFilter !== "ALL") {
+        params.status = statusFilter;
       }
-
-      let nonReviewedInvoices = all.filter(
-        inv => inv.billing_status !== "REVIEW" && inv.status !== "REVIEW"
-      );
-
+      
+      // Don't filter by billing_status on frontend - let backend handle
+      // Backend already excludes REVIEW status bills
+      
+      const res = await api.get("/sales/billing/invoices/", { params });
+      const results = res.data.results || [];
+      const count = res.data.count || 0;
+      
+      // Filter client-side only for non-admin users by salesman name
       const isAdmin = user?.role === "ADMIN" || user?.is_superuser;
       const userName = user?.username || user?.name;
-
+      
+      let filteredResults = results;
       if (!isAdmin) {
-        nonReviewedInvoices = nonReviewedInvoices.filter(
+        filteredResults = results.filter(
           inv => inv.salesman?.name === userName
         );
       }
-
-      setInvoices(nonReviewedInvoices);
+      
+      setInvoices(filteredResults);
+      setTotalCount(count);
     } catch {
       toast.error("Failed to load invoices");
     } finally {
@@ -198,28 +207,9 @@ export default function BillingInvoiceListPage() {
     return inv.status;
   };
 
-  // Sort oldest first (first pushed bill comes first)
-  const sortedInvoices = [...invoices].sort((a, b) => {
-    if (a._isLive && !b._isLive) return -1;
-    if (!a._isLive && b._isLive) return 1;
-    return new Date(a.created_at) - new Date(b.created_at); // Ascending order
-  });
-
-  // Apply status filter
-  const filteredInvoices = statusFilter === "ALL" 
-    ? sortedInvoices 
-    : sortedInvoices.filter(inv => getDisplayStatus(inv) === statusFilter);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, itemsPerPage]);
-
-  // Pagination calc
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredInvoices.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+  // No client-side sorting or filtering needed - backend handles pagination
+  const currentItems = invoices;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const handlePageChange = (n) => {
     setCurrentPage(n);
@@ -281,7 +271,7 @@ export default function BillingInvoiceListPage() {
             <div className="py-20 text-center text-gray-500">
               Loading invoices...
             </div>
-          ) : filteredInvoices.length === 0 ? (
+          ) : invoices.length === 0 ? (
             <div className="py-20 text-center text-gray-500">
               {statusFilter === "ALL" ? "No invoices found" : `No ${getStatusLabel(statusFilter).toLowerCase()} invoices found`}
             </div>
@@ -363,7 +353,7 @@ export default function BillingInvoiceListPage() {
               </div>
               <Pagination
                 currentPage={currentPage}
-                totalItems={filteredInvoices.length}
+                totalItems={totalCount}
                 itemsPerPage={itemsPerPage}
                 onPageChange={handlePageChange}
                 label="invoices"
