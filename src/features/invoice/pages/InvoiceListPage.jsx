@@ -28,7 +28,6 @@ export default function InvoiceListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const itemsPerPage = 10;
-  const [totalCount, setTotalCount] = useState(0);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [invoiceToComplete, setInvoiceToComplete] = useState(null);
   const [isManualCompletionEnabled, setIsManualCompletionEnabled] = useState(false);
@@ -73,109 +72,71 @@ export default function InvoiceListPage() {
       }
     };
     
-    // Listen for data clear events from developer settings
-    const handleDataCleared = (event) => {
-      const { tableName } = event.detail;
-      if (tableName === 'all' || tableName === 'invoices' || tableName === 'picking_sessions') {
-        console.log('🔄 Data cleared - reloading invoices...');
-        loadInvoices();
-      }
-    };
-    
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('dataCleared', handleDataCleared);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('dataCleared', handleDataCleared);
-    };
-  }, [isManualCompletionEnabled, currentPage, searchTerm]);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [isManualCompletionEnabled]);
 
-  // SSE Live Updates with reconnection logic
+  // SSE Live Updates
   useEffect(() => {
-    let eventSource = null;
-    let reconnectTimeout = null;
-    let reconnectAttempts = 0;
-    const maxReconnectDelay = 30000; // Max 30 seconds
-    const baseDelay = 1000; // Start with 1 second
+    const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
-    const connect = () => {
-      // Clean up existing connection
-      if (eventSource) {
-        eventSource.close();
-      }
-
-      eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
-
-      eventSource.onmessage = (event) => {
-        reconnectAttempts = 0; // Reset on successful message
-        try {
-          const invoice = JSON.parse(event.data);
-          
-          // Only keep INVOICED status invoices in main list
-          // Once picked, they move to Packing Management
-          if (invoice.status === "INVOICED") {
-            setInvoices(prev => {
-              const exists = prev.find(inv => inv.id === invoice.id);
-              if (exists) {
-                return prev.map(inv => inv.id === invoice.id ? invoice : inv);
-              }
-              return [invoice, ...prev];
-            });
-          } else {
-            // Remove invoice if status changed from INVOICED (moved to picking/packing)
-            setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
-          }
-        } catch (e) {
-          console.error("Invalid SSE invoice:", e);
+    eventSource.onmessage = (event) => {
+      try {
+        const invoice = JSON.parse(event.data);
+        
+        // Only keep INVOICED status invoices in main list
+        // PICKING invoices appear in Ongoing Work modal instead
+        if (invoice.status === "INVOICED") {
+          setInvoices(prev => {
+            const exists = prev.find(inv => inv.id === invoice.id);
+            if (exists) {
+              return prev.map(inv => inv.id === invoice.id ? invoice : inv);
+            }
+            return [invoice, ...prev];
+          });
+        } else {
+          // Remove invoice if status changed from INVOICED
+          setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
         }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        
-        // Exponential backoff for reconnection
-        reconnectAttempts++;
-        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
-        
-        reconnectTimeout = setTimeout(() => {
-          connect();
-        }, delay);
-      };
+      } catch (e) {
+        console.error("Invalid SSE invoice:", e);
+      }
     };
 
-    connect();
-
-    return () => {
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (eventSource) eventSource.close();
+    eventSource.onerror = () => {
+      // SSE connection closed - normal behavior during server restarts or timeouts
+      eventSource.close();
     };
+
+    return () => eventSource.close();
   }, []); // Empty dependency - SSE monitors global invoiced status updates
 
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      // Fetch only INVOICED status bills - these are ready for picking
-      // Once status changes to PICKING or PICKED, they should not appear here
-      // Implement server-side pagination to load all invoices
-      const params = {
-        status: "INVOICED",
-        page: currentPage,
-        page_size: itemsPerPage
-      };
+      // Fetch INVOICED status bills only
+      // When manual completion is enabled, PICKING invoices will appear in Ongoing Work modal instead
+      let allInvoices = [];
+      let nextUrl = "/sales/invoices/?status=INVOICED&page_size=100";
       
-      // Add search filter if present
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
+      // Fetch all pages
+      while (nextUrl) {
+        const res = await api.get(nextUrl);
+        const results = res.data.results || [];
+        allInvoices = [...allInvoices, ...results];
+        
+        // Get next page URL
+        nextUrl = res.data.next;
+        if (nextUrl) {
+          // Extract just the path and query params if it's a full URL
+          const urlObj = new URL(nextUrl, window.location.origin);
+          // Remove /api prefix since axios base URL already includes it
+          nextUrl = urlObj.pathname.replace(/^\/api/, '') + urlObj.search;
+        }
       }
-      
-      const res = await api.get("/sales/invoices/", { params });
-      const allInvoices = res.data.results || [];
-      const count = res.data.count || 0;
 
       setInvoices(allInvoices);
-      setTotalCount(count);
-      console.log('📊 Total invoices loaded:', allInvoices.length, 'of', count);
+      console.log('📊 Total invoices loaded:', allInvoices.length);
     } catch (err) {
       console.error("❌ Failed to load invoices:", err);
       toast.error("Failed to load invoices");
@@ -430,8 +391,21 @@ export default function InvoiceListPage() {
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
-  // No need for client-side filtering and slicing anymore - API handles it
-  const currentItems = sortedInvoices;
+  // Filter by search term
+  const filteredInvoices = sortedInvoices.filter(inv => {
+    if (!searchTerm.trim()) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      inv.invoice_no?.toLowerCase().includes(search) ||
+      inv.customer?.name?.toLowerCase().includes(search) ||
+      inv.customer?.code?.toLowerCase().includes(search)
+    );
+  });
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredInvoices.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -640,7 +614,7 @@ export default function InvoiceListPage() {
               </div>
               <Pagination
                 currentPage={currentPage}
-                totalItems={totalCount}
+                totalItems={filteredInvoices.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={handlePageChange}
                 label="invoices"
