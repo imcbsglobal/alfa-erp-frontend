@@ -141,16 +141,30 @@ const CompanyDeliveryListPage = () => {
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <input
-                type="text"
-                placeholder="Search invoice, customer, or staff..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search invoice, customer, or staff..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                    }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               <button
                 onClick={handleRefresh}
                 disabled={loading}

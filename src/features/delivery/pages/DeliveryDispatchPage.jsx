@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Truck, Package, Search } from 'lucide-react';
+import { Eye, Truck, Package, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import DeliveryModal from '../components/DeliveryModal';
@@ -230,16 +230,30 @@ const DeliveryDispatchPage = () => {
               Dispatch Management
             </h1>
             <div className="flex flex-wrap items-center gap-3">
-              <input
-                type="text"
-                placeholder="Search invoice or customer..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search invoice or customer..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                    }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               <button
                 onClick={handleShowOngoingWork}
                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"

@@ -142,7 +142,7 @@ export default function DeliveryHistory() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Delivery History</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="relative">
               <input
                 type="text"
@@ -170,16 +170,6 @@ export default function DeliveryHistory() {
                 </button>
               )}
             </div>
-
-            <button
-              onClick={() => {
-                setCurrentPage(1);
-                load();
-              }}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-600 hover:to-cyan-700 transition-all shadow-md"
-            >
-              Search
-            </button>
 
             <select
               value={filterType}
