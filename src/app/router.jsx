@@ -47,6 +47,14 @@ import AdminPrivilegePage from "../pages/AdminPrivilegePage";
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
   
+  // SUPERADMIN-only wrapper for developer settings
+  const SuperAdminRoute = ({ children }) => {
+    if (user?.role !== 'SUPERADMIN') {
+      return <Navigate to="/403" replace />;
+    }
+    return children;
+  };
+  
   return (
     <Routes>
       {/* Public */}
@@ -113,7 +121,14 @@ export default function AppRouter() {
           <Route path="/history/consolidate" element={<InvoiceHistoryView />} />
 
           {/* Developer Options - SUPERADMIN ONLY */}
-          <Route path="/developer/settings" element={<DeveloperSettingsPage />} />
+          <Route 
+            path="/developer/settings" 
+            element={
+              <SuperAdminRoute>
+                <DeveloperSettingsPage />
+              </SuperAdminRoute>
+            } 
+          />
 
           {/* Admin Privilege - SUPERADMIN/ADMIN */}
           <Route path="/admin/privilege" element={<AdminPrivilegePage />} />

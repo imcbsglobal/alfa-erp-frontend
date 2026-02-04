@@ -23,6 +23,9 @@ export default function SuperAdminDashboard() {
     pickingActiveSessions: 0,
     packingActiveSessions: 0,
     deliveryActiveSessions: 0,
+    completedPickingSessions: 0,
+    completedPackingSessions: 0,
+    completedDeliverySessions: 0,
   });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -99,53 +102,59 @@ export default function SuperAdminDashboard() {
       let pickingActiveSessions = 0;
       let packingActiveSessions = 0;
       let deliveryActiveSessions = 0;
+      let completedPickingSessions = 0;
+      let completedPackingSessions = 0;
+      let completedDeliverySessions = 0;
       
       if (pickingHistoryRes.status === 'fulfilled') {
-        const sessions = pickingHistoryRes.value?.data?.data?.results || [];
-        pickingActiveSessions = sessions.filter(s => s.status === 'IN_PROGRESS').length;
+        const sessions = pickingHistoryRes.value?.data?.results || [];
+        pickingActiveSessions = sessions.filter(s => s.picking_status === 'PREPARING').length;
+        completedPickingSessions = sessions.filter(s => s.picking_status === 'PICKED').length;
       }
       
       if (packingHistoryRes.status === 'fulfilled') {
-        const sessions = packingHistoryRes.value?.data?.data?.results || [];
-        packingActiveSessions = sessions.filter(s => s.status === 'IN_PROGRESS').length;
+        const sessions = packingHistoryRes.value?.data?.results || [];
+        packingActiveSessions = sessions.filter(s => s.packing_status === 'IN_PROGRESS').length;
+        completedPackingSessions = sessions.filter(s => s.packing_status === 'PACKED').length;
       }
       
       if (deliveryHistoryRes.status === 'fulfilled') {
-        const sessions = deliveryHistoryRes.value?.data?.data?.results || [];
-        deliveryActiveSessions = sessions.filter(s => s.status === 'IN_PROGRESS').length;
+        const sessions = deliveryHistoryRes.value?.data?.results || [];
+        deliveryActiveSessions = sessions.filter(s => s.delivery_status === 'IN_TRANSIT').length;
+        completedDeliverySessions = sessions.filter(s => s.delivery_status === 'DELIVERED').length;
       }
 
       // Build Recent Activity
       const activities = [];
       if (pickingHistoryRes.status === 'fulfilled') {
-        const sessions = pickingHistoryRes.value?.data?.data?.results || [];
+        const sessions = pickingHistoryRes.value?.data?.results || [];
         sessions.slice(0, 3).forEach(session => {
           activities.push({
             type: 'picking',
-            user: session.user_name || 'Unknown',
-            action: session.status === 'COMPLETED' ? 'Completed picking' : 'Started picking',
-            time: session.completed_at || session.created_at,
-            status: session.status
+            user: session.picker_name || 'Unknown',
+            action: session.picking_status === 'PICKED' ? 'Completed picking' : 'Started picking',
+            time: session.end_time || session.start_time || session.created_at,
+            status: session.picking_status
           });
         });
       }
       
       if (packingHistoryRes.status === 'fulfilled') {
-        const sessions = packingHistoryRes.value?.data?.data?.results || [];
+        const sessions = packingHistoryRes.value?.data?.results || [];
         sessions.slice(0, 3).forEach(session => {
           activities.push({
             type: 'packing',
-            user: session.user_name || 'Unknown',
-            action: session.status === 'COMPLETED' ? 'Completed packing' : 'Started packing',
-            time: session.completed_at || session.created_at,
-            status: session.status
+            user: session.packer_name || 'Unknown',
+            action: session.packing_status === 'PACKED' ? 'Completed packing' : 'Started packing',
+            time: session.end_time || session.start_time || session.created_at,
+            status: session.packing_status
           });
         });
       }
 
-      // Sort activities by time and limit to 5
+      // Sort activities by time and limit to 4
       activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-      setRecentActivity(activities.slice(0, 5));
+      setRecentActivity(activities.slice(0, 4));
 
       setStats({
         totalAdmins,
@@ -163,6 +172,9 @@ export default function SuperAdminDashboard() {
         pickingActiveSessions,
         packingActiveSessions,
         deliveryActiveSessions,
+        completedPickingSessions,
+        completedPackingSessions,
+        completedDeliverySessions,
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -272,23 +284,23 @@ export default function SuperAdminDashboard() {
       textColor: 'text-white'
     },
     { 
-      title: 'Pending Invoices', 
-      value: loading ? '...' : stats.pendingInvoices, 
-      icon: '⏳',
-      color: 'bg-gradient-to-br from-yellow-400 to-yellow-600',
-      textColor: 'text-white'
-    },
-    { 
-      title: 'In Progress', 
-      value: loading ? '...' : stats.inProgressInvoices, 
-      icon: '⚙️',
+      title: 'Completed Picking', 
+      value: loading ? '...' : stats.completedPickingSessions, 
+      icon: '📦',
       color: 'bg-gradient-to-br from-blue-400 to-blue-600',
       textColor: 'text-white'
     },
     { 
-      title: 'Completed', 
-      value: loading ? '...' : stats.completedInvoices, 
-      icon: '✅',
+      title: 'Completed Packing', 
+      value: loading ? '...' : stats.completedPackingSessions, 
+      icon: '🎁',
+      color: 'bg-gradient-to-br from-purple-400 to-purple-600',
+      textColor: 'text-white'
+    },
+    { 
+      title: 'Completed Delivery', 
+      value: loading ? '...' : stats.completedDeliverySessions, 
+      icon: '🚚',
       color: 'bg-gradient-to-br from-green-400 to-green-600',
       textColor: 'text-white'
     }
@@ -432,7 +444,7 @@ export default function SuperAdminDashboard() {
         {/* Invoice Overview - Top Priority */}
         <div className="mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <span className="text-2xl">📊</span> Invoice Overview
+            <span className="text-2xl">📊</span> Session Overview
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {overviewCards.map((stat, index) => (
@@ -455,47 +467,47 @@ export default function SuperAdminDashboard() {
             ))}
           </div>
 
-          {/* Visual Invoice Distribution Chart */}
+          {/* Visual Session Distribution Chart */}
           {!loading && stats.totalInvoices > 0 && (
             <div className="mt-6 bg-white rounded-xl shadow-md p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Invoice Distribution</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Completed Sessions Distribution</h3>
               
               {/* Stacked Progress Bar */}
               <div className="mb-4">
                 <div className="flex h-8 sm:h-10 rounded-lg overflow-hidden shadow-inner">
                   <div 
-                    className="bg-gradient-to-r from-yellow-400 to-yellow-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(stats.pendingInvoices / stats.totalInvoices) * 100}%` }}
+                    className="bg-gradient-to-r from-blue-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
+                    style={{ width: `${(stats.completedPickingSessions / stats.totalInvoices) * 100}%` }}
                   >
-                    {stats.pendingInvoices > 0 && <span className="hidden sm:inline">{stats.pendingInvoices}</span>}
+                    {stats.completedPickingSessions > 0 && <span className="hidden sm:inline">{stats.completedPickingSessions}</span>}
                   </div>
                   <div 
-                    className="bg-gradient-to-r from-blue-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(stats.inProgressInvoices / stats.totalInvoices) * 100}%` }}
+                    className="bg-gradient-to-r from-purple-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
+                    style={{ width: `${(stats.completedPackingSessions / stats.totalInvoices) * 100}%` }}
                   >
-                    {stats.inProgressInvoices > 0 && <span className="hidden sm:inline">{stats.inProgressInvoices}</span>}
+                    {stats.completedPackingSessions > 0 && <span className="hidden sm:inline">{stats.completedPackingSessions}</span>}
                   </div>
                   <div 
                     className="bg-gradient-to-r from-green-400 to-green-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(stats.completedInvoices / stats.totalInvoices) * 100}%` }}
+                    style={{ width: `${(stats.completedDeliverySessions / stats.totalInvoices) * 100}%` }}
                   >
-                    {stats.completedInvoices > 0 && <span className="hidden sm:inline">{stats.completedInvoices}</span>}
+                    {stats.completedDeliverySessions > 0 && <span className="hidden sm:inline">{stats.completedDeliverySessions}</span>}
                   </div>
                 </div>
                 
                 {/* Legend */}
                 <div className="flex flex-wrap gap-4 mt-3 text-xs sm:text-sm">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-500"></div>
-                    <span className="text-gray-600">Pending ({Math.round((stats.pendingInvoices / stats.totalInvoices) * 100)}%)</span>
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500"></div>
+                    <span className="text-gray-600">Picking ({Math.round((stats.completedPickingSessions / stats.totalInvoices) * 100)}%)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500"></div>
-                    <span className="text-gray-600">In Progress ({Math.round((stats.inProgressInvoices / stats.totalInvoices) * 100)}%)</span>
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-400 to-purple-500"></div>
+                    <span className="text-gray-600">Packing ({Math.round((stats.completedPackingSessions / stats.totalInvoices) * 100)}%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-400 to-green-500"></div>
-                    <span className="text-gray-600">Completed ({Math.round((stats.completedInvoices / stats.totalInvoices) * 100)}%)</span>
+                    <span className="text-gray-600">Delivery ({Math.round((stats.completedDeliverySessions / stats.totalInvoices) * 100)}%)</span>
                   </div>
                 </div>
               </div>
@@ -522,31 +534,31 @@ export default function SuperAdminDashboard() {
                         strokeWidth="8"
                         fill="none"
                         strokeDasharray={251.2}
-                        strokeDashoffset={251.2 - (251.2 * (stats.completedInvoices / stats.totalInvoices))}
+                        strokeDashoffset={251.2 - (251.2 * (stats.completedDeliverySessions / stats.totalInvoices))}
                         className="text-green-500 transition-all duration-1000"
                         strokeLinecap="round"
                       />
                     </svg>
                     <span className="absolute text-xl sm:text-2xl font-bold text-gray-800">
-                      {Math.round((stats.completedInvoices / stats.totalInvoices) * 100)}%
+                      {Math.round((stats.completedDeliverySessions / stats.totalInvoices) * 100)}%
                     </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-gray-600 mt-2 font-medium">Completion Rate</p>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-2 font-medium">Delivery Completion</p>
                 </div>
 
                 {/* Mini Stats Grid */}
                 <div className="grid grid-cols-3 gap-3 sm:gap-4 flex-1 max-w-md">
-                  <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <p className="text-lg sm:text-2xl font-bold text-yellow-700">{stats.pendingInvoices}</p>
-                    <p className="text-xs text-yellow-600">Pending</p>
-                  </div>
                   <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-lg sm:text-2xl font-bold text-blue-700">{stats.inProgressInvoices}</p>
-                    <p className="text-xs text-blue-600">Active</p>
+                    <p className="text-lg sm:text-2xl font-bold text-blue-700">{stats.completedPickingSessions}</p>
+                    <p className="text-xs text-blue-600">Picked</p>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                    <p className="text-lg sm:text-2xl font-bold text-purple-700">{stats.completedPackingSessions}</p>
+                    <p className="text-xs text-purple-600">Packed</p>
                   </div>
                   <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-lg sm:text-2xl font-bold text-green-700">{stats.completedInvoices}</p>
-                    <p className="text-xs text-green-600">Done</p>
+                    <p className="text-lg sm:text-2xl font-bold text-green-700">{stats.completedDeliverySessions}</p>
+                    <p className="text-xs text-green-600">Delivered</p>
                   </div>
                 </div>
               </div>
@@ -593,40 +605,6 @@ export default function SuperAdminDashboard() {
                     </div>
                     {/* Decorative background circle */}
                     <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-gray-50 rounded-full opacity-50"></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Operational Stats */}
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="text-2xl">⚙️</span> Operations
-              </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {operationalCards.map((stat, index) => (
-                  <div 
-                    key={index}
-                    onClick={stat.onClick}
-                    className={`bg-white rounded-xl shadow-md p-4 hover:shadow-xl transition-all ${stat.onClick ? 'cursor-pointer transform hover:-translate-y-1' : ''} relative overflow-hidden group`}
-                  >
-                    <div className="flex flex-col items-center text-center relative z-10">
-                      <div className={`${stat.color} w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-3 shadow-lg group-hover:scale-110 transition-transform`}>
-                        {stat.icon}
-                      </div>
-                      <p className="text-gray-600 text-xs mb-1">{stat.title}</p>
-                      <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-                      
-                      {/* Status indicator */}
-                      {!loading && (
-                        <div className="flex items-center gap-1 mt-2">
-                          <div className={`w-2 h-2 rounded-full ${stat.value > 0 ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
-                          <span className="text-xs text-gray-500">{stat.value > 0 ? 'Active' : 'Idle'}</span>
-                        </div>
-                      )}
-                    </div>
-                    {/* Gradient overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-transparent to-gray-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   </div>
                 ))}
               </div>
@@ -711,13 +689,13 @@ export default function SuperAdminDashboard() {
                           <p className="text-xs text-gray-600 mt-1">{activity.action}</p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                              activity.status === 'COMPLETED' 
+                              activity.status === 'COMPLETED' || activity.status === 'PICKED' || activity.status === 'PACKED' || activity.status === 'DELIVERED'
                                 ? 'bg-green-100 text-green-700 border border-green-200' 
-                                : activity.status === 'IN_PROGRESS'
+                                : activity.status === 'IN_PROGRESS' || activity.status === 'PREPARING' || activity.status === 'IN_TRANSIT'
                                 ? 'bg-blue-100 text-blue-700 border border-blue-200'
                                 : 'bg-gray-100 text-gray-700 border border-gray-200'
                             }`}>
-                              {activity.status.replace('_', ' ')}
+                              {activity.status ? activity.status.replace(/_/g, ' ') : 'Unknown'}
                             </span>
                             <span className={`text-xs px-2 py-0.5 rounded ${
                               activity.type === 'picking' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'

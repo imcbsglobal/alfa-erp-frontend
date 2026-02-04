@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PickInvoiceModal from "../components/PickInvoiceModal";
+import BulkPickModal from "../components/BulkPickModal";
 import api from "../../../services/api";
 import { getActivePickingTask } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
@@ -27,26 +28,37 @@ export default function InvoiceListPage() {
   const [loadingOngoing, setLoadingOngoing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = useRef(null);
   const itemsPerPage = 10;
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [invoiceToComplete, setInvoiceToComplete] = useState(null);
   const [isManualCompletionEnabled, setIsManualCompletionEnabled] = useState(false);
   const [showConfirmComplete, setShowConfirmComplete] = useState(false);
   const [verifiedEmail, setVerifiedEmail] = useState('');
+  const [isBulkPickingEnabled, setIsBulkPickingEnabled] = useState(false);
+  const [showBulkPickModal, setShowBulkPickModal] = useState(false);
+
+  // Auto-focus search input on page load
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
 
   // Fetch developer settings from API
   useEffect(() => {
     const fetchDeveloperSettings = async () => {
       try {
         const response = await api.get('/common/developer-settings/');
-        const enabled = response.data.data.enable_manual_picking_completion;
+        const manualEnabled = response.data.data.enable_manual_picking_completion;
+        const bulkEnabled = response.data.data.enable_bulk_picking;
         console.log('🔧 Manual Completion Check (from API):', {
-          enabled,
+          manualEnabled,
+          bulkEnabled,
           currentPath: location.pathname,
           userRole: user?.role,
           userEmail: user?.email
         });
-        setIsManualCompletionEnabled(enabled);
+        setIsManualCompletionEnabled(manualEnabled);
+        setIsBulkPickingEnabled(bulkEnabled);
       } catch (error) {
         console.error('❌ Failed to fetch developer settings:', error);
       }
@@ -387,9 +399,19 @@ export default function InvoiceListPage() {
     }
   };
 
-  const sortedInvoices = [...invoices].sort(
-    (a, b) => new Date(a.created_at) - new Date(b.created_at)
-  );
+  // Sort invoices: HIGH priority first, then all others by creation date
+  const sortedInvoices = [...invoices].sort((a, b) => {
+    // HIGH priority invoices always come first
+    if (a.priority === 'HIGH' && b.priority !== 'HIGH') {
+      return -1;
+    }
+    if (a.priority !== 'HIGH' && b.priority === 'HIGH') {
+      return 1;
+    }
+    
+    // For all other invoices (MEDIUM, LOW, or no priority), sort by creation date (oldest first)
+    return new Date(a.created_at) - new Date(b.created_at);
+  });
 
   // Filter by search term
   const filteredInvoices = sortedInvoices.filter(inv => {
@@ -471,6 +493,7 @@ export default function InvoiceListPage() {
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative w-full sm:w-64">
                 <input
+                  ref={searchInputRef}
                   type="text"
                   placeholder="Search invoice or customer..."
                   value={searchTerm}
@@ -493,6 +516,14 @@ export default function InvoiceListPage() {
                   </button>
                 )}
               </div>
+              {isBulkPickingEnabled && (
+                <button
+                  onClick={() => setShowBulkPickModal(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
+                >
+                  Bulk Pick
+                </button>
+              )}
               <button
                 onClick={handleShowOngoingWork}
                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
@@ -799,6 +830,13 @@ export default function InvoiceListPage() {
       )}
 
       <ActiveUsersDock type="picking" />
+
+      {/* Bulk Pick Modal */}
+      <BulkPickModal
+        isOpen={showBulkPickModal}
+        onClose={() => setShowBulkPickModal(false)}
+        onSuccess={loadInvoices}
+      />
     </div>
   );
 }

@@ -10,6 +10,8 @@ export default function BillingInvoiceViewPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [showRemarkModal, setShowRemarkModal] = useState(false);
+  const [selectedRemark, setSelectedRemark] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -204,9 +206,25 @@ export default function BillingInvoiceViewPage() {
                       <span className="text-gray-500">Exp Date:</span>
                       <span className="ml-1 text-gray-700">{formatDateDDMMYYYY(item.expiry_date)}</span>
                     </div>
-                    <div>
+                    <div className="flex items-center justify-between">
                       <span className="text-gray-500">Remarks:</span>
-                      <span className="ml-1 text-gray-700">{item.remarks || "—"}</span>
+                      {item.remarks ? (
+                        <button
+                          onClick={() => {
+                            setSelectedRemark(item.remarks);
+                            setShowRemarkModal(true);
+                          }}
+                          className="text-teal-600 hover:text-teal-800 transition-colors"
+                          title="View remarks"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <span className="ml-1 text-gray-400">—</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -372,8 +390,24 @@ export default function BillingInvoiceViewPage() {
                         {formatDateDDMMYYYY(item.expiry_date)}
                       </div>
 
-                      <div className="col-span-1 text-xs text-center text-gray-500 overflow-hidden">
-                        <div className="truncate" title={item.remarks}>{item.remarks || "—"}</div>
+                      <div className="col-span-1 text-xs text-center text-gray-500">
+                        {item.remarks ? (
+                          <button
+                            onClick={() => {
+                              setSelectedRemark(item.remarks);
+                              setShowRemarkModal(true);
+                            }}
+                            className="text-teal-600 hover:text-teal-800 transition-colors mx-auto"
+                            title="View remarks"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -429,6 +463,45 @@ export default function BillingInvoiceViewPage() {
         </div>
 
       </div>
+
+      {/* Remarks Modal */}
+      {showRemarkModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            onClick={() => setShowRemarkModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="bg-white rounded-xl shadow-2xl w-full max-w-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4 rounded-t-xl flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Item Remarks</h3>
+                <button
+                  onClick={() => setShowRemarkModal(false)}
+                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1 transition"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedRemark}</p>
+                </div>
+                <button
+                  onClick={() => setShowRemarkModal(false)}
+                  className="mt-4 w-full px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-600 hover:to-cyan-700 transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

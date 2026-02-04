@@ -8,10 +8,31 @@ const DeveloperSettingsPage = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showTruncateModal, setShowTruncateModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
   const [confirmText, setConfirmText] = useState('');
-  const [deleting, setDeleting] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [truncating, setTruncating] = useState(false);
+
+  // Check if user is SUPERADMIN
+  if (user?.role !== 'SUPERADMIN') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600 mb-4">
+            Developer Options are restricted to SUPERADMIN users only.
+          </p>
+          <p className="text-sm text-gray-500">
+            Your role: <strong>{user?.role || 'Unknown'}</strong>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     console.log('👤 Current user:', user);
@@ -46,60 +67,67 @@ const DeveloperSettingsPage = () => {
     }
   };
 
-  const handleClearClick = (tableName, tableLabel) => {
+  const handleTruncateClick = (tableName, tableLabel) => {
     setSelectedTable({ name: tableName, label: tableLabel });
     setConfirmText('');
-    setShowConfirmModal(true);
+    setConfirmPassword('');
+    setShowTruncateModal(true);
   };
 
-  const handleConfirmClear = async () => {
-    if (confirmText !== 'CLEAR') {
-      toast.error('Please type CLEAR to confirm');
+  const handleConfirmTruncate = async () => {
+    if (confirmText !== 'DELETE') {
+      toast.error('Please type DELETE to confirm');
       return;
     }
 
-    setDeleting(true);
+    if (!confirmPassword) {
+      toast.error('Password is required for truncate operations');
+      return;
+    }
+
+    setTruncating(true);
     try {
-      const response = await api.post('/developer/clear-data/', {
-        table_name: selectedTable.name
+      const response = await api.post('/developer/truncate-table/', {
+        table_name: selectedTable.name,
+        confirm_password: confirmPassword
       });
 
       if (response.data.success) {
-        toast.success(response.data.message);
-        setShowConfirmModal(false);
+        toast.success(response.data.message, { duration: 5000 });
+        toast.error(response.data.warning, { duration: 8000 });
+        setShowTruncateModal(false);
         setSelectedTable(null);
         setConfirmText('');
+        setConfirmPassword('');
         
         // Reload stats to show current database state
         await loadTableStats();
         
         // Broadcast event to trigger reload on all pages
-        window.dispatchEvent(new CustomEvent('dataCleared', { 
+        window.dispatchEvent(new CustomEvent('dataDeleted', { 
           detail: { 
             tableName: selectedTable.name,
             timestamp: Date.now()
           } 
         }));
         
-        // If clearing all or specific tables, notify components to refresh
-        if (selectedTable.name === 'all' || 
-            ['invoices', 'picking_sessions', 'packing_sessions', 'delivery_sessions'].includes(selectedTable.name)) {
-          // Trigger a hard refresh of data in open tabs/components
-          localStorage.setItem('lastDataClear', Date.now().toString());
-        }
+        // Trigger a hard refresh of data in open tabs/components
+        localStorage.setItem('lastDataDelete', Date.now().toString());
       } else {
-        toast.error(response.data.message || 'Failed to clear data');
+        toast.error(response.data.message || 'Failed to truncate table');
       }
     } catch (error) {
-      console.error('Failed to clear data:', error);
+      console.error('Failed to truncate table:', error);
       if (error.response?.status === 401) {
-        toast.error('Unauthorized: Only SUPERADMIN can clear data');
+        toast.error('Unauthorized: Only SUPERADMIN can truncate tables');
+      } else if (error.response?.status === 403) {
+        toast.error('Invalid password. Password verification required.');
       } else {
-        const errorMsg = error.response?.data?.message || 'Failed to clear data';
+        const errorMsg = error.response?.data?.message || 'Failed to truncate table';
         toast.error(errorMsg);
       }
     } finally {
-      setDeleting(false);
+      setTruncating(false);
     }
   };
 
@@ -109,13 +137,13 @@ const DeveloperSettingsPage = () => {
       icon: <Package className="w-5 h-5" />,
       color: 'teal',
       tables: [
-        { key: 'invoices', label: 'Invoices', description: 'Clear invoices from view (database unchanged)' },
-        { key: 'picking_sessions', label: 'Picking Sessions', description: 'Clear picking sessions from view' },
-        { key: 'packing_sessions', label: 'Packing Sessions', description: 'Clear packing sessions from view' },
-        { key: 'delivery_sessions', label: 'Delivery Sessions', description: 'Clear delivery sessions from view' },
-        { key: 'customers', label: 'Customers', description: 'Clear customer records from view' },
-        { key: 'salesmen', label: 'Salesmen', description: 'Clear salesman records from view' },
-        { key: 'couriers', label: 'Couriers', description: 'Clear courier service providers from view' }
+        { key: 'invoices', label: 'Invoices', description: 'Permanently delete invoices and related data' },
+        { key: 'picking_sessions', label: 'Picking Sessions', description: 'Permanently delete picking sessions' },
+        { key: 'packing_sessions', label: 'Packing Sessions', description: 'Permanently delete packing sessions' },
+        { key: 'delivery_sessions', label: 'Delivery Sessions', description: 'Permanently delete delivery sessions' },
+        { key: 'customers', label: 'Customers', description: 'Permanently delete customer records' },
+        { key: 'salesmen', label: 'Salesmen', description: 'Permanently delete salesman records' },
+        { key: 'couriers', label: 'Couriers', description: 'Permanently delete courier service providers' }
       ]
     },
     {
@@ -123,9 +151,9 @@ const DeveloperSettingsPage = () => {
       icon: <Users className="w-5 h-5" />,
       color: 'blue',
       tables: [
-        { key: 'users', label: 'Users', description: 'Clear non-SUPERADMIN users from view' },
-        { key: 'departments', label: 'Departments', description: 'Clear organization departments from view' },
-        { key: 'job_titles', label: 'Job Titles', description: 'Clear job title definitions from view' }
+        { key: 'users', label: 'Users', description: 'Permanently delete non-SUPERADMIN users' },
+        { key: 'departments', label: 'Departments', description: 'Permanently delete organization departments' },
+        { key: 'job_titles', label: 'Job Titles', description: 'Permanently delete job title definitions' }
       ]
     },
     {
@@ -133,7 +161,7 @@ const DeveloperSettingsPage = () => {
       icon: <AlertTriangle className="w-5 h-5" />,
       color: 'red',
       tables: [
-        { key: 'all', label: 'All Data', description: 'Clear ALL data from view (database unchanged)' }
+        { key: 'all', label: 'All Data', description: 'PERMANENTLY DELETE ALL DATA FROM DATABASE' }
       ]
     }
   ];
@@ -175,7 +203,7 @@ const DeveloperSettingsPage = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Developer Options</h1>
-                <p className="text-white/90 text-sm">Database maintenance and data clearing tools</p>
+                <p className="text-white/90 text-sm">Permanent data deletion and database maintenance tools</p>
               </div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
@@ -193,7 +221,7 @@ const DeveloperSettingsPage = () => {
             <div>
               <h3 className="text-red-800 font-semibold">⚠️ Caution - SUPERADMIN Only</h3>
               <p className="text-red-700 text-sm mt-1">
-                These operations are irreversible and will permanently delete data from the database.
+                These operations will <strong>permanently delete data</strong> from the database and <strong>cannot be undone</strong>.
               </p>
             </div>
           </div>
@@ -316,12 +344,13 @@ const DeveloperSettingsPage = () => {
                               </div>
                               
                               <button
-                                onClick={() => handleClearClick(table.key, table.label)}
+                                onClick={() => handleTruncateClick(table.key, table.label)}
                                 disabled={count === 0}
-                                className={`px-4 py-2 ${table.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'} text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition`}
+                                className={`px-4 py-2 ${table.danger || table.key === 'all' ? 'bg-red-600 hover:bg-red-700' : 'bg-red-500 hover:bg-red-600'} text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition font-semibold`}
+                                title="PERMANENT deletion from database"
                               >
                                 <Trash2 className="w-4 h-4" />
-                                Clear
+                                Delete
                               </button>
                             </div>
                           </div>
@@ -336,56 +365,62 @@ const DeveloperSettingsPage = () => {
         )}
       </div>
 
-      {/* Confirmation Modal */}
-      {showConfirmModal && selectedTable && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      {/* Delete Confirmation Modal */}
+      {showTruncateModal && selectedTable && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-          <div className="bg-blue-600 text-white p-4 rounded-t-xl">
+            <div className="bg-red-600 text-white p-4 rounded-t-xl">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-6 h-6" />
-                <h3 className="text-lg font-bold">Confirm View Clear</h3>
+                <h3 className="text-lg font-bold">⚠️ PERMANENT DELETE WARNING</h3>
               </div>
             </div>
             
-            <div className="p-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p className="text-blue-800 font-semibold">ℹ️ Frontend View Only</p>
-                <p className="text-blue-700 text-sm mt-1">
-                  This will clear: <strong>{selectedTable.label}</strong> from your frontend view only. Database remains intact.
-                </p>
-              </div>
-              
-              <p className="text-gray-700 mb-4">
-                Type <strong className="text-blue-600">CLEAR</strong> to confirm this action:
+            <div className="p-6">  
+              <p className="text-gray-700 mb-2 font-semibold">
+                Type <strong className="text-red-600">DELETE</strong> to confirm:
               </p>
               
               <input
                 type="text"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="Type CLEAR"
-                className="w-full px-4 py-2 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+                placeholder="Type DELETE"
+                className="w-full px-4 py-2 border-2 border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 mb-4 font-mono"
                 autoFocus
+              />
+              
+              <p className="text-gray-700 mb-2 font-semibold">
+                Enter your password to authorize:
+              </p>
+              
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Your password"
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 mb-4"
               />
               
               <div className="flex gap-3">
                 <button
                   onClick={() => {
-                    setShowConfirmModal(false);
+                    setShowTruncateModal(false);
                     setSelectedTable(null);
                     setConfirmText('');
+                    setConfirmPassword('');
                   }}
-                  disabled={deleting}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                  disabled={truncating}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 font-semibold"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleConfirmClear}
-                  disabled={confirmText !== 'CLEAR' || deleting}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  onClick={handleConfirmTruncate}
+                  disabled={confirmText !== 'DELETE' || !confirmPassword || truncating}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold"
                 >
-                  {deleting ? 'Clearing...' : 'Clear View'}
+                  {truncating ? 'Deleting...' : '🗑️ DELETE FOREVER'}
                 </button>
               </div>
             </div>

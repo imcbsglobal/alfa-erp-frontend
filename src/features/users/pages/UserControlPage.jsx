@@ -10,6 +10,7 @@ import {
 } from "../../../services/accessControl";
 import toast from "react-hot-toast";
 import { MENU_CONFIG } from "../../../layout/Sidebar/menuConfig";
+import Pagination from "../../../components/Pagination";
 
 // Function to get icon component from menu config
 const getIconFromConfig = (menu) => {
@@ -140,6 +141,8 @@ export default function UserControlPage() {
   const [userPermissions, setUserPermissions] = useState({});
   const [expandedMenus, setExpandedMenus] = useState({});
   const [showMobileUserList, setShowMobileUserList] = useState(true);
+  const USERS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -213,14 +216,31 @@ export default function UserControlPage() {
   const uniqueRoles = ["ALL", ...new Set(users.map(u => u.job_title_name).filter(Boolean))];
 
   const filteredUsers = users.filter((u) => {
-    const name = u.name || u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim();
+    const name =
+      u.name ||
+      u.full_name ||
+      `${u.first_name || ""} ${u.last_name || ""}`.trim();
+
     const email = u.email || "";
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = name.toLowerCase().includes(searchLower) || email.toLowerCase().includes(searchLower);
-    const matchesRole = roleFilter === "ALL" || u.job_title_name === roleFilter;
-    
+
+    const matchesSearch =
+      name.toLowerCase().includes(searchLower) ||
+      email.toLowerCase().includes(searchLower);
+
+    const matchesRole =
+      roleFilter === "ALL" || u.job_title_name === roleFilter;
+
     return matchesSearch && matchesRole;
   });
+
+  const indexOfLastUser = currentPage * USERS_PER_PAGE;
+  const indexOfFirstUser = indexOfLastUser - USERS_PER_PAGE;
+
+  const paginatedUsers = filteredUsers.slice(
+    indexOfFirstUser,
+    indexOfLastUser
+  );
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);
@@ -244,6 +264,10 @@ export default function UserControlPage() {
   useEffect(() => {
     setExpandedMenus({});
   }, [availableMenus]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
 
   const handleSavePermissions = async () => {
     if (!selectedUser) return;
@@ -361,11 +385,11 @@ export default function UserControlPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex">
         {/* User List Sidebar */}
         <div className={`${
           showMobileUserList ? 'block' : 'hidden'
-        } lg:block w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col h-full`}>
+        } lg:block w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col h-full max-h-screen`}>
           <div className="p-3 sm:p-4 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-sm font-semibold text-gray-700">Users</h2>
@@ -442,7 +466,7 @@ export default function UserControlPage() {
                 <p className="text-gray-500 font-medium text-sm">No users found</p>
               </div>
             ) : (
-              filteredUsers.map((u) => {
+              paginatedUsers.map((u) => {
                 const userInitial = (u.name || u.full_name || u.email || "U").charAt(0).toUpperCase();
                 const isSelected = selectedUser?.id === u.id;
 
@@ -494,6 +518,14 @@ export default function UserControlPage() {
               })
             )}
           </div>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredUsers.length}
+            itemsPerPage={USERS_PER_PAGE}
+            onPageChange={setCurrentPage}
+            label="users"
+            colorScheme="teal"
+          />
         </div>
 
         {/* Permissions Panel */}

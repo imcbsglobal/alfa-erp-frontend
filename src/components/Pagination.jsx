@@ -81,20 +81,20 @@ export default function Pagination({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex items-center justify-between px-4 py-4 bg-gray-50 border-t border-gray-200">
+    <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-200 text-xs">
       {/* Row Count */}
-      <p className="text-sm text-gray-600">
+      <p className="text-xs text-gray-500 whitespace-nowrap">
         Showing <b>{indexOfFirst + 1}</b> to <b>{Math.min(indexOfLast, totalItems)}</b> of{" "}
         <b>{totalItems}</b> {label}
       </p>
 
       {/* Pagination Buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-0.5">
         {/* Prev Button */}
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`px-3 py-2 rounded-lg transition-all ${
+          className={`px-1.5 py-0.5 rounded-md text-[11px] transition-all ${
             currentPage === 1
               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
               : `bg-white border border-gray-300 text-gray-700 ${scheme.hover}`
@@ -120,7 +120,7 @@ export default function Pagination({
             <button
               key={page}
               onClick={() => onPageChange(page)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`px-2 py-0.5 min-w-[26px] rounded-md text-[11px] font-medium transition-all ${
                 currentPage === page
                   ? scheme.active
                   : `bg-white border border-gray-300 text-gray-700 ${scheme.hover}`
@@ -135,7 +135,7 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`px-3 py-2 rounded-lg transition-all ${
+          className={`px-1.5 py-0.5 rounded-md text-[11px] transition-all ${
             currentPage === totalPages
               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
               : `bg-white border border-gray-300 text-gray-700 ${scheme.hover}`

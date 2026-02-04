@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, AlertCircle, Search, CheckCircle, X, Clock, User, RefreshCw, Settings } from 'lucide-react';
+import { ShieldCheck, AlertCircle, Search, CheckCircle, X, Clock, User, RefreshCw, Settings, FileSearch, Calendar, AlertTriangle } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../features/auth/AuthContext';
@@ -21,6 +21,15 @@ const AdminPrivilegePage = () => {
   const [completionReason, setCompletionReason] = useState('');
   const [manualPickingEnabled, setManualPickingEnabled] = useState(false);
   const [togglingFeature, setTogglingFeature] = useState(false);
+  const [bulkPickingEnabled, setBulkPickingEnabled] = useState(false);
+  
+  // Missing Invoice Finder States
+  const [showMissingInvoiceSection, setShowMissingInvoiceSection] = useState(false);
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [seriesPrefix, setSeriesPrefix] = useState('');
+  const [invoiceData, setInvoiceData] = useState([]);
+  const [missingInvoices, setMissingInvoices] = useState([]);
+  const [loadingMissing, setLoadingMissing] = useState(false);
 
   useEffect(() => {
     loadIncompleteBills();
@@ -34,9 +43,11 @@ const AdminPrivilegePage = () => {
       
       // Backend returns: { success: true, data: { enable_manual_picking_completion: true/false, ... } }
       const enabled = response.data?.data?.enable_manual_picking_completion ?? false;
-      console.log('📋 Parsed enabled value:', enabled);
+      const bulkEnabled = response.data?.data?.enable_bulk_picking ?? false;
+      console.log('📋 Parsed enabled values:', { enabled, bulkEnabled });
       
       setManualPickingEnabled(enabled);
+      setBulkPickingEnabled(bulkEnabled);
     } catch (error) {
       console.error('Failed to load feature settings:', error);
     }
@@ -63,6 +74,33 @@ const AdminPrivilegePage = () => {
       );
     } catch (error) {
       console.error('Failed to toggle manual picking:', error);
+      toast.error('Failed to update setting');
+    } finally {
+      setTogglingFeature(false);
+    }
+  };
+
+  const handleToggleBulkPicking = async (enabled) => {
+    setTogglingFeature(true);
+    try {
+      await api.put('/common/developer-settings/', {
+        enable_bulk_picking: enabled
+      });
+      
+      setBulkPickingEnabled(enabled);
+      localStorage.setItem('enableBulkPicking', enabled ? 'true' : 'false');
+      
+      toast.success(
+        enabled 
+          ? 'Bulk picking enabled' 
+          : 'Bulk picking disabled',
+        {
+          icon: enabled ? '✅' : '🔒',
+          duration: 3000
+        }
+      );
+    } catch (error) {
+      console.error('Failed to toggle bulk picking:', error);
       toast.error('Failed to update setting');
     } finally {
       setTogglingFeature(false);
@@ -365,6 +403,50 @@ const AdminPrivilegePage = () => {
     return `${Math.floor(diffMins / 1440)}d ago`;
   };
 
+  const handleFindMissingInvoices = async () => {
+    if (!invoiceDate) {
+      toast.error('Please select a date');
+      return;
+    }
+
+    if (!seriesPrefix.trim()) {
+      toast.error('Please enter an invoice series prefix (e.g., C-, A-, B-)');
+      return;
+    }
+
+    setLoadingMissing(true);
+    try {
+      const response = await api.get('/sales/missing-invoices/', {
+        params: {
+          from_date: invoiceDate,
+          to_date: invoiceDate,
+          series: seriesPrefix.trim()
+        }
+      });
+
+      if (response.data.success) {
+        setInvoiceData(response.data.data.invoices);
+        setMissingInvoices(response.data.data.missing_invoices);
+        
+        if (response.data.data.missing_invoices.length === 0) {
+          toast.success('No missing invoices found in this series!', { icon: '✅' });
+        } else {
+          toast.success(`Found ${response.data.data.missing_invoices.length} missing invoice(s)`, { icon: '🔍' });
+        }
+      } else {
+        toast.error(response.data.message || 'Failed to find missing invoices');
+      }
+    } catch (error) {
+      console.error('Error finding missing invoices:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to find missing invoices';
+      toast.error(`Error: ${errorMsg}`);
+    } finally {
+      setLoadingMissing(false);
+    }
+  };
+
+
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -376,7 +458,6 @@ const AdminPrivilegePage = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold">Admin Privilege</h1>
-              <p className="text-white/90 text-sm">Complete full workflow for incomplete tasks</p>
             </div>
           </div>
         </div>
@@ -422,8 +503,225 @@ const AdminPrivilegePage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Bulk Picking Toggle */}
+              <div className="border border-gray-200 rounded-lg p-4 hover:border-teal-300 transition">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 mb-1">Bulk Picking</h3>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Allow users to pick multiple invoices at once through a bulk picking workflow.
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      When enabled, a <strong>Bulk Pick</strong> button will appear in the picking interface,
+                      allowing users to scan their email once and then scan multiple invoice numbers to start
+                      picking all of them simultaneously.
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={bulkPickingEnabled}
+                        onChange={(e) => handleToggleBulkPicking(e.target.checked)}
+                        disabled={togglingFeature}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                      <span className="ml-3 text-sm font-medium text-gray-900">
+                        {bulkPickingEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Missing Invoice Finder Section */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-6">
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <FileSearch className="w-5 h-5 text-teal-600" />
+              <h2 className="text-xl font-bold">Find Missing Invoices</h2>
+            </div>
+            <button
+              onClick={() => setShowMissingInvoiceSection(!showMissingInvoiceSection)}
+              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition flex items-center gap-2"
+            >
+              <FileSearch className="w-4 h-4" />
+              {showMissingInvoiceSection ? 'Hide' : 'Open Finder'}
+            </button>
+          </div>
+
+          {showMissingInvoiceSection && (
+            <div className="p-6">
+              {/* Filter Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {/* Invoice Date */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Invoice Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="date"
+                      value={invoiceDate}
+                      onChange={(e) => setInvoiceDate(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Series Prefix */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Invoice Series
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      value={seriesPrefix}
+                      onChange={(e) => setSeriesPrefix(e.target.value)}
+                      placeholder="e.g., C-, A-, B-"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Enter series like: C-, A-, B-</p>
+                </div>
+
+                {/* Action Button */}
+                <div className="flex flex-col gap-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Action
+                  </label>
+                  <button
+                    onClick={handleFindMissingInvoices}
+                    disabled={loadingMissing}
+                    className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition flex items-center justify-center gap-2 h-[42px]"
+                  >
+                    {loadingMissing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <FileSearch className="w-4 h-4" />
+                        Find Missing
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Results Section */}
+              {(invoiceData.length > 0 || missingInvoices.length > 0) && (
+                <div className="space-y-6">
+                  {/* Missing Invoices Alert */}
+                  {missingInvoices.length > 0 && (
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
+                      <div className="flex items-start">
+                        <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
+                        <div className="flex-1">
+                          <h3 className="text-red-800 font-semibold">Missing Invoices Found</h3>
+                          <p className="text-red-700 text-sm mt-1">
+                            Found {missingInvoices.length} missing invoice(s) in series "{seriesPrefix}"
+                          </p>
+                          <div className="mt-3 space-y-2">
+                            {missingInvoices.map((missing) => (
+                              <div
+                                key={missing.invoice_no}
+                                className="bg-white border border-red-200 rounded-lg p-3 flex items-center justify-between"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                    <AlertCircle className="w-5 h-5 text-red-600" />
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-gray-900">{missing.invoice_no}</p>
+                                    <p className="text-sm text-gray-600">Number: {missing.number}</p>
+                                  </div>
+                                </div>
+                                <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
+                                  MISSING
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Existing Invoices List */}
+                  {invoiceData.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        Existing Invoices in Series ({invoiceData.length})
+                      </h3>
+                      <div className="bg-gray-50 rounded-lg border border-gray-200 max-h-96 overflow-y-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-100 sticky top-0">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Invoice No
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Date
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Customer
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Amount
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {invoiceData.map((invoice) => (
+                              <tr key={invoice.invoice_no} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                  {invoice.invoice_no}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {new Date(invoice.invoice_date).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {invoice.customer_name}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  ₹{invoice.total_amount.toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                                    invoice.status === 'DELIVERED' 
+                                      ? 'bg-green-100 text-green-700' 
+                                      : invoice.status === 'CANCELLED'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {invoice.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Incomplete Bills List */}

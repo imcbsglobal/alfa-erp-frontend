@@ -25,7 +25,6 @@ const DeliveryDispatchPage = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -42,7 +41,7 @@ const DeliveryDispatchPage = () => {
 
     window.addEventListener('dataCleared', handleDataCleared);
     return () => window.removeEventListener('dataCleared', handleDataCleared);
-  }, [currentPage, searchTerm]);
+  }, []);
 
   // SSE live updates for packed invoices ready for delivery
   useEffect(() => {
@@ -93,26 +92,32 @@ const DeliveryDispatchPage = () => {
   const loadPackedInvoices = async () => {
     setLoading(true);
     try {
-      const params = {
-        status: 'PACKED',
-        page: currentPage,
-        page_size: itemsPerPage,
-        ordering: '-packer_info__end_time'
-      };
-
-    if (searchTerm.trim()) {
-      params.search = searchTerm.trim();
-    }
-
-      const response = await api.get('/sales/invoices/', { params });
+      let allInvoices = [];
+      let nextUrl = '/sales/invoices/?status=PACKED&page_size=100&ordering=-packer_info__end_time';
+      
+      // Fetch all pages
+      while (nextUrl) {
+        const res = await api.get(nextUrl);
+        const results = res.data.results || [];
+        allInvoices = [...allInvoices, ...results];
+        
+        // Get next page URL
+        nextUrl = res.data.next;
+        if (nextUrl) {
+          // Extract just the path and query params if it's a full URL
+          const urlObj = new URL(nextUrl, window.location.origin);
+          // Remove /api prefix since axios base URL already includes it
+          nextUrl = urlObj.pathname.replace(/^\/api/, '') + urlObj.search;
+        }
+      }
       
       // Filter out invoices that have delivery sessions
-      const filteredResults = (response.data.results || []).filter(
+      const filteredResults = allInvoices.filter(
         bill => !bill.delivery_info || bill.delivery_info.delivery_status === 'PENDING'
       );
       
       setBills(filteredResults);
-      setTotalCount(response.data.count || 0);
+      console.log('📊 Total packed invoices loaded:', filteredResults.length);
     } catch (error) {
       console.error('Failed to load packed invoices:', error);
       toast.error('Failed to load packed invoices');
@@ -220,6 +225,27 @@ const DeliveryDispatchPage = () => {
     }
   };
 
+  // Filter by search term (client-side filtering)
+  const filteredBills = bills.filter(bill => {
+    if (!searchTerm.trim()) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      bill.invoice_no?.toLowerCase().includes(search) ||
+      bill.customer?.name?.toLowerCase().includes(search) ||
+      bill.customer?.code?.toLowerCase().includes(search)
+    );
+  });
+
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredBills.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -276,9 +302,9 @@ const DeliveryDispatchPage = () => {
             <div className="py-20 text-center text-gray-500">
               Loading packed orders...
             </div>
-          ) : bills.length === 0 ? (
+          ) : filteredBills.length === 0 ? (
             <div className="py-20 text-center text-gray-500">
-              No packed orders ready for delivery
+              {searchTerm ? 'No matching orders found' : 'No packed orders ready for delivery'}
             </div>
           ) : (
             <>
@@ -297,7 +323,7 @@ const DeliveryDispatchPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {bills.map((bill) => (
+                    {currentItems.map((bill) => (
                       <tr 
                         key={bill.id}
                         className={`transition hover:bg-grey-50 ${
@@ -363,9 +389,9 @@ const DeliveryDispatchPage = () => {
 
               <Pagination
                 currentPage={currentPage}
-                totalItems={totalCount}
+                totalItems={filteredBills.length}
                 itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
+                onPageChange={handlePageChange}
                 label="orders"
                 colorScheme="teal"
               />
@@ -470,4 +496,4 @@ const DeliveryDispatchPage = () => {
   );
 };
 
-export default DeliveryDispatchPage;  
+export default DeliveryDispatchPage;

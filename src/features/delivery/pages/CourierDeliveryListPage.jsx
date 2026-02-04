@@ -12,7 +12,6 @@ const CourierDeliveryListPage = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [uploadModal, setUploadModal] = useState({ open: false, delivery: null });
   const [uploadedFile, setUploadedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -22,7 +21,7 @@ const CourierDeliveryListPage = () => {
 
   useEffect(() => {
     loadCourierDeliveries();
-  }, [currentPage, searchTerm]);
+  }, []);
 
   // SSE live updates for courier delivery assignments and POD uploads
   useEffect(() => {
@@ -74,20 +73,25 @@ const CourierDeliveryListPage = () => {
   const loadCourierDeliveries = async () => {
     setLoading(true);
     try {
-      const params = {
-        delivery_type: 'COURIER',
-        status: 'TO_CONSIDER',
-        page: currentPage,
-        page_size: itemsPerPage,
-      };
-
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
+      let allDeliveries = [];
+      let nextUrl = '/sales/delivery/consider-list/?delivery_type=COURIER&status=TO_CONSIDER&page_size=100';
+      
+      // Fetch all pages
+      while (nextUrl) {
+        const res = await api.get(nextUrl);
+        const results = res.data.results || [];
+        allDeliveries = [...allDeliveries, ...results];
+        
+        // Get next page URL
+        nextUrl = res.data.next;
+        if (nextUrl) {
+          const urlObj = new URL(nextUrl, window.location.origin);
+          nextUrl = urlObj.pathname.replace(/^\/api/, '') + urlObj.search;
+        }
       }
-
-      const response = await api.get('/sales/delivery/consider-list/', { params });
-      setDeliveries(response.data.results || []);
-      setTotalCount(response.data.count || 0);
+      
+      setDeliveries(allDeliveries);
+      console.log('📊 Total courier deliveries loaded:', allDeliveries.length);
     } catch (error) {
       console.error('Failed to load courier deliveries:', error);
       toast.error('Failed to load courier deliveries');
@@ -189,6 +193,24 @@ const CourierDeliveryListPage = () => {
     return delivery.delivery_info?.courier_name ? true : false;
   };
 
+  // Filter by search term (client-side filtering)
+  const filteredDeliveries = deliveries.filter(delivery => {
+    if (!searchTerm.trim()) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      delivery.invoice_no?.toLowerCase().includes(search) ||
+      delivery.customer?.name?.toLowerCase().includes(search) ||
+      delivery.customer?.code?.toLowerCase().includes(search) ||
+      delivery.delivery_info?.courier_name?.toLowerCase().includes(search)
+    );
+  });
+
+  // Pagination
+  const totalCount = filteredDeliveries.length;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredDeliveries.slice(indexOfFirstItem, indexOfLastItem);
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -238,10 +260,10 @@ const CourierDeliveryListPage = () => {
             <div className="py-20 text-center text-gray-500">
               Loading deliveries...
             </div>
-          ) : deliveries.length === 0 ? (
+          ) : filteredDeliveries.length === 0 ? (
             <div className="py-20 text-center text-gray-500">
               <Truck className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p>No courier deliveries in consider list</p>
+              <p>{searchTerm ? 'No matching courier deliveries found' : 'No courier deliveries in consider list'}</p>
             </div>
           ) : (
             <>
@@ -260,7 +282,7 @@ const CourierDeliveryListPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {deliveries.map((delivery) => (
+                    {currentItems.map((delivery) => (
                       <tr key={delivery.id} className="hover:bg-gray-50 transition">
                         <td className="px-4 py-3">
                           <p className="font-semibold">{delivery.invoice_no}</p>

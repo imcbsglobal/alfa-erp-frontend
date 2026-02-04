@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Eye, RefreshCw, User, Mail, Clock } from 'lucide-react';
+import { Package, Eye, RefreshCw, User, Mail, Clock, X } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +14,6 @@ const CompanyDeliveryListPage = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const navigate = useNavigate();
   const itemsPerPage = 10;
 
@@ -32,7 +31,7 @@ const CompanyDeliveryListPage = () => {
 
     window.addEventListener('dataCleared', handleDataCleared);
     return () => window.removeEventListener('dataCleared', handleDataCleared);
-  }, [currentPage, searchTerm]);
+  }, []);
 
   // SSE live updates for company delivery assignments
   useEffect(() => {
@@ -84,20 +83,25 @@ const CompanyDeliveryListPage = () => {
   const loadCompanyDeliveries = async () => {
     setLoading(true);
     try {
-      const params = {
-        delivery_type: 'INTERNAL',
-        status: 'TO_CONSIDER',
-        page: currentPage,
-        page_size: itemsPerPage,
-      };
-
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
+      let allDeliveries = [];
+      let nextUrl = '/sales/delivery/consider-list/?delivery_type=INTERNAL&status=TO_CONSIDER&page_size=100';
+      
+      // Fetch all pages
+      while (nextUrl) {
+        const res = await api.get(nextUrl);
+        const results = res.data.results || [];
+        allDeliveries = [...allDeliveries, ...results];
+        
+        // Get next page URL
+        nextUrl = res.data.next;
+        if (nextUrl) {
+          const urlObj = new URL(nextUrl, window.location.origin);
+          nextUrl = urlObj.pathname.replace(/^\/api/, '') + urlObj.search;
+        }
       }
-
-      const response = await api.get('/sales/delivery/consider-list/', { params });
-      setDeliveries(response.data.results || []);
-      setTotalCount(response.data.count || 0);
+      
+      setDeliveries(allDeliveries);
+      console.log('📊 Total company deliveries loaded:', allDeliveries.length);
     } catch (error) {
       console.error('Failed to load company deliveries:', error);
       toast.error('Failed to load company deliveries');
@@ -127,6 +131,30 @@ const CompanyDeliveryListPage = () => {
     if (diffHours < 24) return `${diffHours}h ago`;
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays}d ago`;
+  };
+
+  // Filter by search term (client-side filtering)
+  const filteredDeliveries = deliveries.filter(delivery => {
+    if (!searchTerm.trim()) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      delivery.invoice_no?.toLowerCase().includes(search) ||
+      delivery.customer?.name?.toLowerCase().includes(search) ||
+      delivery.customer?.code?.toLowerCase().includes(search) ||
+      delivery.delivery_info?.delivery_user_name?.toLowerCase().includes(search) ||
+      delivery.delivery_info?.delivery_user_email?.toLowerCase().includes(search)
+    );
+  });
+
+  // Pagination
+  const totalCount = filteredDeliveries.length;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredDeliveries.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -184,7 +212,7 @@ const CompanyDeliveryListPage = () => {
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent mb-4"></div>
               <p className="text-gray-500">Loading deliveries...</p>
             </div>
-          ) : deliveries.length === 0 ? (
+          ) : filteredDeliveries.length === 0 ? (
             <div className="py-20 text-center text-gray-500">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
               <p className="text-lg font-medium">No company deliveries in consider list</p>
@@ -209,7 +237,7 @@ const CompanyDeliveryListPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {deliveries.map((delivery) => {
+                    {currentItems.map((delivery) => {
                       const isInProgress = delivery.delivery_info?.start_time && !delivery.delivery_info?.end_time;
                       const isPending = !delivery.delivery_info?.start_time;
                       
@@ -305,7 +333,7 @@ const CompanyDeliveryListPage = () => {
                 currentPage={currentPage}
                 totalItems={totalCount}
                 itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
+                onPageChange={handlePageChange}
                 label="deliveries"
                 colorScheme="teal"
               />
