@@ -83,12 +83,9 @@ const AdminPrivilegePage = () => {
   const handleToggleBulkPicking = async (enabled) => {
     setTogglingFeature(true);
     try {
-      alert(`Toggling bulk picking to: ${enabled}`);
       const response = await api.put('/common/developer-settings/', {
         enable_bulk_picking: enabled
       });
-      
-      alert(`API response received: ${JSON.stringify(response.data)}`);
       
       setBulkPickingEnabled(enabled);
       localStorage.setItem('enableBulkPicking', enabled ? 'true' : 'false');
@@ -98,15 +95,14 @@ const AdminPrivilegePage = () => {
       
       toast.success(
         enabled 
-          ? `Bulk picking enabled. Verified: ${bulkPickingEnabled}` 
+          ? 'Bulk picking enabled' 
           : 'Bulk picking disabled',
         {
           icon: enabled ? '✅' : '🔒',
-          duration: 5000
+          duration: 3000
         }
       );
     } catch (error) {
-      alert(`Error toggling bulk picking: ${error.message}`);
       console.error('❌ Failed to toggle bulk picking:', error);
       console.error('Error response:', error.response?.data);
       toast.error('Failed to update setting');
