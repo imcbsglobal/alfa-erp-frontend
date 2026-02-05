@@ -13,6 +13,8 @@ const DeveloperSettingsPage = () => {
   const [confirmText, setConfirmText] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [truncating, setTruncating] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   // Check if user is SUPERADMIN
   if (user?.role !== 'SUPERADMIN') {
@@ -71,6 +73,8 @@ const DeveloperSettingsPage = () => {
     setSelectedTable({ name: tableName, label: tableLabel });
     setConfirmText('');
     setConfirmPassword('');
+    setFromDate('');
+    setToDate('');
     setShowTruncateModal(true);
   };
 
@@ -87,10 +91,16 @@ const DeveloperSettingsPage = () => {
 
     setTruncating(true);
     try {
-      const response = await api.post('/developer/truncate-table/', {
+      const payload = {
         table_name: selectedTable.name,
         confirm_password: confirmPassword
-      });
+      };
+      
+      // Add date filters if provided
+      if (fromDate) payload.from_date = fromDate;
+      if (toDate) payload.to_date = toDate;
+      
+      const response = await api.post('/developer/truncate-table/', payload);
 
       if (response.data.success) {
         toast.success(response.data.message, { duration: 5000 });
@@ -205,11 +215,6 @@ const DeveloperSettingsPage = () => {
                 <h1 className="text-2xl font-bold">Developer Options</h1>
                 <p className="text-white/90 text-sm">Permanent data deletion and database maintenance tools</p>
               </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
-              <p className="text-xs text-white/70">Logged in as</p>
-              <p className="font-semibold">{user?.email || 'Unknown'}</p>
-              <p className="text-xs text-white/90">Role: {user?.role || 'Unknown'}</p>
             </div>
           </div>
         </div>
@@ -401,6 +406,35 @@ const DeveloperSettingsPage = () => {
                 placeholder="Your password"
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 mb-4"
               />
+              
+              <div className="mb-4">
+                <p className="text-gray-700 mb-2 font-semibold">
+                  Date Range (Optional):
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">From Date</label>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">To Date</label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty to delete all records, or specify a range to delete records within those dates
+                </p>
+              </div>
               
               <div className="flex gap-3">
                 <button
