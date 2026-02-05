@@ -27,12 +27,47 @@ export default function SuperAdminDashboard() {
     completedPackingSessions: 0,
     completedDeliverySessions: 0,
   });
+  const [todayStats, setTodayStats] = useState({
+    totalInvoices: 0,
+    completedPicking: 0,
+    completedPacking: 0,
+    completedDelivery: 0
+  });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
     fetchAllStats();
+    
+    // Fetch today's stats initially
+    fetchTodayStats();
+    
+    // Setup polling for real-time updates every 5 seconds
+    const intervalId = setInterval(() => {
+      fetchTodayStats();
+    }, 5000);
+    
+    // Cleanup on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
+  
+  const fetchTodayStats = async () => {
+    try {
+      const response = await api.get('/analytics/dashboard-stats/');
+      if (response.data.success && response.data.stats) {
+        setTodayStats({
+          totalInvoices: response.data.stats.totalInvoices || 0,
+          completedPicking: response.data.stats.completedPicking || 0,
+          completedPacking: response.data.stats.completedPacking || 0,
+          completedDelivery: response.data.stats.completedDelivery || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching today stats:', error);
+    }
+  };
 
   const fetchAllStats = async () => {
     setLoading(true);
@@ -274,32 +309,32 @@ export default function SuperAdminDashboard() {
     }
   ];
 
-  // Overview Stats Cards - Top Row
+  // Overview Stats Cards - Top Row (Real-time updates for today)
   const overviewCards = [
     { 
-      title: 'Total Invoices', 
-      value: loading ? '...' : stats.totalInvoices, 
+      title: 'Total Invoices (Today)', 
+      value: loading ? '...' : todayStats.totalInvoices, 
       icon: '📋', 
       color: 'bg-gradient-to-br from-teal-400 to-teal-600',
       textColor: 'text-white'
     },
     { 
-      title: 'Completed Picking', 
-      value: loading ? '...' : stats.completedPickingSessions, 
+      title: 'Completed Picking (Today)', 
+      value: loading ? '...' : todayStats.completedPicking, 
       icon: '📦',
       color: 'bg-gradient-to-br from-blue-400 to-blue-600',
       textColor: 'text-white'
     },
     { 
-      title: 'Completed Packing', 
-      value: loading ? '...' : stats.completedPackingSessions, 
+      title: 'Completed Packing (Today)', 
+      value: loading ? '...' : todayStats.completedPacking, 
       icon: '🎁',
       color: 'bg-gradient-to-br from-purple-400 to-purple-600',
       textColor: 'text-white'
     },
     { 
-      title: 'Completed Delivery', 
-      value: loading ? '...' : stats.completedDeliverySessions, 
+      title: 'Completed Delivery (Today)', 
+      value: loading ? '...' : todayStats.completedDelivery, 
       icon: '🚚',
       color: 'bg-gradient-to-br from-green-400 to-green-600',
       textColor: 'text-white'
@@ -468,30 +503,30 @@ export default function SuperAdminDashboard() {
           </div>
 
           {/* Visual Session Distribution Chart */}
-          {!loading && stats.totalInvoices > 0 && (
+          {!loading && todayStats.totalInvoices > 0 && (
             <div className="mt-6 bg-white rounded-xl shadow-md p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Completed Sessions Distribution</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Completed Sessions Distribution (Today)</h3>
               
               {/* Stacked Progress Bar */}
               <div className="mb-4">
                 <div className="flex h-8 sm:h-10 rounded-lg overflow-hidden shadow-inner">
                   <div 
                     className="bg-gradient-to-r from-blue-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(stats.completedPickingSessions / stats.totalInvoices) * 100}%` }}
+                    style={{ width: `${(todayStats.completedPicking / todayStats.totalInvoices) * 100}%` }}
                   >
-                    {stats.completedPickingSessions > 0 && <span className="hidden sm:inline">{stats.completedPickingSessions}</span>}
+                    {todayStats.completedPicking > 0 && <span className="hidden sm:inline">{todayStats.completedPicking}</span>}
                   </div>
                   <div 
                     className="bg-gradient-to-r from-purple-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(stats.completedPackingSessions / stats.totalInvoices) * 100}%` }}
+                    style={{ width: `${(todayStats.completedPacking / todayStats.totalInvoices) * 100}%` }}
                   >
-                    {stats.completedPackingSessions > 0 && <span className="hidden sm:inline">{stats.completedPackingSessions}</span>}
+                    {todayStats.completedPacking > 0 && <span className="hidden sm:inline">{todayStats.completedPacking}</span>}
                   </div>
                   <div 
                     className="bg-gradient-to-r from-green-400 to-green-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(stats.completedDeliverySessions / stats.totalInvoices) * 100}%` }}
+                    style={{ width: `${(todayStats.completedDelivery / todayStats.totalInvoices) * 100}%` }}
                   >
-                    {stats.completedDeliverySessions > 0 && <span className="hidden sm:inline">{stats.completedDeliverySessions}</span>}
+                    {todayStats.completedDelivery > 0 && <span className="hidden sm:inline">{todayStats.completedDelivery}</span>}
                   </div>
                 </div>
                 
@@ -499,15 +534,15 @@ export default function SuperAdminDashboard() {
                 <div className="flex flex-wrap gap-4 mt-3 text-xs sm:text-sm">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500"></div>
-                    <span className="text-gray-600">Picking ({Math.round((stats.completedPickingSessions / stats.totalInvoices) * 100)}%)</span>
+                    <span className="text-gray-600">Picking ({Math.round((todayStats.completedPicking / todayStats.totalInvoices) * 100)}%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-400 to-purple-500"></div>
-                    <span className="text-gray-600">Packing ({Math.round((stats.completedPackingSessions / stats.totalInvoices) * 100)}%)</span>
+                    <span className="text-gray-600">Packing ({Math.round((todayStats.completedPacking / todayStats.totalInvoices) * 100)}%)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-400 to-green-500"></div>
-                    <span className="text-gray-600">Delivery ({Math.round((stats.completedDeliverySessions / stats.totalInvoices) * 100)}%)</span>
+                    <span className="text-gray-600">Delivery ({Math.round((todayStats.completedDelivery / todayStats.totalInvoices) * 100)}%)</span>
                   </div>
                 </div>
               </div>
@@ -534,13 +569,13 @@ export default function SuperAdminDashboard() {
                         strokeWidth="8"
                         fill="none"
                         strokeDasharray={251.2}
-                        strokeDashoffset={251.2 - (251.2 * (stats.completedDeliverySessions / stats.totalInvoices))}
+                        strokeDashoffset={251.2 - (251.2 * (todayStats.completedDelivery / todayStats.totalInvoices))}
                         className="text-green-500 transition-all duration-1000"
                         strokeLinecap="round"
                       />
                     </svg>
                     <span className="absolute text-xl sm:text-2xl font-bold text-gray-800">
-                      {Math.round((stats.completedDeliverySessions / stats.totalInvoices) * 100)}%
+                      {Math.round((todayStats.completedDelivery / todayStats.totalInvoices) * 100)}%
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm text-gray-600 mt-2 font-medium">Delivery Completion</p>
@@ -549,15 +584,15 @@ export default function SuperAdminDashboard() {
                 {/* Mini Stats Grid */}
                 <div className="grid grid-cols-3 gap-3 sm:gap-4 flex-1 max-w-md">
                   <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-lg sm:text-2xl font-bold text-blue-700">{stats.completedPickingSessions}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-blue-700">{todayStats.completedPicking}</p>
                     <p className="text-xs text-blue-600">Picked</p>
                   </div>
                   <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-                    <p className="text-lg sm:text-2xl font-bold text-purple-700">{stats.completedPackingSessions}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-purple-700">{todayStats.completedPacking}</p>
                     <p className="text-xs text-purple-600">Packed</p>
                   </div>
                   <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-lg sm:text-2xl font-bold text-green-700">{stats.completedDeliverySessions}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-green-700">{todayStats.completedDelivery}</p>
                     <p className="text-xs text-green-600">Delivered</p>
                   </div>
                 </div>

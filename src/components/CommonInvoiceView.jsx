@@ -38,6 +38,9 @@ export default function CommonInvoiceView() {
     setLoading(true);
     try {
       const res = await api.get(`/sales/invoices/${id}/`);
+      console.log('📦 Invoice API Response:', res.data);
+      console.log('📦 Invoice Items:', res.data?.items);
+      console.log('📦 Items Count:', res.data?.items?.length);
       setInvoice(res.data);
     } catch (err) {
       console.error("Failed to load invoice:", err);
@@ -112,7 +115,7 @@ export default function CommonInvoiceView() {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = invoice?.items?.slice(indexOfFirstItem, indexOfLastItem) || [];
-  const totalPages = invoice ? Math.ceil(invoice.items.length / itemsPerPage) : 0;
+  const totalPages = invoice?.items ? Math.ceil(invoice.items.length / itemsPerPage) : 0;
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -260,11 +263,16 @@ export default function CommonInvoiceView() {
 
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
-              Item Details ({invoice.items.length})
+              Item Details ({invoice?.items?.length || 0})
             </h2>
             
-            <div className="space-y-3">
-              {currentItems.map((item, index) => (
+            {!invoice?.items || invoice.items.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No items found for this invoice</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {currentItems.map((item, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
@@ -316,7 +324,8 @@ export default function CommonInvoiceView() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
