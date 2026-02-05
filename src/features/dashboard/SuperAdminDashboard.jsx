@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
 import { getUsers } from '../../services/auth';
@@ -35,28 +35,70 @@ export default function SuperAdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
+  const eventSourceRef = useRef(null);
 
   useEffect(() => {
     fetchAllStats();
+    fetchTodayStats(); // Fetch initial today's stats
     
-    // Fetch today's stats initially
-    fetchTodayStats();
+    // Setup SSE connection for real-time updates
+    const token = localStorage.getItem('access_token');
+    // Get base URL without /api suffix since we'll add the full path
+    const baseURL = window.location.origin.includes('localhost') 
+      ? 'http://localhost:8000' 
+      : window.location.origin;
+    const sseUrl = `${baseURL}/api/analytics/dashboard-stats-stream/?token=${token}`;
     
-    // Setup polling for real-time updates every 5 seconds
-    const intervalId = setInterval(() => {
-      fetchTodayStats();
-    }, 5000);
+    console.log('🔌 Connecting to SSE:', sseUrl);
+    
+    const eventSource = new EventSource(sseUrl);
+    eventSourceRef.current = eventSource;
+    
+    eventSource.onopen = () => {
+      console.log('✅ SSE connection established');
+    };
+    
+    eventSource.onmessage = (event) => {
+      try {
+        console.log('📨 Received SSE data:', event.data);
+        const data = JSON.parse(event.data);
+        if (data.stats) {
+          console.log('📊 Updating today stats:', data.stats);
+          setTodayStats({
+            totalInvoices: data.stats.totalInvoices || 0,
+            completedPicking: data.stats.completedPicking || 0,
+            completedPacking: data.stats.completedPacking || 0,
+            completedDelivery: data.stats.completedDelivery || 0
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error parsing SSE data:', error);
+      }
+    };
+    
+    eventSource.onerror = (error) => {
+      console.error('❌ SSE connection error:', error);
+      console.log('SSE readyState:', eventSource.readyState);
+      if (eventSource.readyState === EventSource.CLOSED) {
+        console.log('⚠️ SSE connection closed. Will try to reconnect...');
+      }
+    };
     
     // Cleanup on unmount
     return () => {
-      clearInterval(intervalId);
+      if (eventSourceRef.current) {
+        console.log('🔌 Closing SSE connection');
+        eventSourceRef.current.close();
+      }
     };
   }, []);
-  
+
   const fetchTodayStats = async () => {
     try {
+      console.log('📊 Fetching today\'s stats via REST API...');
       const response = await api.get('/analytics/dashboard-stats/');
       if (response.data.success && response.data.stats) {
+        console.log('✅ Today\'s stats fetched:', response.data.stats);
         setTodayStats({
           totalInvoices: response.data.stats.totalInvoices || 0,
           completedPicking: response.data.stats.completedPicking || 0,
@@ -65,7 +107,7 @@ export default function SuperAdminDashboard() {
         });
       }
     } catch (error) {
-      console.error('Error fetching today stats:', error);
+      console.error('❌ Error fetching today\'s stats:', error);
     }
   };
 
@@ -312,28 +354,28 @@ export default function SuperAdminDashboard() {
   // Overview Stats Cards - Top Row (Real-time updates for today)
   const overviewCards = [
     { 
-      title: 'Total Invoices (Today)', 
+      title: 'Total Invoices', 
       value: loading ? '...' : todayStats.totalInvoices, 
       icon: '📋', 
       color: 'bg-gradient-to-br from-teal-400 to-teal-600',
       textColor: 'text-white'
     },
     { 
-      title: 'Completed Picking (Today)', 
+      title: 'Completed Picking', 
       value: loading ? '...' : todayStats.completedPicking, 
       icon: '📦',
       color: 'bg-gradient-to-br from-blue-400 to-blue-600',
       textColor: 'text-white'
     },
     { 
-      title: 'Completed Packing (Today)', 
+      title: 'Completed Packing', 
       value: loading ? '...' : todayStats.completedPacking, 
       icon: '🎁',
       color: 'bg-gradient-to-br from-purple-400 to-purple-600',
       textColor: 'text-white'
     },
     { 
-      title: 'Completed Delivery (Today)', 
+      title: 'Completed Delivery', 
       value: loading ? '...' : todayStats.completedDelivery, 
       icon: '🚚',
       color: 'bg-gradient-to-br from-green-400 to-green-600',
@@ -505,7 +547,7 @@ export default function SuperAdminDashboard() {
           {/* Visual Session Distribution Chart */}
           {!loading && todayStats.totalInvoices > 0 && (
             <div className="mt-6 bg-white rounded-xl shadow-md p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Completed Sessions Distribution (Today)</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Completed Sessions Distribution </h3>
               
               {/* Stacked Progress Bar */}
               <div className="mb-4">
