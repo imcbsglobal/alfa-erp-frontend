@@ -15,7 +15,7 @@ export default function PickingHistory() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterDate, setFilterDate] = useState("");
-  const [filterRepick, setFilterRepick] = useState(""); // ✅ NEW STATE
+  const [filterRepick, setFilterRepick] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,7 +40,7 @@ export default function PickingHistory() {
 
     window.addEventListener('dataCleared', handleDataCleared);
     return () => window.removeEventListener('dataCleared', handleDataCleared);
-  }, [currentPage, filterStatus, filterDate, filterRepick]); // Removed 'search' - only trigger on manual button click
+  }, [currentPage, filterStatus, filterDate, filterRepick, search]); // ✅ Added 'search' for real-time filtering
 
   const load = async () => {
     setLoading(true);
@@ -141,12 +141,9 @@ export default function PickingHistory() {
                 placeholder="Search invoice or employee..."
                 className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setCurrentPage(1);
-                    load();
-                  }
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1); // Reset to page 1 when searching
                 }}
               />
               {search && (
@@ -256,7 +253,6 @@ export default function PickingHistory() {
                       <p className="text-xs text-gray-500">{h.picker_email}</p>
                     </td>
                     <td className="px-3 sm:px-6 py-3">
-                      {/* ✅ UPDATED: Pass notes to badge */}
                       {statusBadge(h.picking_status, h.notes)}
                     </td>
                     <td className="px-3 sm:px-6 py-3">

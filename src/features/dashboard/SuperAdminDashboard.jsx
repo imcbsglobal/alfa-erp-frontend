@@ -41,51 +41,69 @@ export default function SuperAdminDashboard() {
     fetchAllStats();
     fetchTodayStats(); // Fetch initial today's stats
     
-    // Setup SSE connection for real-time updates
-    const token = localStorage.getItem('access_token');
-    // Get base URL without /api suffix since we'll add the full path
-    const baseURL = window.location.origin.includes('localhost') 
-      ? 'http://localhost:8000' 
-      : window.location.origin;
-    const sseUrl = `${baseURL}/api/analytics/dashboard-stats-stream/?token=${token}`;
-    
-    console.log('🔌 Connecting to SSE:', sseUrl);
-    
-    const eventSource = new EventSource(sseUrl);
-    eventSourceRef.current = eventSource;
-    
-    eventSource.onopen = () => {
-      console.log('✅ SSE connection established');
-    };
-    
-    eventSource.onmessage = (event) => {
-      try {
-        console.log('📨 Received SSE data:', event.data);
-        const data = JSON.parse(event.data);
-        if (data.stats) {
-          console.log('📊 Updating today stats:', data.stats);
-          setTodayStats({
-            totalInvoices: data.stats.totalInvoices || 0,
-            completedPicking: data.stats.completedPicking || 0,
-            completedPacking: data.stats.completedPacking || 0,
-            completedDelivery: data.stats.completedDelivery || 0
-          });
+    // Setup SSE connection for real-time updates (with slight delay to allow token refresh)
+    const setupSSE = () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.log('⚠️ No access token found, skipping SSE connection');
+        return;
+      }
+      
+      // Get base URL without /api suffix since we'll add the full path
+      const baseURL = window.location.origin.includes('localhost') 
+        ? 'http://localhost:8000' 
+        : window.location.origin;
+      const sseUrl = `${baseURL}/api/analytics/dashboard-stats-stream/?token=${token}`;
+      
+      console.log('🔌 Connecting to SSE:', sseUrl);
+      
+      const eventSource = new EventSource(sseUrl);
+      eventSourceRef.current = eventSource;
+      
+      eventSource.onopen = () => {
+        console.log('✅ SSE connection established');
+      };
+      
+      eventSource.onmessage = (event) => {
+        try {
+          console.log('📨 Received SSE data:', event.data);
+          const data = JSON.parse(event.data);
+          if (data.stats) {
+            console.log('📊 Updating today stats:', data.stats);
+            setTodayStats({
+              totalInvoices: data.stats.totalInvoices || 0,
+              completedPicking: data.stats.completedPicking || 0,
+              completedPacking: data.stats.completedPacking || 0,
+              completedDelivery: data.stats.completedDelivery || 0
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error parsing SSE data:', error);
         }
-      } catch (error) {
-        console.error('❌ Error parsing SSE data:', error);
-      }
+      };
+      
+      eventSource.onerror = (error) => {
+        console.error('❌ SSE connection error:', error);
+        console.log('SSE readyState:', eventSource.readyState);
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.log('⚠️ SSE connection closed. Will try to reconnect...');
+          // Close and retry with fresh token after 3 seconds
+          setTimeout(() => {
+            if (eventSourceRef.current) {
+              eventSourceRef.current.close();
+            }
+            setupSSE();
+          }, 3000);
+        }
+      };
     };
     
-    eventSource.onerror = (error) => {
-      console.error('❌ SSE connection error:', error);
-      console.log('SSE readyState:', eventSource.readyState);
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.log('⚠️ SSE connection closed. Will try to reconnect...');
-      }
-    };
+    // Setup SSE after a brief delay to ensure token is refreshed if needed
+    const sseTimeout = setTimeout(setupSSE, 1000);
     
     // Cleanup on unmount
     return () => {
+      clearTimeout(sseTimeout);
       if (eventSourceRef.current) {
         console.log('🔌 Closing SSE connection');
         eventSourceRef.current.close();

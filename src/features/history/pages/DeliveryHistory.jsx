@@ -39,7 +39,7 @@ export default function DeliveryHistory() {
 
     window.addEventListener('dataCleared', handleDataCleared);
     return () => window.removeEventListener('dataCleared', handleDataCleared);
-  }, [currentPage, filterType, filterStatus, filterDate]); // Removed 'search' - only trigger on manual button click
+  }, [currentPage, filterType, filterStatus, filterDate, search]); // ✅ Added 'search' for real-time filtering
 
   const load = async () => {
     setLoading(true);
@@ -148,12 +148,9 @@ export default function DeliveryHistory() {
                 type="text"
                 placeholder="Search invoice or details..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setCurrentPage(1);
-                    load();
-                  }
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1); // Reset to page 1 when searching
                 }}
                 className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               />
