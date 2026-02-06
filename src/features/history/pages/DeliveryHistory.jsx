@@ -12,7 +12,6 @@ export default function DeliveryHistory() {
   const [history, setHistory] = useState([]);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
@@ -39,7 +38,7 @@ export default function DeliveryHistory() {
 
     window.addEventListener('dataCleared', handleDataCleared);
     return () => window.removeEventListener('dataCleared', handleDataCleared);
-  }, [currentPage, filterType, filterStatus, filterDate, search]); // ✅ Added 'search' for real-time filtering
+  }, [currentPage, filterType, filterDate, search]);
 
   const load = async () => {
     setLoading(true);
@@ -51,7 +50,6 @@ export default function DeliveryHistory() {
 
       if (search.trim()) params.search = search.trim();
       if (filterType) params.delivery_type = filterType;
-      if (filterStatus) params.status = filterStatus;
       if (filterDate) params.start_date = filterDate;
 
       const response = await getDeliveryHistory(params);
@@ -135,6 +133,15 @@ export default function DeliveryHistory() {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
+  const handleClearFilters = () => {
+    setSearch("");
+    setFilterType("");
+    setFilterDate("");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = search || filterType || filterDate;
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
@@ -142,15 +149,15 @@ export default function DeliveryHistory() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Delivery History</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[350px]">
               <input
                 type="text"
                 placeholder="Search invoice or details..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
-                  setCurrentPage(1); // Reset to page 1 when searching
+                  setCurrentPage(1);
                 }}
                 className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               />
@@ -174,26 +181,12 @@ export default function DeliveryHistory() {
                 setFilterType(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all min-w-[350px]"
             >
               <option value="">All Types</option>
               <option value="DIRECT">Counter Pickup</option>
               <option value="COURIER">Courier</option>
               <option value="INTERNAL">Company Delivery</option>
-            </select>
-
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
-            >
-              <option value="">All Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="IN_TRANSIT">In Transit</option>
-              <option value="DELIVERED">Delivered</option>
             </select>
 
             <input
@@ -204,8 +197,18 @@ export default function DeliveryHistory() {
                 setFilterDate(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all min-w-[350px]"
             />
+
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all flex items-center gap-2 font-medium"
+              >
+                <X className="w-4 h-4" />
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -320,10 +323,10 @@ export default function DeliveryHistory() {
                       <td className="px-6 py-3">
                         {h.notes ? (
                           <div className="max-w-xs">
-                            <p className="text-sm text-gray-700 truncate" title={h.notes}>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
                               {h.notes.includes('[ADMIN OVERRIDE]') ? (
                                 <span className="text-orange-600 font-semibold">
-                                  {h.notes.split('\n').find(line => line.includes('[ADMIN OVERRIDE]')) || h.notes}
+                                  {h.notes}
                                 </span>
                               ) : (
                                 h.notes

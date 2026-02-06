@@ -721,7 +721,7 @@ export default function InvoiceListPage() {
                               <p className="font-medium">{task?.picker_info?.name || task?.picker_name || "Current User"}</p>
                             </td>
                             <td className="px-4 py-3">
-                              <p className="font-medium">{task.customer?.name || task.customer_name || "—"}</p>
+                              <p className="font-medium">{task.customer?.name || task.customer_name || task.temp_name || "—"}</p>
                               <p className="text-xs text-gray-500">
                                 {task.customer?.area || task.customer_address || task.customer?.address1 || task.temp_name || "—"}
                               </p>

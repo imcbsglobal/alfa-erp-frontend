@@ -101,9 +101,60 @@ export default function SuperAdminDashboard() {
     // Setup SSE after a brief delay to ensure token is refreshed if needed
     const sseTimeout = setTimeout(setupSSE, 1000);
     
+    // Setup polling for recent activity updates (every 10 seconds)
+    const fetchRecentActivity = async () => {
+      try {
+        const [pickingHistoryRes, packingHistoryRes] = await Promise.allSettled([
+          api.get('/sales/picking/history/', { params: { page_size: 4, ordering: '-created_at' } }),
+          api.get('/sales/packing/history/', { params: { page_size: 4, ordering: '-created_at' } }),
+        ]);
+
+        const activities = [];
+        
+        if (pickingHistoryRes.status === 'fulfilled') {
+          const sessions = pickingHistoryRes.value?.data?.results || [];
+          sessions.forEach(session => {
+            activities.push({
+              type: 'picking',
+              user: session.picker_name || 'Unknown',
+              action: session.picking_status === 'PICKED' ? 'Completed picking' : 'Started picking',
+              time: session.end_time || session.start_time || session.created_at,
+              status: session.picking_status
+            });
+          });
+        }
+        
+        if (packingHistoryRes.status === 'fulfilled') {
+          const sessions = packingHistoryRes.value?.data?.results || [];
+          sessions.forEach(session => {
+            activities.push({
+              type: 'packing',
+              user: session.packer_name || 'Unknown',
+              action: session.packing_status === 'PACKED' ? 'Completed packing' : 'Started packing',
+              time: session.end_time || session.start_time || session.created_at,
+              status: session.packing_status
+            });
+          });
+        }
+
+        // Sort by time and limit to 4 most recent
+        activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+        setRecentActivity(activities.slice(0, 4));
+      } catch (error) {
+        console.error('❌ Error fetching recent activity:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchRecentActivity();
+    
+    // Poll every 10 seconds for real-time updates
+    const activityInterval = setInterval(fetchRecentActivity, 10000);
+    
     // Cleanup on unmount
     return () => {
       clearTimeout(sseTimeout);
+      clearInterval(activityInterval);
       if (eventSourceRef.current) {
         console.log('🔌 Closing SSE connection');
         eventSourceRef.current.close();
@@ -218,38 +269,6 @@ export default function SuperAdminDashboard() {
         deliveryActiveSessions = sessions.filter(s => s.delivery_status === 'IN_TRANSIT').length;
         completedDeliverySessions = sessions.filter(s => s.delivery_status === 'DELIVERED').length;
       }
-
-      // Build Recent Activity
-      const activities = [];
-      if (pickingHistoryRes.status === 'fulfilled') {
-        const sessions = pickingHistoryRes.value?.data?.results || [];
-        sessions.slice(0, 3).forEach(session => {
-          activities.push({
-            type: 'picking',
-            user: session.picker_name || 'Unknown',
-            action: session.picking_status === 'PICKED' ? 'Completed picking' : 'Started picking',
-            time: session.end_time || session.start_time || session.created_at,
-            status: session.picking_status
-          });
-        });
-      }
-      
-      if (packingHistoryRes.status === 'fulfilled') {
-        const sessions = packingHistoryRes.value?.data?.results || [];
-        sessions.slice(0, 3).forEach(session => {
-          activities.push({
-            type: 'packing',
-            user: session.packer_name || 'Unknown',
-            action: session.packing_status === 'PACKED' ? 'Completed packing' : 'Started packing',
-            time: session.end_time || session.start_time || session.created_at,
-            status: session.packing_status
-          });
-        });
-      }
-
-      // Sort activities by time and limit to 4
-      activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-      setRecentActivity(activities.slice(0, 4));
 
       setStats({
         totalAdmins,

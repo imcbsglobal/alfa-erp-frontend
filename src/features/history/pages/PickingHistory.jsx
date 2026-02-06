@@ -15,7 +15,6 @@ export default function PickingHistory() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterDate, setFilterDate] = useState("");
-  const [filterRepick, setFilterRepick] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,7 +39,7 @@ export default function PickingHistory() {
 
     window.addEventListener('dataCleared', handleDataCleared);
     return () => window.removeEventListener('dataCleared', handleDataCleared);
-  }, [currentPage, filterStatus, filterDate, filterRepick, search]); // ✅ Added 'search' for real-time filtering
+  }, [currentPage, filterStatus, filterDate, search]);
 
   const load = async () => {
     setLoading(true);
@@ -58,22 +57,7 @@ export default function PickingHistory() {
 
       const response = await getPickingHistory(params);
       
-      let filteredResults = response.data.results;
-      
-      // ✅ Client-side filter for re-picks
-      if (filterRepick === 'repick') {
-        filteredResults = filteredResults.filter(r => 
-          r.notes && r.notes.includes('[RE-PICK]')
-        );
-      } else if (filterRepick === 'normal') {
-        filteredResults = filteredResults.filter(r => 
-          !r.notes || !r.notes.includes('[RE-PICK]')
-        );
-      }
-      
-      console.log('✅ Filtered results:', filteredResults.length, 'of', response.data.results.length);
-      
-      setHistory(filteredResults);
+      setHistory(response.data.results);
       setTotalCount(response.data.count);
     } catch (error) {
       console.error("Failed to load picking history:", error);
@@ -127,6 +111,15 @@ export default function PickingHistory() {
     );
   };
 
+  const handleClearFilters = () => {
+    setSearch("");
+    setFilterStatus("");
+    setFilterDate("");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = search || filterStatus || filterDate;
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
@@ -134,8 +127,8 @@ export default function PickingHistory() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Picking History</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[350px]">
               <input
                 type="text"
                 placeholder="Search invoice or employee..."
@@ -143,7 +136,7 @@ export default function PickingHistory() {
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
-                  setCurrentPage(1); // Reset to page 1 when searching
+                  setCurrentPage(1);
                 }}
               />
               {search && (
@@ -166,37 +159,33 @@ export default function PickingHistory() {
                 setFilterStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all min-w-[350px]"
             >
               <option value="">All Status</option>
               <option value="PREPARING">Preparing</option>
               <option value="PICKED">Picked</option>
-              <option value="VERIFIED">Verified</option>
-            </select>
-
-            <select
-              value={filterRepick}
-              onChange={(e) => {
-                setFilterRepick(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
-            >
-              <option value="">All Types</option>
-              <option value="repick">Re-picked Only</option>
-              <option value="normal">Normal Only</option>
             </select>
 
             <input
               type="date"
               placeholder="Filter by date"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all min-w-[350px]"
               value={filterDate}
               onChange={(e) => {
                 setFilterDate(e.target.value);
                 setCurrentPage(1);
               }}
             />
+
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all flex items-center gap-2 font-medium"
+              >
+                <X className="w-4 h-4" />
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -286,10 +275,10 @@ export default function PickingHistory() {
                     <td className="px-3 sm:px-6 py-3">
                       {h.notes ? (
                         <div className="max-w-xs">
-                          <p className="text-sm text-gray-700 truncate" title={h.notes}>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
                             {h.notes.includes('[ADMIN OVERRIDE]') ? (
                               <span className="text-orange-600 font-semibold">
-                                {h.notes.split('\n').find(line => line.includes('[ADMIN OVERRIDE]')) || h.notes}
+                                {h.notes}
                               </span>
                             ) : (
                               h.notes

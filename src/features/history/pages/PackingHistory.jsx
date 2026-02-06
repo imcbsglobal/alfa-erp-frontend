@@ -37,7 +37,7 @@ export default function PackingHistory() {
 
     window.addEventListener('dataCleared', handleDataCleared);
     return () => window.removeEventListener('dataCleared', handleDataCleared);
-  }, [currentPage, filterStatus, filterDate, search]); // ✅ Added 'search' for real-time filtering
+  }, [currentPage, filterStatus, filterDate, search]);
 
   const load = async () => {
     setLoading(true);
@@ -102,6 +102,15 @@ export default function PackingHistory() {
     );
   };
 
+  const handleClearFilters = () => {
+    setSearch("");
+    setFilterStatus("");
+    setFilterDate("");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = search || filterStatus || filterDate;
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
@@ -109,9 +118,9 @@ export default function PackingHistory() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Packing History</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Search */}
-            <div className="relative">
+            <div className="relative min-w-[350px]">
               <input
                 type="text"
                 placeholder="Search invoice or packer..."
@@ -119,7 +128,7 @@ export default function PackingHistory() {
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
-                  setCurrentPage(1); // Reset to page 1 when searching
+                  setCurrentPage(1);
                 }}
               />
               {search && (
@@ -138,7 +147,7 @@ export default function PackingHistory() {
 
             {/* Status Filter */}
             <select
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all min-w-[350px]"
               value={filterStatus}
               onChange={(e) => {
                 setFilterStatus(e.target.value);
@@ -147,7 +156,6 @@ export default function PackingHistory() {
             >
               <option value="">All Status</option>
               <option value="PENDING">Pending</option>
-              <option value="IN_PROGRESS">In Progress</option>
               <option value="PACKED">Packed</option>
             </select>
 
@@ -155,13 +163,24 @@ export default function PackingHistory() {
             <input
               type="date"
               placeholder="Filter by date"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all min-w-[350px]"
               value={filterDate}
               onChange={(e) => {
                 setFilterDate(e.target.value);
                 setCurrentPage(1);
               }}
             />
+
+            {/* Clear Filters Button */}
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all flex items-center gap-2 font-medium"
+              >
+                <X className="w-4 h-4" />
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -246,10 +265,10 @@ export default function PackingHistory() {
                     <td className="px-3 sm:px-6 py-3">
                       {h.notes ? (
                         <div className="max-w-xs">
-                          <p className="text-sm text-gray-700 truncate" title={h.notes}>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
                             {h.notes.includes('[ADMIN OVERRIDE]') ? (
                               <span className="text-orange-600 font-semibold">
-                                {h.notes.split('\n').find(line => line.includes('[ADMIN OVERRIDE]')) || h.notes}
+                                {h.notes}
                               </span>
                             ) : (
                               h.notes
