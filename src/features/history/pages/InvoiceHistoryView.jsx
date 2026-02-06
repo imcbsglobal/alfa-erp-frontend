@@ -9,7 +9,7 @@ export default function InvoiceHistoryView() {
   const [history, setHistory] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [filterDate, setFilterDate] = useState("");
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
   const [loading, setLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -196,6 +196,13 @@ export default function InvoiceHistoryView() {
       return { label: "IN PICKING", color: "bg-orange-100 text-orange-700 border-orange-200" };
     }
     return { label: "PENDING", color: "bg-gray-100 text-gray-700 border-gray-200" };
+  };
+
+  const handleClearFilters = () => {
+    setSearch("");
+    setFilterStatus("");
+    setFilterDate(new Date().toISOString().split('T')[0]); // Reset to today
+    setCurrentPage(1);
   };
 
   return (

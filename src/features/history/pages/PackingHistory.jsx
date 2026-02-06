@@ -12,7 +12,7 @@ export default function PackingHistory() {
   const [history, setHistory] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [filterDate, setFilterDate] = useState("");
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
   const [loading, setLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -105,7 +105,7 @@ export default function PackingHistory() {
   const handleClearFilters = () => {
     setSearch("");
     setFilterStatus("");
-    setFilterDate("");
+    setFilterDate(new Date().toISOString().split('T')[0]); // Reset to today
     setCurrentPage(1);
   };
 

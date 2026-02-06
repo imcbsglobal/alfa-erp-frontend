@@ -12,7 +12,7 @@ export default function DeliveryHistory() {
   const [history, setHistory] = useState([]);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [filterDate, setFilterDate] = useState("");
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
   const [loading, setLoading] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
 
@@ -136,7 +136,7 @@ export default function DeliveryHistory() {
   const handleClearFilters = () => {
     setSearch("");
     setFilterType("");
-    setFilterDate("");
+    setFilterDate(new Date().toISOString().split('T')[0]); // Reset to today
     setCurrentPage(1);
   };
 
