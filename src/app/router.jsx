@@ -44,6 +44,9 @@ import CommonInvoiceView from "../components/CommonInvoiceView";
 import DeveloperSettingsPage from "../pages/DeveloperSettingsPage";
 import AdminPrivilegePage from "../pages/AdminPrivilegePage";
 
+// Import Reports Pages
+import InvoiceReportPage from "../features/reports/pages/InvoiceReportPage";
+
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
   
@@ -119,6 +122,7 @@ export default function AppRouter() {
           {/* History */}
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/history/consolidate" element={<InvoiceHistoryView />} />
+          <Route path="/history/invoice-report" element={<InvoiceReportPage />} />
 
           {/* Developer Options - SUPERADMIN ONLY */}
           <Route 

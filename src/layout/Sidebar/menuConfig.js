@@ -155,8 +155,8 @@ export const MENU_CONFIG = [
       pathname.startsWith("/ops/delivery"),
   },
   {
-    id: "history",
-    label: "History",
+    id: "reports",
+    label: "Reports",
     icon: Clock,
     type: "dropdown", // Changed from "single"
     hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
@@ -170,6 +170,11 @@ export const MENU_CONFIG = [
         label: "Consolidate",
         icon: Layers,
         path: "/history/consolidate",
+      },
+      {
+        label: "Invoice Reports",
+        icon: FileText,
+        path: "/history/invoice-report",
       },
     ],
     isActive: (pathname) => pathname.startsWith("/history"),
@@ -277,6 +282,7 @@ export const PAGE_TITLES = {
   "/master/courier/add": "Add Courier",
   "/history": "History",
   "/history/consolidate": "Consolidate History",
+  "/history/invoice-report": "Invoice Report",
   "/developer/settings": "Developer Options",
   "/admin/privilege": "Advanced Control",
 };

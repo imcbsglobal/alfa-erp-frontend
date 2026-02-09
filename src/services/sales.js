@@ -80,3 +80,8 @@ export const updateInvoice = (data) =>
 
 export const cancelSession = (data) =>
   api.post("/sales/cancel-session/", data);
+
+// Get invoice report with pagination, search, and date filtering
+export const getInvoiceReport = (params = {}) => {
+  return api.get("/sales/invoice-report/", { params });
+};
