@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { getInvoiceReport } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
@@ -6,6 +6,23 @@ import { formatDateDDMMYYYY, formatDateTime, formatNumber } from '../../../utils
 import { X } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+
+// Debounce hook
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export default function InvoiceReportPage() {
   const [invoices, setInvoices] = useState([]);
@@ -15,7 +32,13 @@ export default function InvoiceReportPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [createdByFilter, setCreatedByFilter] = useState('');
   const searchInputRef = useRef(null);
+
+  // Debounce the text filters
+  const debouncedCustomerFilter = useDebounce(customerFilter, 500);
+  const debouncedCreatedByFilter = useDebounce(createdByFilter, 500);
 
   // Auto-focus search input on page load
   useEffect(() => {
@@ -25,7 +48,7 @@ export default function InvoiceReportPage() {
   // Load invoices when filters change
   useEffect(() => {
     loadInvoices();
-  }, [currentPage, itemsPerPage, statusFilter, dateFilter]);
+  }, [currentPage, itemsPerPage, statusFilter, dateFilter, debouncedCustomerFilter, debouncedCreatedByFilter]);
 
   // SSE Live Updates for real-time invoice changes
   useEffect(() => {
@@ -40,8 +63,14 @@ export default function InvoiceReportPage() {
         
         const matchesDate = !dateFilter || 
           invoice.created_at?.startsWith(dateFilter);
+        
+        const matchesCustomer = !debouncedCustomerFilter || 
+          (invoice.customer?.name || invoice.temp_name || '').toLowerCase().includes(debouncedCustomerFilter.toLowerCase());
+        
+        const matchesCreatedBy = !debouncedCreatedByFilter || 
+          (invoice.salesman?.name || '').toLowerCase().includes(debouncedCreatedByFilter.toLowerCase());
 
-        if (matchesStatus && matchesDate) {
+        if (matchesStatus && matchesDate && matchesCustomer && matchesCreatedBy) {
           setInvoices(prev => {
             const exists = prev.find(inv => inv.id === invoice.id);
             if (exists) {
@@ -67,7 +96,7 @@ export default function InvoiceReportPage() {
     };
 
     return () => eventSource.close();
-  }, [statusFilter, dateFilter]); // Re-subscribe when filters change
+  }, [statusFilter, dateFilter, debouncedCustomerFilter, debouncedCreatedByFilter]); // Re-subscribe when filters change
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -84,6 +113,14 @@ export default function InvoiceReportPage() {
       if (dateFilter) {
         params.start_date = dateFilter;
         params.end_date = dateFilter; // Same date for single day filter
+      }
+
+      if (debouncedCustomerFilter) {
+        params.customer_name = debouncedCustomerFilter;
+      }
+
+      if (debouncedCreatedByFilter) {
+        params.created_by = debouncedCreatedByFilter;
       }
 
       const res = await getInvoiceReport(params);
@@ -133,6 +170,64 @@ export default function InvoiceReportPage() {
                   }}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                 />
+              </div>
+
+              {/* Customer Filter */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Customer:</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search customer..."
+                    value={customerFilter}
+                    onChange={(e) => {
+                      setCustomerFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm min-w-[180px]"
+                  />
+                  {customerFilter && (
+                    <button
+                      onClick={() => {
+                        setCustomerFilter('');
+                        setCurrentPage(1);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Clear filter"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Created By Filter */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Created By:</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search salesman..."
+                    value={createdByFilter}
+                    onChange={(e) => {
+                      setCreatedByFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm min-w-[180px]"
+                  />
+                  {createdByFilter && (
+                    <button
+                      onClick={() => {
+                        setCreatedByFilter('');
+                        setCurrentPage(1);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Clear filter"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Rows Per Page Selector */}

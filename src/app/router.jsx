@@ -28,6 +28,9 @@ import OperationsLayout from "../layout/OperationsLayout";
 import PackingInvoiceListPage from "../features/packing/pages/PackingInvoiceListPage";
 // import PackingInvoiceViewPage from "../features/packing/pages/PackingInvoiceViewPage";
 import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
+import CheckingPage from "../features/packing/pages/CheckingPage";
+import BoxAssignmentPage from "../features/packing/pages/BoxAssignmentPage";
+import BoxLabelPrintPage from "../features/packing/pages/BoxLabelPrintPage";
 
 // Import Billing Pages
 import BillingInvoiceListPage from "../features/billing/pages/BillingInvoiceListPage";
@@ -86,6 +89,9 @@ export default function AppRouter() {
           <Route path="/packing/invoices" element={<PackingInvoiceListPage />} />
           {/* <Route path="/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} /> */}
           <Route path="/packing/my" element={<MyPackingListPage />} />
+          <Route path="/packing/checking/:invoiceNo" element={<CheckingPage />} />
+          <Route path="/packing/box-assignment/:invoiceNo" element={<BoxAssignmentPage />} />
+          <Route path="/packing/print-labels/:invoiceNo" element={<BoxLabelPrintPage />} />
 
           {/* Billing routes for SUPERADMIN */}
           <Route path="/billing/invoices" element={<BillingInvoiceListPage />} />
@@ -154,6 +160,9 @@ export default function AppRouter() {
           <Route path="/ops/packing/invoices" element={<PackingInvoiceListPage />} />
           {/* <Route path="/ops/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} /> */}
           <Route path="/ops/packing/my" element={<MyPackingListPage />} />
+          <Route path="/ops/packing/checking/:invoiceNo" element={<CheckingPage />} />
+          <Route path="/ops/packing/box-assignment/:invoiceNo" element={<BoxAssignmentPage />} />
+          <Route path="/ops/packing/print-labels/:invoiceNo" element={<BoxLabelPrintPage />} />
 
           {/* Billing */}
           <Route path="/ops/billing/invoices" element={<BillingInvoiceListPage />} />
