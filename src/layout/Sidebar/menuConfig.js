@@ -162,7 +162,7 @@ export const MENU_CONFIG = [
     hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
     submenu: [
       {
-        label: "History",
+        label: "Reports",
         icon: History,
         path: "/history",
       },
