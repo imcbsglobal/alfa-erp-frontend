@@ -18,6 +18,8 @@ export default function BoxAssignmentPage() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedBox, setSelectedBox] = useState(null);
   const [assignQuantity, setAssignQuantity] = useState("");
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverBox, setDragOverBox] = useState(null);
 
   useEffect(() => {
     loadBillDetails();
@@ -154,6 +156,83 @@ export default function BoxAssignmentPage() {
     toast.success("Item removed from box");
   };
 
+  // Drag and Drop handlers
+  const handleDragStart = (e, item) => {
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget);
+    e.currentTarget.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    e.currentTarget.style.opacity = '1';
+    setDraggedItem(null);
+    setDragOverBox(null);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnter = (e, boxId) => {
+    e.preventDefault();
+    setDragOverBox(boxId);
+  };
+
+  const handleDragLeave = (e, boxId) => {
+    e.preventDefault();
+    // Only clear if we're actually leaving the box (not entering a child)
+    if (e.currentTarget === e.target) {
+      setDragOverBox(null);
+    }
+  };
+
+  const handleDrop = (e, box) => {
+    e.preventDefault();
+    setDragOverBox(null);
+
+    if (!draggedItem) return;
+
+    const remaining = getRemainingQuantityForItem(draggedItem.id);
+    
+    if (remaining <= 0) {
+      toast.error("All items already assigned");
+      setDraggedItem(null);
+      return;
+    }
+
+    // Assign all remaining quantity to the box
+    const quantityToAssign = remaining;
+
+    setBoxes(prev => prev.map(b => {
+      if (b.id === box.id) {
+        const existingIdx = b.items.findIndex(i => i.itemId === draggedItem.id);
+        if (existingIdx >= 0) {
+          // Update existing assignment
+          const updatedItems = [...b.items];
+          updatedItems[existingIdx].quantity += quantityToAssign;
+          return { ...b, items: updatedItems };
+        } else {
+          // Add new assignment
+          return {
+            ...b,
+            items: [...b.items, {
+              itemId: draggedItem.id,
+              itemName: draggedItem.name || draggedItem.item_name,
+              itemCode: draggedItem.code || draggedItem.item_code,
+              quantity: quantityToAssign,
+            }]
+          };
+        }
+      }
+      return b;
+    }));
+
+    toast.success(`Assigned ${quantityToAssign} ${draggedItem.name || draggedItem.item_name} to ${box.boxId}`);
+    setDraggedItem(null);
+  };
+
   const validateBoxes = () => {
     const validationErrors = [];
 
@@ -262,12 +341,6 @@ export default function BoxAssignmentPage() {
               <h1 className="text-xl font-bold text-gray-800">Box Assignment</h1>
               <p className="text-sm text-gray-600">Invoice: #{bill.invoice_no}</p>
             </div>
-            <button
-              onClick={() => navigate(-1)}
-              className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Back
-            </button>
           </div>
 
           {/* Customer Info */}
@@ -294,12 +367,21 @@ export default function BoxAssignmentPage() {
           </div>
         )}
 
+        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Items List */}
           <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              Items ({bill.items?.length || 0})
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Items ({bill.items?.length || 0})
+              </h2>
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                <span>Drag to box</span>
+              </div>
+            </div>
             
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {bill.items?.map((item) => {
@@ -312,8 +394,13 @@ export default function BoxAssignmentPage() {
                 return (
                   <div
                     key={item.id}
+                    draggable={!isFullyAssigned}
+                    onDragStart={(e) => !isFullyAssigned && handleDragStart(e, item)}
+                    onDragEnd={handleDragEnd}
                     onClick={() => !isFullyAssigned && setSelectedItem(item)}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      isFullyAssigned ? "cursor-not-allowed" : "cursor-move"
+                    } ${
                       selectedItem?.id === item.id
                         ? "border-teal-500 bg-teal-50"
                         : isFullyAssigned
@@ -462,7 +549,18 @@ export default function BoxAssignmentPage() {
 
               <div className="space-y-3 max-h-[600px] overflow-y-auto">
                 {boxes.map(box => (
-                  <div key={box.id} className="border-2 border-gray-300 rounded-lg p-3">
+                  <div 
+                    key={box.id} 
+                    onDragOver={handleDragOver}
+                    onDragEnter={(e) => handleDragEnter(e, box.id)}
+                    onDragLeave={(e) => handleDragLeave(e, box.id)}
+                    onDrop={(e) => handleDrop(e, box)}
+                    className={`border-2 rounded-lg p-3 transition-all ${
+                      dragOverBox === box.id 
+                        ? "border-teal-500 bg-teal-50 border-dashed scale-[1.02]" 
+                        : "border-gray-300"
+                    }`}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-bold text-gray-800">{box.boxId}</h3>
                       <button
@@ -474,7 +572,12 @@ export default function BoxAssignmentPage() {
                     </div>
 
                     {box.items.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic">No items assigned</p>
+                      <div className="text-center py-4">
+                        <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                        <p className="text-sm text-gray-500 italic">Drop items here</p>
+                      </div>
                     ) : (
                       <div className="space-y-1">
                         {box.items.map((item, idx) => (

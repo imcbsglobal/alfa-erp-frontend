@@ -272,7 +272,7 @@ export default function MyPackingListPage() {
                 disabled={loading}
                 className={`w-full mt-2 py-2 rounded-lg text-sm font-semibold transition-all ${
                   isChecking 
-                    ? "bg-amber-600 text-white hover:bg-amber-700"
+                    ? "bg-teal-600 text-white hover:bg-teal-700"
                     : "bg-teal-600 text-white hover:bg-teal-700"
                 } disabled:opacity-50`}
               >

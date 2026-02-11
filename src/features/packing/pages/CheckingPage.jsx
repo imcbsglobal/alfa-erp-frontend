@@ -27,6 +27,20 @@ export default function CheckingPage() {
       const res = await api.get(`/sales/packing/bill/${invoiceNo}/`);
       setBill(res.data?.data);
       
+      // Ensure checking is started if not already
+      // This handles cases where user navigates directly to this page
+      if (!res.data?.data?.checking_by) {
+        try {
+          await api.post("/sales/packing/start-checking/", {
+            invoice_no: invoiceNo,
+            user_email: user.email,
+          });
+        } catch (startErr) {
+          // If already started or other error, continue anyway
+          console.warn("Could not auto-start checking:", startErr);
+        }
+      }
+      
       // Initialize all items as unchecked
       const initialChecked = {};
       res.data?.data?.items?.forEach(item => {
@@ -74,7 +88,12 @@ export default function CheckingPage() {
       
     } catch (err) {
       console.error("Complete checking error:", err);
-      toast.error(err.response?.data?.message || "Failed to complete checking");
+      console.error("Error response:", err.response?.data);
+      const errorMsg = err.response?.data?.message || 
+                       err.response?.data?.errors?.invoice_no?.[0] ||
+                       err.response?.data?.error ||
+                       "Failed to complete checking";
+      toast.error(errorMsg);
     } finally {
       setCompletingCheck(false);
     }
@@ -143,8 +162,8 @@ export default function CheckingPage() {
           {/* Customer Info */}
           <div className="border-t pt-3 space-y-1 text-sm">
             <p><strong>Customer:</strong> {bill.customer?.name || bill.customer_name}</p>
-            <p><strong>Phone:</strong> {bill.customer?.phone || bill.customer_phone || "-"}</p>
-            <p><strong>Address:</strong> {bill.customer?.address || bill.customer_address || "-"}</p>
+            <p><strong>Phone:</strong> {bill.customer?.phone1 || bill.customer?.phone || bill.customer_phone || "-"}</p>
+            <p><strong>Address:</strong> {bill.customer?.address1 || bill.customer?.address || bill.customer_address || "-"}</p>
             <p><strong>Checking By:</strong> {bill.checking_by_name || user.name}</p>
           </div>
         </div>
@@ -166,54 +185,84 @@ export default function CheckingPage() {
                     : "border-gray-300 bg-white hover:border-teal-300"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                      checkedItems[item.id]
-                        ? "border-teal-500 bg-teal-500"
-                        : "border-gray-400 bg-white"
-                    }`}>
-                      {checkedItems[item.id] && (
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-gray-800 truncate">
-                        {item.name || item.item_name}
-                      </p>
-                      {item.code && (
-                        <p className="text-xs text-gray-600">Code: {item.code}</p>
-                      )}
-                    </div>
+                <div className="flex items-start justify-between gap-3">
+                  {/* Checkbox */}
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 ${
+                    checkedItems[item.id]
+                      ? "border-teal-500 bg-teal-500"
+                      : "border-gray-400 bg-white"
+                  }`}>
+                    {checkedItems[item.id] && (
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
                   </div>
-                  <div className="text-right ml-3">
-                    <p className="font-bold text-teal-700">
-                      {formatQuantity(item.quantity || item.qty, 'pcs')}
-                    </p>
+
+                  {/* Item Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 text-base">
+                          {item.name || item.item_name}
+                        </p>
+                        {item.item_code && (
+                          <p className="text-xs text-gray-600 flex items-center gap-1 mt-0.5">
+                            <span className="text-red-600">●</span>
+                            <span className="font-medium">{item.item_code}</span>
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-bold text-teal-700 text-lg">
+                          {formatQuantity(item.quantity || item.qty, 'pcs')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Additional Details Grid */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mt-2 pt-2 border-t border-gray-200">
+                      {item.packing && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-500">Pack:</span>
+                          <span className="font-medium text-gray-700">{item.packing}</span>
+                        </div>
+                      )}
+                      
+                      {item.shelf_location && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-500">Shelf:</span>
+                          <span className="font-medium text-gray-700">{item.shelf_location}</span>
+                        </div>
+                      )}
+                      
+                      {item.mrp && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-500">MRP:</span>
+                          <span className="font-medium text-gray-700">₹{item.mrp}</span>
+                        </div>
+                      )}
+                      
+                      {item.batch_no && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-500">Batch:</span>
+                          <span className="font-medium text-gray-700">{item.batch_no}</span>
+                        </div>
+                      )}
+                      
+                      {item.expiry_date && (
+                        <div className="flex items-center gap-1 col-span-2">
+                          <span className="text-gray-500">Expiry:</span>
+                          <span className="font-medium text-gray-700">
+                            {new Date(item.expiry_date).toLocaleDateString('en-GB')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-gray-600">Progress</span>
-              <span className="font-semibold text-teal-700">
-                {Object.values(checkedItems).filter(Boolean).length} / {bill.items?.length || 0}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className="bg-teal-600 h-2.5 rounded-full transition-all duration-300"
-                style={{
-                  width: `${((Object.values(checkedItems).filter(Boolean).length / (bill.items?.length || 1)) * 100)}%`
-                }}
-              ></div>
-            </div>
           </div>
         </div>
 
