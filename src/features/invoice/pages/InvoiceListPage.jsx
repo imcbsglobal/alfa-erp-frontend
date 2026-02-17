@@ -231,11 +231,26 @@ export default function InvoiceListPage() {
 
   const handleConfirmCompleteYes = async () => {
     try {
-      await api.post("/sales/picking/complete/", {
+      console.log("Completing picking with data:", {
+        invoiceToComplete,
+        verifiedEmail,
+        invoice_no: invoiceToComplete.invoice_no,
+        invoice_id: invoiceToComplete.invoice_id || invoiceToComplete.id
+      });
+
+      // Try with invoice_no first, then fallback to invoice_id if available
+      const completionData = {
         invoice_no: invoiceToComplete.invoice_no,
         user_email: verifiedEmail,
         notes: "Manual completion from Ongoing Work modal",
-      });
+      };
+
+      // If we have an invoice ID, also include it (some APIs might expect this)
+      if (invoiceToComplete.invoice_id || invoiceToComplete.id) {
+        completionData.invoice_id = invoiceToComplete.invoice_id || invoiceToComplete.id;
+      }
+
+      await api.post("/sales/picking/complete/", completionData);
 
       toast.success(`Picking completed for ${invoiceToComplete.invoice_no}`);
       setShowConfirmComplete(false);
@@ -248,8 +263,34 @@ export default function InvoiceListPage() {
       await loadInvoices();
     } catch (err) {
       console.error("Error completing picking:", err);
-      const errorMsg = err.response?.data?.message || err.response?.data?.errors?.invoice_no?.[0] || err.response?.data?.errors?.user_email?.[0] || "Failed to complete picking";
-      toast.error(errorMsg, { duration: 4000 });
+      console.error("Full error response:", err.response);
+      console.error("Error data:", err.response?.data);
+      console.error("Detailed errors:", err.response?.data?.errors);
+      console.error("Request data sent:", completionData);
+      
+      // More detailed error handling
+      let errorMsg = "Failed to complete picking";
+      
+      if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        if (errors.invoice_no && errors.invoice_no[0]) {
+          errorMsg = `Invoice error: ${errors.invoice_no[0]}`;
+        } else if (errors.user_email && errors.user_email[0]) {
+          errorMsg = `User error: ${errors.user_email[0]}`;
+        } else if (errors.non_field_errors && errors.non_field_errors[0]) {
+          errorMsg = errors.non_field_errors[0];
+        } else {
+          errorMsg = `Validation error: ${JSON.stringify(errors)}`;
+        }
+      } else if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      } else if (err.response?.status === 400) {
+        errorMsg = "Bad request - please check the data and try again";
+      }
+      
+      toast.error(errorMsg, { duration: 6000 });
     }
   };
 

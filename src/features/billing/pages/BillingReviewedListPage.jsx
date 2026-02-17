@@ -78,69 +78,35 @@ export default function BillingReviewedListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      let allInvoices = [];
-      let page = 1;
-      let hasMore = true;
-      
-      // Fetch all pages
-      while (hasMore) {
-        const res = await api.get("/sales/billing/invoices/", {
-          params: { page }
-        });
-        const data = res.data;
-        
-        // Add results from this page
-        const pageResults = data?.results || data || [];
-        allInvoices = [...allInvoices, ...pageResults];
-        
-        console.log(`📄 Loaded page ${page}: ${pageResults.length} invoices`);
-        
-        // Check if there's a next page
-        if (data?.next) {
-          page++;
-        } else {
-          hasMore = false;
-        }
-      }
+      // Fetch only REVIEW and RE_INVOICED invoices directly from the API
+      const [reviewRes, reInvoicedRes] = await Promise.all([
+        api.get("/sales/billing/invoices/", {
+          params: { 
+            billing_status: "REVIEW",
+            page_size: 100 // Fetch more items per page
+          }
+        }),
+        api.get("/sales/billing/invoices/", {
+          params: { 
+            billing_status: "RE_INVOICED",
+            page_size: 100
+          }
+        })
+      ]);
 
-      console.log("=== ALL INVOICES LOADED ===");
-      console.log("Total invoices:", allInvoices.length);
+      const reviewInvoices = reviewRes.data?.results || [];
+      const reInvoicedInvoices = reInvoicedRes.data?.results || [];
       
-      // Debug: Check for INV-202601-76259
-      const targetInvoice = allInvoices.find(inv => inv.invoice_no === "INV-202601-76259");
-      if (targetInvoice) {
-        console.log("✅ FOUND INV-202601-76259:", {
-          billing_status: targetInvoice.billing_status,
-          has_return_info: !!targetInvoice.return_info,
-          return_reason: targetInvoice.return_info?.return_reason,
-          returned_by: targetInvoice.return_info?.returned_by_email
-        });
-      } else {
-        console.log("❌ INV-202601-76259 NOT FOUND in API response");
-      }
-
-      // Filter for reviewed invoices
-      const reviewedInvoices = allInvoices.filter(inv => {
-        // Include if status is REVIEW or RE_INVOICED
-        if (["REVIEW", "RE_INVOICED"].includes(inv.billing_status)) {
-          return true;
-        }
-        
-        // Also include BILLED invoices that have been returned for review
-        if (inv.billing_status === "BILLED" && inv.return_info && inv.return_info.return_reason) {
-          return true;
-        }
-        
-        return false;
+      // Combine both lists
+      const allReviewedInvoices = [...reviewInvoices, ...reInvoicedInvoices];
+      
+      console.log("✅ Loaded reviewed invoices:", {
+        review: reviewInvoices.length,
+        reInvoiced: reInvoicedInvoices.length,
+        total: allReviewedInvoices.length
       });
 
-      console.log("=== FILTERED REVIEWED INVOICES ===");
-      console.log("Count:", reviewedInvoices.length);
-      reviewedInvoices.forEach(inv => {
-        console.log("✓", inv.invoice_no, "Status:", inv.billing_status);
-      });
-
-      setInvoices(reviewedInvoices);
+      setInvoices(allReviewedInvoices);
       setCurrentPage(1);
     } catch (err) {
       console.error("Error loading invoices:", err);

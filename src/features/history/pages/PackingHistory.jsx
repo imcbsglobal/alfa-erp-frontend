@@ -78,6 +78,60 @@ export default function PackingHistory() {
     return `${hours}h ${mins}m`;
   };
 
+  const getStatusMessage = (status, notes) => {
+    // Handle special admin override cases - always show these
+    if (notes && notes.includes('[ADMIN OVERRIDE]')) {
+      return notes;
+    }
+    
+    // If there are no notes, show status-based message
+    if (!notes || !notes.trim()) {
+      switch (status) {
+        case 'PACKED':
+          return 'Packing completed';
+        case 'IN_PROGRESS':
+          return 'Packing started';
+        case 'PENDING':
+          return 'Packing pending';
+        default:
+          return 'Packing in progress';
+      }
+    }
+    
+    // Normalize notes for comparison
+    const normalizedNote = notes.toLowerCase().trim();
+    
+    // Only filter out truly generic auto-generated status messages
+    const genericMessages = [
+      'packing started',
+      'packing complete', 
+      'packing completed',
+      'bulk packing started',
+      'bulk packing completed',
+      'starting packing'
+    ];
+    
+    // Check if this is an exact match for generic status messages
+    const isGenericStatus = genericMessages.some(msg => normalizedNote === msg);
+    
+    // If it's a generic status message, show status-based message instead
+    if (isGenericStatus) {
+      switch (status) {
+        case 'PACKED':
+          return 'Packing completed';
+        case 'IN_PROGRESS':
+          return 'Packing started';
+        case 'PENDING':
+          return 'Packing pending';
+        default:
+          return 'Packing in progress';
+      }
+    }
+    
+    // Show all other notes (including reasons, manual notes, etc.)
+    return notes;
+  };
+
   const statusBadge = (status) => {
     const styles = {
       PENDING: "bg-gray-100 text-gray-700 border-gray-200",
@@ -263,21 +317,19 @@ export default function PackingHistory() {
                       )}
                     </td>
                     <td className="px-3 sm:px-6 py-3">
-                      {h.notes ? (
-                        <div className="max-w-xs">
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
-                            {h.notes.includes('[ADMIN OVERRIDE]') ? (
-                              <span className="text-orange-600 font-semibold">
-                                {h.notes}
-                              </span>
-                            ) : (
-                              h.notes
-                            )}
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
+                      <div className="max-w-xs">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+                          {h.notes && h.notes.includes('[ADMIN OVERRIDE]') ? (
+                            <span className="text-orange-600 font-semibold">
+                              {h.notes}
+                            </span>
+                          ) : (
+                            <span className="text-gray-700">
+                              {getStatusMessage(h.packing_status, h.notes)}
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ))}

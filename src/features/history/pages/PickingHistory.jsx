@@ -76,6 +76,69 @@ export default function PickingHistory() {
     navigate(`/invoices/${invoiceId}`);
   };
 
+  const getStatusMessage = (status, notes) => {
+    // Handle special admin override and re-pick cases - always show these
+    if (notes && notes.includes('[ADMIN OVERRIDE]')) {
+      return notes;
+    }
+    
+    if (notes && notes.includes('[RE-PICK]')) {
+      return notes;
+    }
+    
+    // If there are no notes, show status-based message
+    if (!notes || !notes.trim()) {
+      switch (status) {
+        case 'PICKED':
+          return 'Picking completed';
+        case 'PREPARING':
+          return 'Picking started';
+        case 'VERIFIED':
+          return 'Picking verified';
+        default:
+          return 'Picking in progress';
+      }
+    }
+    
+    // Normalize notes for comparison
+    const normalizedNote = notes.toLowerCase().trim();
+    
+    // Generic messages that should be replaced with status-based messages
+    const genericMessages = [
+      'picking started',
+      'picking complete', 
+      'picking completed',
+      'bulk picking started',
+      'bulk picking completed',
+      'starting picking'
+    ];
+    
+    // Check if this is an exact match or contains generic status messages
+    const isGenericStatus = genericMessages.some(msg => normalizedNote === msg || 
+      (normalizedNote.includes(msg) && normalizedNote.length < msg.length + 10)); // Allow for minor variations
+    
+    // Special handling for status-note mismatch: if status is PICKED but notes suggest starting
+    const isStatusMismatch = (status === 'PICKED' && normalizedNote.includes('start')) ||
+                            (status === 'PREPARING' && normalizedNote.includes('complet'));
+    
+    // If it's a generic status message or there's a mismatch, show status-based message instead
+    if (isGenericStatus || isStatusMismatch) {
+      switch (status) {
+        case 'PICKED':
+          return 'Picking completed';
+        case 'PREPARING':
+          return 'Picking started';
+        case 'VERIFIED':
+          return 'Picking verified';
+        default:
+          return 'Picking in progress';
+      }
+    }
+    
+    // Show all other notes (including reasons, manual notes, etc.)
+    return notes;
+  };
+
   const formatDuration = (minutes) => {
     if (!minutes) return "-";
     if (minutes < 60) return `${Math.round(minutes)} min`;
@@ -273,21 +336,19 @@ export default function PickingHistory() {
                       )}
                     </td>
                     <td className="px-3 sm:px-6 py-3">
-                      {h.notes ? (
-                        <div className="max-w-xs">
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
-                            {h.notes.includes('[ADMIN OVERRIDE]') ? (
-                              <span className="text-orange-600 font-semibold">
-                                {h.notes}
-                              </span>
-                            ) : (
-                              h.notes
-                            )}
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
+                      <div className="max-w-xs">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+                          {h.notes && h.notes.includes('[ADMIN OVERRIDE]') ? (
+                            <span className="text-orange-600 font-semibold">
+                              {h.notes}
+                            </span>
+                          ) : (
+                            <span className="text-gray-700">
+                              {getStatusMessage(h.picking_status, h.notes)}
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -1,19 +1,30 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../../../services/api";
-import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import { formatQuantity } from "../../../utils/formatters";
+import { useAuth } from "../../auth/AuthContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-export default function BoxAssignmentPage() {
-  const { invoiceNo } = useParams();
+export default function ConsolidatedPackingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+  
+  // Get bill IDs from location state
+  const billIds = location.state?.billIds || [];
+  const customerName = location.state?.customerName || "";
+
+  // Helper function to get role-aware paths
+  const getPath = (path) => {
+    const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
+    return isOpsUser ? `/ops${path}` : path;
+  };
 
   const [loading, setLoading] = useState(true);
-  const [bill, setBill] = useState(null);
+  const [bills, setBills] = useState([]);
+  const [consolidatedItems, setConsolidatedItems] = useState([]);
   const [boxes, setBoxes] = useState([]);
   const [nextBoxId, setNextBoxId] = useState(1);
   const [completing, setCompleting] = useState(false);
@@ -34,17 +45,23 @@ export default function BoxAssignmentPage() {
   const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
   
-  const isReInvoiced = bill?.billing_status === "RE_INVOICED";
-  const isReviewInvoice = bill?.billing_status === "REVIEW" && Boolean(bill?.return_info);
+  // Check if any bill has review status
+  const hasReviewStatus = bills.some(b => b.billing_status === "REVIEW" && b.return_info);
+  const hasReInvoicedStatus = bills.some(b => b.billing_status === "RE_INVOICED");
   const hasIssues = savedIssues.length > 0;
 
   useEffect(() => {
-    loadBillDetails();
-  }, [invoiceNo]);
+    if (billIds.length === 0) {
+      toast.error("No bills provided for consolidated packing");
+      navigate(-1);
+      return;
+    }
+    loadBillsDetails();
+  }, []);
   
-  // SSE live updates for RE_INVOICED bills
+  // SSE live updates for RE_INVOICED bills in consolidated packing
   useEffect(() => {
-    if (!user) return;
+    if (!user || bills.length === 0) return;
     
     let es = null;
     let reconnectTimeout = null;
@@ -63,17 +80,20 @@ export default function BoxAssignmentPage() {
           const data = JSON.parse(event.data);
           if (!data.invoice_no) return;
           
+          // Check if this invoice is part of our consolidated bills
+          const isOurBill = billIds.includes(data.invoice_no);
+          
           // Handle RE_INVOICED bills - corrected and sent back from PACKING section
-          if (data.billing_status === "RE_INVOICED" && 
+          if (isOurBill &&
+              data.billing_status === "RE_INVOICED" && 
               data.return_info?.returned_from_section === "PACKING" &&
-              data.return_info?.returned_by_email === user?.email &&
-              data.invoice_no === invoiceNo) {
-            console.log('🔄 RE_INVOICED packing bill received for current user');
+              data.return_info?.returned_by_email === user?.email) {
+            console.log('🔄 RE_INVOICED packing bill received for consolidated packing');
             toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, {
               duration: 4000,
               icon: '✓'
             });
-            loadBillDetails();
+            loadBillsDetails();
           }
         } catch (e) {
           console.error("Bad SSE data", e);
@@ -94,16 +114,61 @@ export default function BoxAssignmentPage() {
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (es) es.close();
     };
-  }, [user, invoiceNo]);
+  }, [user, bills, billIds]);
 
-  const loadBillDetails = async () => {
+  const loadBillsDetails = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/sales/packing/bill/${invoiceNo}/`);
-      setBill(res.data?.data);
+      
+      // Fetch details for all bills
+      const billPromises = billIds.map(id => 
+        api.get(`/sales/packing/bill/${id}/`)
+      );
+      
+      const responses = await Promise.all(billPromises);
+      const billsData = responses.map(res => res.data?.data).filter(Boolean);
+      
+      setBills(billsData);
+      
+      // Consolidate items from all bills
+      const itemsMap = new Map();
+      
+      billsData.forEach(bill => {
+        bill.items?.forEach(item => {
+          const key = item.item_code || item.code || item.id;
+          
+          if (itemsMap.has(key)) {
+            const existing = itemsMap.get(key);
+            existing.totalQuantity += (item.quantity || item.qty || 0);
+            existing.bills.push({
+              billNo: bill.invoice_no,
+              quantity: item.quantity || item.qty || 0
+            });
+          } else {
+            itemsMap.set(key, {
+              id: item.id,
+              itemId: key,
+              itemCode: item.code || item.item_code || item.itemCode,
+              itemName: item.name || item.item_name,
+              mrp: item.mrp,
+              batchNumber: item.batch_number || item.batchNumber || item.batch,
+              expiryDate: item.expiry_date || item.expiryDate,
+              package: item.package || item.packaging || item.pkg || item.packing,
+              totalQuantity: item.quantity || item.qty || 0,
+              bills: [{
+                billNo: bill.invoice_no,
+                quantity: item.quantity || item.qty || 0
+              }]
+            });
+          }
+        });
+      });
+      
+      setConsolidatedItems(Array.from(itemsMap.values()));
+      
     } catch (err) {
-      console.error("Failed to load bill details", err);
-      toast.error("Failed to load bill details");
+      console.error("Failed to load bills details", err);
+      toast.error("Failed to load bills details");
       navigate(-1);
     } finally {
       setLoading(false);
@@ -112,8 +177,8 @@ export default function BoxAssignmentPage() {
   
   // Review feature functions
   const openReviewPopup = (item) => {
-    if (isReviewInvoice) return;
-    const existing = savedIssues.find((i) => i.item === item.name);
+    if (hasReviewStatus) return;
+    const existing = savedIssues.find((i) => i.item === item.itemName);
 
     if (existing) {
       const checks = {
@@ -160,52 +225,61 @@ export default function BoxAssignmentPage() {
       return;
     }
     setSavedIssues((prev) => {
-      const idx = prev.findIndex((i) => i.item === reviewPopup.item.name);
+      const idx = prev.findIndex((i) => i.item === reviewPopup.item.itemName);
       if (idx !== -1) {
         const copy = [...prev];
-        copy[idx] = { item: reviewPopup.item.name, issues };
+        copy[idx] = { item: reviewPopup.item.itemName, issues, bills: reviewPopup.item.bills };
         return copy;
       }
-      return [...prev, { item: reviewPopup.item.name, issues }];
+      return [...prev, { item: reviewPopup.item.itemName, issues, bills: reviewPopup.item.bills }];
     });
     closeReviewPopup();
   };
 
   const handleSendInvoiceToReview = async () => {
-    if (!bill || isReviewInvoice || !savedIssues.length) {
-      toast.error(isReviewInvoice ? "Invoice already sent for review" : "No saved issues to send");
+    if (hasReviewStatus || !savedIssues.length) {
+      toast.error(hasReviewStatus ? "Invoices already sent for review" : "No saved issues to send");
       return;
     }
+    
     try {
       setLoading(true);
-      const notes = savedIssues.map((i) => `${i.item}: ${i.issues.join(", ")}`).join(" | ");
-      await api.post("/sales/billing/return/", {
-        invoice_no: bill.invoice_no,
-        return_reason: notes,
-        user_email: user.email,
-      });
-      toast.success("Invoice sent to billing review");
+      const notes = savedIssues.map((i) => `${i.item} (Bills: ${i.bills.map(b => b.billNo).join(', ')}): ${i.issues.join(", ")}`).join(" | ");
+      
+      // Send all bills for review
+      const reviewPromises = bills.map(bill => 
+        api.post("/sales/billing/return/", {
+          invoice_no: bill.invoice_no,
+          return_reason: `[Consolidated Packing] ${notes}`,
+          user_email: user.email,
+        })
+      );
+      
+      await Promise.all(reviewPromises);
+      
+      toast.success(`All ${bills.length} invoices sent to billing review`);
       setSavedIssues([]);
       
       // Reload to show updated status
-      await loadBillDetails();
+      await loadBillsDetails();
       
-      toast.info("This invoice is now under review. You'll be notified when it's corrected.", {
+      toast.info("These invoices are now under review. You'll be notified when corrected.", {
         duration: 5000,
         icon: '🔍'
       });
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to send invoice to review");
+      toast.error(err.response?.data?.message || "Failed to send invoices to review");
     } finally {
       setLoading(false);
     }
   };
 
   const generateBoxId = () => {
-    const billPrefix = invoiceNo.toString().slice(-4).padStart(4, '0');
-    const boxNum = nextBoxId.toString().padStart(3, '0');
+    // Use CUST prefix for consolidated customer-level packing
+    const customerPrefix = "CUST001";
+    const boxNum = nextBoxId.toString().padStart(2, '0');
     const timestamp = Date.now().toString().slice(-6);
-    return `BOX-${billPrefix}-${boxNum}-${timestamp}`;
+    return `${customerPrefix}-BOX${boxNum}-${timestamp}`;
   };
 
   const addNewBox = () => {
@@ -266,10 +340,11 @@ export default function BoxAssignmentPage() {
     
     setPrintedBoxes(prev => new Set([...prev, boxId]));
     
-    // Get customer details - PRIORITIZE delivery_address field
-    const customerName = bill?.customer?.name || bill?.customer_name || 'No Customer Name';
-    const customerAddress = bill?.delivery_address || bill?.customer?.address1 || bill?.customer?.address || 'No address provided';
-    const customerPhone = bill?.customer_phone || bill?.customer?.phone1 || bill?.customer?.phone || '';
+    // Get customer details from first bill - PRIORITIZE delivery_address
+    const firstBill = bills[0];
+    const custName = customerName || firstBill?.customer?.name || firstBill?.customer_name || 'No Customer Name';
+    const customerAddress = firstBill?.delivery_address || firstBill?.customer?.address1 || firstBill?.customer?.address || 'No address provided';
+    const customerPhone = firstBill?.customer_phone || firstBill?.customer?.phone1 || firstBill?.customer?.phone || '';
     
     // Create hidden iframe for printing
     const iframe = document.createElement('iframe');
@@ -438,7 +513,7 @@ export default function BoxAssignmentPage() {
               
               <!-- Customer Details Section -->
               <div class="customer-details">
-                <p class="customer-name">${customerName}</p>
+                <p class="customer-name">${custName}</p>
                 <p class="customer-address">${customerAddress}</p>
                 ${customerPhone ? `
                   <p class="customer-phone">TEL: ${customerPhone}</p>
@@ -508,9 +583,9 @@ export default function BoxAssignmentPage() {
   };
 
   const getRemainingQuantityForItem = (itemId) => {
-    const item = bill?.items?.find(i => i.id === itemId);
+    const item = consolidatedItems.find(i => i.itemId === itemId);
     if (!item) return 0;
-    const totalRequired = item.quantity || item.qty || 0;
+    const totalRequired = item.totalQuantity;
     const totalAssigned = getTotalAssignedForItem(itemId);
     return totalRequired - totalAssigned;
   };
@@ -527,7 +602,7 @@ export default function BoxAssignmentPage() {
       return;
     }
 
-    const remaining = getRemainingQuantityForItem(selectedItem.id);
+    const remaining = getRemainingQuantityForItem(selectedItem.itemId);
     if (quantity > remaining) {
       toast.error(`Cannot assign ${quantity}. Only ${remaining} remaining.`);
       return;
@@ -535,7 +610,7 @@ export default function BoxAssignmentPage() {
 
     setBoxes(prev => prev.map(box => {
       if (box.id === selectedBox.id) {
-        const existingIdx = box.items.findIndex(i => i.itemId === selectedItem.id);
+        const existingIdx = box.items.findIndex(i => i.itemId === selectedItem.itemId);
         if (existingIdx >= 0) {
           const updatedItems = [...box.items];
           updatedItems[existingIdx].quantity += quantity;
@@ -544,10 +619,11 @@ export default function BoxAssignmentPage() {
           return {
             ...box,
             items: [...box.items, {
-              itemId: selectedItem.id,
-              itemName: selectedItem.name || selectedItem.item_name,
-              itemCode: selectedItem.code,
+              itemId: selectedItem.itemId,
+              itemCode: selectedItem.itemCode,
+              itemName: selectedItem.itemName,
               quantity: quantity,
+              billBreakdown: selectedItem.bills,
             }]
           };
         }
@@ -584,15 +660,15 @@ export default function BoxAssignmentPage() {
   };
 
   const toggleSelectAll = () => {
-    const selectableItems = bill?.items?.filter(item => {
-      const remaining = getRemainingQuantityForItem(item.id);
+    const selectableItems = consolidatedItems.filter(item => {
+      const remaining = getRemainingQuantityForItem(item.itemId);
       return remaining > 0;
-    }) || [];
+    });
 
     if (selectedItems.length === selectableItems.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(selectableItems.map(item => item.id));
+      setSelectedItems(selectableItems.map(item => item.itemId));
     }
   };
 
@@ -614,7 +690,7 @@ export default function BoxAssignmentPage() {
         const newItems = [...box.items];
         
         selectedItems.forEach(itemId => {
-          const item = bill?.items?.find(i => i.id === itemId);
+          const item = consolidatedItems.find(i => i.itemId === itemId);
           if (!item) return;
 
           const remaining = getRemainingQuantityForItem(itemId);
@@ -625,10 +701,11 @@ export default function BoxAssignmentPage() {
             newItems[existingIdx].quantity += remaining;
           } else {
             newItems.push({
-              itemId: item.id,
-              itemName: item.name || item.item_name,
-              itemCode: item.code || item.item_code,
+              itemId: item.itemId,
+              itemName: item.itemName,
+              itemCode: item.itemCode,
               quantity: remaining,
+              billBreakdown: item.bills,
             });
           }
           assignedCount++;
@@ -686,7 +763,7 @@ export default function BoxAssignmentPage() {
       return;
     }
 
-    const remaining = getRemainingQuantityForItem(draggedItem.id);
+    const remaining = getRemainingQuantityForItem(draggedItem.itemId);
     
     if (remaining <= 0) {
       toast.error("All items already assigned");
@@ -698,7 +775,7 @@ export default function BoxAssignmentPage() {
 
     setBoxes(prev => prev.map(b => {
       if (b.id === box.id) {
-        const existingIdx = b.items.findIndex(i => i.itemId === draggedItem.id);
+        const existingIdx = b.items.findIndex(i => i.itemId === draggedItem.itemId);
         if (existingIdx >= 0) {
           const updatedItems = [...b.items];
           updatedItems[existingIdx].quantity += quantityToAssign;
@@ -707,10 +784,11 @@ export default function BoxAssignmentPage() {
           return {
             ...b,
             items: [...b.items, {
-              itemId: draggedItem.id,
-              itemName: draggedItem.name || draggedItem.item_name,
-              itemCode: draggedItem.code || draggedItem.item_code,
+              itemId: draggedItem.itemId,
+              itemCode: draggedItem.itemCode,
+              itemName: draggedItem.itemName,
               quantity: quantityToAssign,
+              billBreakdown: draggedItem.bills,
             }]
           };
         }
@@ -718,7 +796,7 @@ export default function BoxAssignmentPage() {
       return b;
     }));
 
-    toast.success(`Assigned ${quantityToAssign} ${draggedItem.name || draggedItem.item_name} to ${box.boxId}`);
+    toast.success(`Assigned ${quantityToAssign} ${draggedItem.itemName} to ${box.boxId}`);
     setDraggedItem(null);
   };
 
@@ -740,12 +818,12 @@ export default function BoxAssignmentPage() {
       validationErrors.push(`${emptyBoxes.length} box(es) are empty. Please remove empty boxes or assign items to them.`);
     }
 
-    bill?.items?.forEach(item => {
-      const remaining = getRemainingQuantityForItem(item.id);
+    consolidatedItems.forEach(item => {
+      const remaining = getRemainingQuantityForItem(item.itemId);
       if (remaining > 0) {
-        validationErrors.push(`Item "${item.name || item.item_name}" has ${remaining} units unassigned`);
+        validationErrors.push(`Item "${item.itemName}" has ${remaining} units unassigned`);
       } else if (remaining < 0) {
-        validationErrors.push(`Item "${item.name || item.item_name}" is over-assigned by ${Math.abs(remaining)} units`);
+        validationErrors.push(`Item "${item.itemName}" is over-assigned by ${Math.abs(remaining)} units`);
       }
     });
 
@@ -772,16 +850,43 @@ export default function BoxAssignmentPage() {
           item_name: item.itemName,
           item_code: item.itemCode,
           quantity: item.quantity,
+          bill_breakdown: item.billBreakdown,
         }))
       }));
 
-      await api.post("/sales/packing/complete-packing/", {
-        invoice_no: invoiceNo,
+      const response = await api.post("/sales/packing/complete-consolidated-packing/", {
+        invoice_numbers: billIds,
+        customer_name: customerName,
         boxes: boxData,
       });
 
-      toast.success("Packing completed successfully!");
-      navigate("/packing/my");
+      toast.success("Consolidated packing completed successfully!");
+      
+      const consolidatedId = response.data?.data?.consolidated_id || response.data?.consolidated_id || `C-${Date.now()}`;
+      
+      const firstBill = bills[0];
+      const customerPhone = firstBill?.customer_phone || firstBill?.customer?.phone1 || firstBill?.customer?.phone || "";
+      const deliveryAddress = firstBill?.delivery_address || firstBill?.customer?.address1 || firstBill?.customer?.address || "";
+      
+      const consolidatedPackingData = {
+        invoice_no: consolidatedId,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        delivery_address: deliveryAddress,
+        related_bills: billIds,
+        boxes: boxes.map(box => ({
+          box_id: box.boxId,
+          items: box.items.map(item => ({
+            item_name: item.itemName,
+            item_code: item.itemCode,
+            quantity: item.quantity,
+          }))
+        }))
+      };
+      
+      navigate(getPath(`/packing/print-labels/${consolidatedId}`), {
+        state: { consolidatedData: consolidatedPackingData }
+      });
       
     } catch (err) {
       console.error("Complete packing error:", err);
@@ -789,14 +894,12 @@ export default function BoxAssignmentPage() {
       
       const errorData = err.response?.data;
       if (errorData?.errors) {
-        console.error("Validation errors:", JSON.stringify(errorData.errors, null, 2));
-        
         const errorMessages = Object.entries(errorData.errors)
           .map(([field, messages]) => {
             if (Array.isArray(messages)) {
-              return `${field}: ${messages.join(', ')}`;
+              return messages.join(', ');
             }
-            return `${field}: ${messages}`;
+            return messages;
           })
           .join(' | ');
         toast.error(`Validation failed: ${errorMessages}`);
@@ -820,17 +923,17 @@ export default function BoxAssignmentPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading bill details...</p>
+          <p className="mt-4 text-gray-600">Loading bills details...</p>
         </div>
       </div>
     );
   }
 
-  if (!bill) {
+  if (bills.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600">Bill not found</p>
+          <p className="text-red-600">No bills found</p>
           <button 
             onClick={() => navigate(-1)}
             className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg"
@@ -844,48 +947,66 @@ export default function BoxAssignmentPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto px-3 py-3">
+      <div className="max-w-7xl mx-auto px-2 py-3">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow p-4 mb-4">
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-800">Box Assignment</h1>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                <span><strong>Invoice:</strong> #{bill.invoice_no}</span>
-                <span className="text-gray-400">•</span>
-                <span><strong>Customer:</strong> {bill.customer?.name || bill.customer_name}</span>
-              </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Consolidated Packing – Customer Level</h1>
+              <p className="text-sm text-gray-600">
+                {customerName && customerName !== "No customer name" 
+                  ? "Packing multiple bills for the same customer"
+                  : "Packing multiple bills together"}
+              </p>
+            </div>
+          </div>
+
+          {/* Customer Info */}
+          <div className="border-t pt-3 space-y-1 text-sm mb-3">
+            <p><strong>Customer:</strong> {customerName || "No customer name"}</p>
+            <p><strong>Delivery Address:</strong> {bills[0]?.delivery_address || bills[0]?.customer?.address1 || bills[0]?.customer?.address || 'No address provided'}</p>
+          </div>
+
+          {/* Bill Numbers */}
+          <div className="border-t pt-3">
+            <p className="text-sm font-semibold text-gray-700 mb-2">Related Bills ({bills.length}):</p>
+            <div className="flex flex-wrap gap-2">
+              {bills.map(bill => (
+                <span 
+                  key={bill.invoice_no} 
+                  className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-semibold"
+                >
+                  #{bill.invoice_no}
+                </span>
+              ))}
             </div>
           </div>
         </div>
 
         {/* RE_INVOICED Status Banner */}
-        {isReInvoiced && bill.return_info && (
+        {hasReInvoicedStatus && (
           <div className="bg-teal-50 border border-teal-300 rounded-lg p-3 mb-4 flex items-start gap-3">
             <svg className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="flex-1">
-              <h3 className="font-bold text-teal-900 text-base mb-1">Invoice Corrected & Ready</h3>
-              <p className="text-sm text-teal-800">This invoice has been corrected. Continue packing!</p>
+              <h3 className="font-bold text-teal-900 text-base mb-1">Invoices Corrected & Ready</h3>
+              <p className="text-sm text-teal-800">One or more invoices have been corrected. Continue packing!</p>
             </div>
           </div>
         )}
 
         {/* REVIEW Status Banner */}
-        {isReviewInvoice && bill.return_info && (
+        {hasReviewStatus && (
           <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 mb-4 flex items-start gap-3">
             <svg className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div className="flex-1">
-              <h3 className="font-bold text-orange-900 text-base mb-2">Invoice Sent to Billing Review</h3>
+              <h3 className="font-bold text-orange-900 text-base mb-2">Invoices Sent to Billing Review</h3>
               <div className="bg-white rounded-lg p-2 border border-orange-200">
-                <p className="text-sm text-orange-800 mb-1">
-                  <strong>Reason:</strong> {bill.return_info.return_reason}
-                </p>
                 <p className="text-xs text-orange-700">
-                  You'll be notified when the billing team corrects this invoice.
+                  One or more invoices in this consolidated packing are under review. You'll be notified when the billing team corrects them.
                 </p>
               </div>
             </div>
@@ -893,7 +1014,7 @@ export default function BoxAssignmentPage() {
         )}
 
         {/* Saved Issues Section */}
-        {hasIssues && !isReviewInvoice && (
+        {hasIssues && !hasReviewStatus && (
           <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 mb-4">
             <div className="flex items-center gap-2 mb-2">
               <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -908,6 +1029,9 @@ export default function BoxAssignmentPage() {
                 <div key={idx} className="bg-white border border-orange-200 rounded p-2">
                   <p className="font-medium text-orange-900 text-sm">{issue.item}</p>
                   <p className="text-orange-700 text-xs">{issue.issues.join(", ")}</p>
+                  <p className="text-orange-600 text-[10px] mt-0.5">
+                    Affects: {issue.bills.map(b => b.billNo).join(', ')}
+                  </p>
                 </div>
               ))}
             </div>
@@ -933,53 +1057,60 @@ export default function BoxAssignmentPage() {
 
         {/* Main Content Grid */}
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 transition-opacity duration-300 ${
-          isReviewInvoice ? 'opacity-50 pointer-events-none' : 'opacity-100'
+          hasReviewStatus ? 'opacity-50 pointer-events-none' : 'opacity-100'
         }`}>
-          {/* Items List */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-800">
-                Items ({bill.items?.length || 0})
-              </h2>
-              <label className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 text-sm">
+          {/* Consolidated Items List */}
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  Combined Items ({consolidatedItems.length})
+                </h2>
+              </div>
+              <label className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
                 <input
                   type="checkbox"
-                  checked={selectedItems.length > 0 && selectedItems.length === bill.items?.filter(item => getRemainingQuantityForItem(item.id) > 0).length}
+                  checked={selectedItems.length > 0 && selectedItems.length === consolidatedItems.filter(item => getRemainingQuantityForItem(item.itemId) > 0).length}
                   onChange={toggleSelectAll}
-                  className="w-4 h-4 text-teal-600 rounded"
+                  className="w-4 h-4 text-teal-600 rounded focus:ring-2 focus:ring-teal-500"
                 />
-                <span className="font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700">
                   {selectedItems.length > 0 
-                    ? `${selectedItems.length} selected`
-                    : "Select All"}
+                    ? `${selectedItems.length} items selected - Click to deselect all`
+                    : "Select All Items"}
                 </span>
               </label>
             </div>
             
-            <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
-              {bill.items?.map((item) => {
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {consolidatedItems.map((item) => {
                 // Disable interactions when in review
-                const isDisabled = isReviewInvoice;
-                const totalRequired = item.quantity || item.qty || 0;
-                const totalAssigned = getTotalAssignedForItem(item.id);
+                const isDisabled = hasReviewStatus;
+                const totalRequired = item.totalQuantity;
+                const totalAssigned = getTotalAssignedForItem(item.itemId);
                 const remaining = totalRequired - totalAssigned;
                 const isFullyAssigned = remaining === 0;
                 const isOverAssigned = remaining < 0;
-
-                const isSelected = selectedItems.includes(item.id);
+                const isSelected = selectedItems.includes(item.itemId);
 
                 return (
                   <div
-                    key={item.id}
-                    draggable={!isFullyAssigned}
-                    onDragStart={(e) => !isFullyAssigned && handleDragStart(e, item)}
+                    key={item.itemId}
+                    draggable={!isFullyAssigned && !isDisabled}
+                    onDragStart={(e) => !isFullyAssigned && !isDisabled && handleDragStart(e, item)}
                     onDragEnd={handleDragEnd}
                     className={`p-3 rounded-lg border-2 transition-all ${
-                      isFullyAssigned ? "cursor-not-allowed" : "cursor-move"
+                      isDisabled
+                        ? "cursor-not-allowed"
+                        : isFullyAssigned
+                        ? "cursor-not-allowed"
+                        : "cursor-move"
                     } ${
-                      isSelected
+                      isDisabled
+                        ? "border-gray-200 bg-gray-50"
+                        : isSelected
                         ? "border-teal-500 bg-teal-50"
-                        : selectedItem?.id === item.id
+                        : selectedItem?.itemId === item.itemId
                         ? "border-teal-500 bg-teal-50"
                         : isFullyAssigned
                         ? "border-green-500 bg-green-50"
@@ -995,9 +1126,10 @@ export default function BoxAssignmentPage() {
                           checked={isSelected}
                           onChange={(e) => {
                             e.stopPropagation();
-                            toggleItemSelection(item.id);
+                            toggleItemSelection(item.itemId);
                           }}
-                          className="w-4 h-4 text-teal-600 rounded flex-shrink-0"
+                          disabled={isDisabled}
+                          className="w-4 h-4 text-teal-600 rounded flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       )}
                       <div 
@@ -1006,34 +1138,31 @@ export default function BoxAssignmentPage() {
                         style={{ cursor: isDisabled ? 'not-allowed' : (!isFullyAssigned ? 'pointer' : 'default') }}
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-base font-semibold text-gray-800 truncate">
-                            {item.name || item.item_name}
+                          <p className="font-semibold text-gray-800 truncate">
+                            {item.itemName}
                           </p>
+                          {(item.itemCode || item.code || item.item_code) && (
+                            <p className="text-xs text-gray-600">Code: {item.itemCode || item.code || item.item_code}</p>
+                          )}
                           
                           {/* Item Details */}
                           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
-                            {(item.code || item.item_code || item.itemCode) && (
-                              <span className="flex items-center gap-1">
-                                <span className="font-semibold">Code:</span>
-                                <span>{item.code || item.item_code || item.itemCode}</span>
-                              </span>
-                            )}
                             {item.mrp && (
                               <span className="flex items-center gap-1">
                                 <span className="font-semibold">MRP:</span>
                                 <span className="text-green-700 font-bold">₹{parseFloat(item.mrp).toFixed(2)}</span>
                               </span>
                             )}
-                            {(item.batch_number || item.batchNumber || item.batch) && (
+                            {(item.batchNumber || item.batch_number || item.batch) && (
                               <span className="flex items-center gap-1">
                                 <span className="font-semibold">Batch:</span>
-                                <span>{item.batch_number || item.batchNumber || item.batch}</span>
+                                <span>{item.batchNumber || item.batch_number || item.batch}</span>
                               </span>
                             )}
-                            {item.expiry_date && (
+                            {(item.expiryDate || item.expiry_date) && (
                               <span className="flex items-center gap-1">
                                 <span className="font-semibold">Exp:</span>
-                                <span className="text-orange-700">{new Date(item.expiry_date).toLocaleDateString('en-GB')}</span>
+                                <span className="text-orange-700">{new Date(item.expiryDate || item.expiry_date).toLocaleDateString('en-GB')}</span>
                               </span>
                             )}
                             {(item.package || item.packaging || item.pkg || item.packing) && (
@@ -1052,19 +1181,44 @@ export default function BoxAssignmentPage() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between text-sm border-t pt-2 border-gray-200">
-                      <span className="text-gray-600">Qty: <span className="font-bold text-gray-800">{formatQuantity(totalRequired, 'pcs')}</span></span>
-                      {(totalAssigned > 0 || isOverAssigned) && (
-                        <span className={`text-sm font-semibold ${
-                          isFullyAssigned ? "text-green-600" : isOverAssigned ? "text-red-600" : "text-amber-600"
-                        }`}>
-                          Assigned: {formatQuantity(totalAssigned, 'pcs')}
+                    {/* Bill breakdown */}
+                    <div className="mb-2 text-xs text-gray-600">
+                      <span className="font-semibold">From bills:</span>{" "}
+                      {item.bills.map((b, idx) => (
+                        <span key={idx}>
+                          #{b.billNo} ({formatQuantity(b.quantity, 'pcs')})
+                          {idx < item.bills.length - 1 ? ", " : ""}
                         </span>
-                      )}
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Total Required:</span>
+                      <span className="font-bold">{formatQuantity(totalRequired, 'pcs')}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Assigned:</span>
+                      <span className={`font-bold ${
+                        isFullyAssigned ? "text-green-600" : 
+                        isOverAssigned ? "text-red-600" : 
+                        "text-amber-600"
+                      }`}>
+                        {formatQuantity(totalAssigned, 'pcs')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Remaining:</span>
+                      <span className={`font-bold ${
+                        isFullyAssigned ? "text-green-600" : 
+                        isOverAssigned ? "text-red-600" : 
+                        "text-amber-600"
+                      }`}>
+                        {formatQuantity(remaining, 'pcs')}
+                      </span>
                     </div>
                     
                     {/* Report Issue Button */}
-                    {!isReviewInvoice && (
+                    {!hasReviewStatus && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1072,7 +1226,7 @@ export default function BoxAssignmentPage() {
                         }}
                         disabled={isDisabled}
                         className={`w-full mt-3 py-2.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 border disabled:opacity-50 disabled:cursor-not-allowed ${
-                          savedIssues.find(i => i.item === item.name)
+                          savedIssues.find(i => i.item === item.itemName)
                             ? "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100"
                             : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
                         }`}
@@ -1094,8 +1248,8 @@ export default function BoxAssignmentPage() {
             {/* Bulk Assignment Control */}
             {selectedItems.length > 0 ? (
               <div className="bg-teal-50 border-2 border-teal-500 rounded-lg p-4">
-                <h3 className="font-semibold text-teal-900 mb-3">
-                  Assign {selectedItems.length} Selected Item{selectedItems.length > 1 ? 's' : ''} to Box
+                <h3 className="font-semibold text-teal-900 text-base mb-3">
+                  Assign {selectedItems.length} Item{selectedItems.length > 1 ? 's' : ''} to Box
                 </h3>
                 <div className="space-y-3">
                   <select
@@ -1141,10 +1295,10 @@ export default function BoxAssignmentPage() {
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm font-semibold text-gray-800">
-                      {selectedItem.name || selectedItem.item_name}
+                      {selectedItem.itemName}
                     </p>
                     <p className="text-xs text-gray-600">
-                      Left: {formatQuantity(getRemainingQuantityForItem(selectedItem.id), 'pcs')}
+                      Left: {formatQuantity(getRemainingQuantityForItem(selectedItem.itemId), 'pcs')}
                     </p>
                   </div>
 
@@ -1205,7 +1359,7 @@ export default function BoxAssignmentPage() {
                 {boxes.length === 0 || (boxes.length > 0 && completedBoxes.has(boxes[boxes.length - 1].id)) ? (
                   <button
                     onClick={addNewBox}
-                    disabled={isReviewInvoice}
+                    disabled={hasReviewStatus}
                     className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     + Add Box
@@ -1323,8 +1477,7 @@ export default function BoxAssignmentPage() {
                       </button>
                     )}
                   </div>
-                  ))
-                )}
+                )))}
               </div>
             </div>
           </div>
@@ -1335,7 +1488,7 @@ export default function BoxAssignmentPage() {
           <div className="max-w-7xl mx-auto">
             <div className="flex gap-3">
               {/* Send to Review Button */}
-              {hasIssues && !isReviewInvoice && (
+              {hasIssues && !hasReviewStatus && (
                 <button
                   onClick={handleSendInvoiceToReview}
                   disabled={loading}
@@ -1344,22 +1497,22 @@ export default function BoxAssignmentPage() {
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  Send to Review ({savedIssues.length})
+                  Send All to Review ({savedIssues.length})
                 </button>
               )}
               
               {/* Complete Packing Button */}
               <button
                 onClick={handleCompletePacking}
-                disabled={completing || (hasIssues && !isReInvoiced) || isReviewInvoice}
+                disabled={completing || (hasIssues && !hasReInvoicedStatus) || hasReviewStatus}
                 className={`py-3.5 rounded-lg text-lg font-bold transition-all shadow-lg disabled:opacity-50 ${
                   hasIssues ? 'flex-1' : 'w-full'
                 } ${
-                  hasIssues && !isReInvoiced
+                  (hasIssues && !hasReInvoicedStatus) || hasReviewStatus
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-teal-600 text-white hover:bg-teal-700'
                 }`}
-                title={hasIssues && !isReInvoiced ? "Resolve issues first or send to review" : ""}
+                title={(hasIssues && !hasReInvoicedStatus) || hasReviewStatus ? "Resolve issues first or send to review" : ""}
               >
                 {completing ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1374,7 +1527,7 @@ export default function BoxAssignmentPage() {
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    {hasIssues ? "Resolve Issues First" : isReviewInvoice ? "Under Review" : "Mark as PACKED & Ready"}
+                    {hasIssues ? "Resolve Issues First" : hasReviewStatus ? "Under Review" : "Mark as PACKED & Ready"}
                   </span>
                 )}
               </button>
@@ -1401,8 +1554,13 @@ export default function BoxAssignmentPage() {
               </div>
               <div className="p-3 space-y-2">
                 <div className="bg-gray-50 p-2 rounded-lg">
-                  <p className="font-semibold text-xs text-gray-900">{reviewPopup.item?.name || reviewPopup.item?.item_name}</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">{reviewPopup.item?.code || reviewPopup.item?.item_code || reviewPopup.item?.sku}</p>
+                  <p className="font-semibold text-xs text-gray-900">{reviewPopup.item?.itemName}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{reviewPopup.item?.itemCode}</p>
+                  {reviewPopup.item?.bills && (
+                    <p className="text-[10px] text-gray-600 mt-1">
+                      Affects: {reviewPopup.item.bills.map(b => `#${b.billNo}`).join(', ')}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gray-700">Select Issues:</p>

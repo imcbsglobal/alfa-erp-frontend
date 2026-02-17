@@ -85,3 +85,8 @@ export const cancelSession = (data) =>
 export const getInvoiceReport = (params = {}) => {
   return api.get("/sales/invoice-report/", { params });
 };
+
+// Get billing user summary showing how many bills each user has created
+export const getBillingUserSummary = (params = {}) => {
+  return api.get("/sales/billing/user-summary/", { params });
+};

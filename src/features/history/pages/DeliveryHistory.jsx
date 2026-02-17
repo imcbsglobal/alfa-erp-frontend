@@ -80,6 +80,60 @@ export default function DeliveryHistory() {
     return `${hours}h ${mins}m`;
   };
 
+  const getStatusMessage = (status, notes) => {
+    // Handle special admin override cases - always show these
+    if (notes && notes.includes('[ADMIN OVERRIDE]')) {
+      return notes;
+    }
+    
+    // If there are no notes, show status-based message
+    if (!notes || !notes.trim()) {
+      switch (status) {
+        case 'DELIVERED':
+          return 'Delivery completed';
+        case 'IN_TRANSIT':
+          return 'Delivery started';
+        case 'PENDING':
+          return 'Delivery pending';
+        default:
+          return 'Delivery in progress';
+      }
+    }
+    
+    // Normalize notes for comparison
+    const normalizedNote = notes.toLowerCase().trim();
+    
+    // Only filter out truly generic auto-generated status messages
+    const genericMessages = [
+      'delivery started',
+      'delivery complete', 
+      'delivery completed',
+      'bulk delivery started',
+      'bulk delivery completed',
+      'starting delivery'
+    ];
+    
+    // Check if this is an exact match for generic status messages
+    const isGenericStatus = genericMessages.some(msg => normalizedNote === msg);
+    
+    // If it's a generic status message, show status-based message instead
+    if (isGenericStatus) {
+      switch (status) {
+        case 'DELIVERED':
+          return 'Delivery completed';
+        case 'IN_TRANSIT':
+          return 'Delivery started';
+        case 'PENDING':
+          return 'Delivery pending';
+        default:
+          return 'Delivery in progress';
+      }
+    }
+    
+    // Show all other notes (including reasons, manual notes, etc.)
+    return notes;
+  };
+
   const getShortLocation = (address) => {
     if (!address) return "No location";
     // Extract city/area name from address (first meaningful part)
@@ -321,21 +375,19 @@ export default function DeliveryHistory() {
                         )}
                       </td>
                       <td className="px-6 py-3">
-                        {h.notes ? (
-                          <div className="max-w-xs">
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
-                              {h.notes.includes('[ADMIN OVERRIDE]') ? (
-                                <span className="text-orange-600 font-semibold">
-                                  {h.notes}
-                                </span>
-                              ) : (
-                                h.notes
-                              )}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
+                        <div className="max-w-xs">
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+                            {h.notes && h.notes.includes('[ADMIN OVERRIDE]') ? (
+                              <span className="text-orange-600 font-semibold">
+                                {h.notes}
+                              </span>
+                            ) : (
+                              <span className="text-gray-700">
+                                {getStatusMessage(h.delivery_status, h.notes)}
+                              </span>
+                            )}
+                          </p>
+                        </div>
                       </td>
                     </tr>
                   ))}

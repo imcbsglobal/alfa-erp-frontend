@@ -33,6 +33,8 @@ export default function MyInvoiceListPage() {
   }, []);
 
   useEffect(() => {
+    if (!user) return;
+    
     let es = null;
     let reconnectTimeout = null;
     let reconnectAttempts = 0;
@@ -49,13 +51,77 @@ export default function MyInvoiceListPage() {
         try {
           const data = JSON.parse(event.data);
           if (!data.invoice_no) return;
+          
+          console.log('🔔 Picking SSE event:', {
+            invoice_no: data.invoice_no,
+            type: data.type,
+            billing_status: data.billing_status,
+            returned_from_section: data.return_info?.returned_from_section,
+            returned_by_email: data.return_info?.returned_by_email,
+            user_email: user?.email
+          });
+          
+          // Handle RE_INVOICED bills - corrected and sent back from PICKING section
           if (data.billing_status === "RE_INVOICED" && 
+              data.return_info?.returned_from_section === "PICKING" &&
               data.return_info?.returned_by_email === user?.email) {
+            console.log('🔄 RE_INVOICED picking bill received for current user');
+            toast.success(`Bill #${data.invoice_no} has been corrected! Ready to pick.`, {
+              duration: 4000,
+              icon: '✓'
+            });
             loadActivePicking();
+            loadTodayCompletedPicking();
           }
+          
+          // Handle BILLED status - picking completed and billed
+          if (data.type === 'invoice_billed' || data.billing_status === 'BILLED') {
+            console.log('✅ Invoice billed - refresh completed list');
+            loadTodayCompletedPicking();
+            // If this was the active invoice, reload active picking
+            if (activeInvoice && data.invoice_no === activeInvoice.invoice_no) {
+              loadActivePicking();
+            }
+          }
+          
+          // Handle review events
           if (data.type === 'invoice_review' || data.type === 'invoice_returned') {
-            loadActivePicking();
+            console.log('🔍 Review event received');
+            // If the invoice under review belongs to current user, reload
+            if (data.return_info?.returned_by_email === user?.email ||
+                (activeInvoice && data.invoice_no === activeInvoice.invoice_no)) {
+              loadActivePicking();
+            }
           }
+          
+          // Handle picking_started event - someone started picking
+          if (data.type === 'picking_started') {
+            console.log('📦 Picking started event');
+            // If it's the current user who started, reload their active picking
+            if (data.picking_by_email === user?.email) {
+              loadActivePicking();
+            }
+          }
+          
+          // Handle picking_completed event
+          if (data.type === 'picking_completed') {
+            console.log('✅ Picking completed event');
+            // If it's the current user, reload completed and active
+            if (data.picking_by_email === user?.email) {
+              loadTodayCompletedPicking();
+              loadActivePicking();
+            }
+          }
+          
+          // Handle general invoice updates
+          if (data.type === 'invoice_updated') {
+            console.log('📝 Invoice updated');
+            // If it affects current user's active invoice, reload
+            if (activeInvoice && data.invoice_no === activeInvoice.invoice_no) {
+              loadActivePicking();
+            }
+          }
+          
         } catch (e) {
           console.error("Bad SSE data", e);
         }
@@ -65,6 +131,7 @@ export default function MyInvoiceListPage() {
         es.close();
         reconnectAttempts++;
         const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+        console.log(`📡 SSE reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
         reconnectTimeout = setTimeout(() => connect(), delay);
       };
     };
@@ -75,7 +142,7 @@ export default function MyInvoiceListPage() {
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (es) es.close();
     };
-  }, [user?.email]);
+  }, [user?.email, activeInvoice?.invoice_no]);
 
   useEffect(() => {
     if (activeInvoice?.invoice_no) {
@@ -91,15 +158,20 @@ export default function MyInvoiceListPage() {
       const res = await getActivePickingTask();
       const task = res.data?.data || null;
       
+      console.log('📦 Loading active picking task:', task?.invoice?.invoice_no);
+      
       if (!task) {
+        // No active task, check for RE_INVOICED bills
         const reInvoicedRes = await api.get("/sales/billing/invoices/", {
           params: { 
             billing_status: "RE_INVOICED",
-            returned_by_email: user?.email 
+            returned_by_email: user?.email,
+            returned_from_section: "PICKING"
           }
         });
         
         const reInvoicedBills = reInvoicedRes.data?.results || [];
+        console.log(`📦 Found ${reInvoicedBills.length} RE_INVOICED picking bills`);
         
         if (reInvoicedBills.length > 0) {
           const invoice = reInvoicedBills[0];
@@ -110,6 +182,10 @@ export default function MyInvoiceListPage() {
             });
             const newRes = await getActivePickingTask();
             setActivePickingTask(newRes.data?.data || null);
+            toast.success(`Resuming corrected bill #${invoice.invoice_no}`, {
+              duration: 3000,
+              icon: '✓'
+            });
           } catch (startErr) {
             console.error("Error auto-starting re-invoiced bill:", startErr);
             setActivePickingTask(null);
@@ -220,8 +296,15 @@ export default function MyInvoiceListPage() {
       });
       toast.success("Invoice sent to billing review");
       setSavedIssues([]);
+      
+      // Reload to show updated status
       await loadActivePicking();
       await loadTodayCompletedPicking();
+      
+      toast.info("This invoice is now under review. You'll be notified when it's corrected.", {
+        duration: 5000,
+        icon: '🔍'
+      });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to send invoice to review");
     } finally {
@@ -378,9 +461,11 @@ export default function MyInvoiceListPage() {
                           </div>
                           <div className="mt-0.5 text-[9px] sm:text-[10px] text-gray-600 flex flex-wrap gap-x-2 gap-y-0.5">
                             <span>📍 <b>{item.shelf_location || "—"}</b></span>
+                            <span>Code: <b>{item.item_code || "—"}</b></span>
                             <span>Pack: <b>{item.packing || "—"}</b></span>
                             <span>MRP: <b>{formatMRP(item.mrp)}</b></span>
                             <span>Batch: <b>{item.batch_no || "—"}</b></span>
+                            <span>Exp: <b>{item.expiry_date || "—"}</b></span>
                           </div>
                         </div>
                         <button disabled={isReviewInvoice} onClick={(e) => { e.stopPropagation(); !isReviewInvoice && openReviewPopup(item); }} className={`p-1.5 rounded-lg transition flex-shrink-0 ${isReviewInvoice ? "text-gray-400" : "text-orange-600 hover:bg-orange-50"}`}>

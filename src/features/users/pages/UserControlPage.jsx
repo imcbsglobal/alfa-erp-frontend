@@ -511,6 +511,11 @@ export default function UserControlPage() {
                         <p className="text-[11px] text-gray-400 truncate">
                           {u.job_title_name || "No Job Title"}
                         </p>
+                        {u.created_by_name && (
+                          <p className="text-[11px] text-gray-400 truncate">
+                            Created by: {u.created_by_name}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </button>

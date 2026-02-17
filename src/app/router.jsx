@@ -28,9 +28,10 @@ import OperationsLayout from "../layout/OperationsLayout";
 import PackingInvoiceListPage from "../features/packing/pages/PackingInvoiceListPage";
 // import PackingInvoiceViewPage from "../features/packing/pages/PackingInvoiceViewPage";
 import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
-import CheckingPage from "../features/packing/pages/CheckingPage";
 import BoxAssignmentPage from "../features/packing/pages/BoxAssignmentPage";
+import ConsolidatedPackingPage from "../features/packing/pages/ConsolidatedPackingPage";
 import BoxLabelPrintPage from "../features/packing/pages/BoxLabelPrintPage";
+import BoxDetailsPage from "../features/packing/pages/BoxDetailsPage";
 
 // Import Billing Pages
 import BillingInvoiceListPage from "../features/billing/pages/BillingInvoiceListPage";
@@ -49,6 +50,7 @@ import AdminPrivilegePage from "../pages/AdminPrivilegePage";
 
 // Import Reports Pages
 import InvoiceReportPage from "../features/reports/pages/InvoiceReportPage";
+import BillingUserSummaryPage from "../features/reports/pages/BillingUserSummaryPage";
 
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
@@ -67,6 +69,7 @@ export default function AppRouter() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/403" element={<Forbidden />} />
+      <Route path="/box/:boxId" element={<BoxDetailsPage />} />
 
       {/* ADMIN / SUPERADMIN / USER */}
       <Route element={<ProtectedRoute allowedRoles={["SUPERADMIN", "ADMIN", "USER"]} />}>
@@ -89,8 +92,8 @@ export default function AppRouter() {
           <Route path="/packing/invoices" element={<PackingInvoiceListPage />} />
           {/* <Route path="/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} /> */}
           <Route path="/packing/my" element={<MyPackingListPage />} />
-          <Route path="/packing/checking/:invoiceNo" element={<CheckingPage />} />
           <Route path="/packing/box-assignment/:invoiceNo" element={<BoxAssignmentPage />} />
+          <Route path="/packing/consolidated-packing" element={<ConsolidatedPackingPage />} />
           <Route path="/packing/print-labels/:invoiceNo" element={<BoxLabelPrintPage />} />
 
           {/* Billing routes for SUPERADMIN */}
@@ -129,6 +132,7 @@ export default function AppRouter() {
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/history/consolidate" element={<InvoiceHistoryView />} />
           <Route path="/history/invoice-report" element={<InvoiceReportPage />} />
+          <Route path="/history/billing-user-summary" element={<BillingUserSummaryPage />} />
 
           {/* Developer Options - SUPERADMIN ONLY */}
           <Route 
@@ -160,8 +164,8 @@ export default function AppRouter() {
           <Route path="/ops/packing/invoices" element={<PackingInvoiceListPage />} />
           {/* <Route path="/ops/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} /> */}
           <Route path="/ops/packing/my" element={<MyPackingListPage />} />
-          <Route path="/ops/packing/checking/:invoiceNo" element={<CheckingPage />} />
           <Route path="/ops/packing/box-assignment/:invoiceNo" element={<BoxAssignmentPage />} />
+          <Route path="/ops/packing/consolidated-packing" element={<ConsolidatedPackingPage />} />
           <Route path="/ops/packing/print-labels/:invoiceNo" element={<BoxLabelPrintPage />} />
 
           {/* Billing */}

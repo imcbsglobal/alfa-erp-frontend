@@ -162,12 +162,12 @@ export const MENU_CONFIG = [
     hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
     submenu: [
       {
-        label: "Reports",
+        label: "Consolidate",
         icon: History,
         path: "/history",
       },
       {
-        label: "Consolidate",
+        label: "Invoice Workflow",
         icon: Layers,
         path: "/history/consolidate",
       },
@@ -175,6 +175,11 @@ export const MENU_CONFIG = [
         label: "Invoice Reports",
         icon: FileText,
         path: "/history/invoice-report",
+      },
+      {
+        label: "User Summary - Billing",
+        icon: Users,
+        path: "/history/billing-user-summary",
       },
     ],
     isActive: (pathname) => pathname.startsWith("/history"),
@@ -283,6 +288,7 @@ export const PAGE_TITLES = {
   "/history": "History",
   "/history/consolidate": "Consolidate History",
   "/history/invoice-report": "Invoice Report",
+  "/history/billing-user-summary": "Billing User Summary",
   "/developer/settings": "Developer Options",
   "/admin/privilege": "Advanced Control",
 };

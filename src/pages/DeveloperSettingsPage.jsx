@@ -152,8 +152,7 @@ const DeveloperSettingsPage = () => {
         { key: 'packing_sessions', label: 'Packing Sessions', description: 'Permanently delete packing sessions' },
         { key: 'delivery_sessions', label: 'Delivery Sessions', description: 'Permanently delete delivery sessions' },
         { key: 'customers', label: 'Customers', description: 'Permanently delete customer records' },
-        { key: 'salesmen', label: 'Salesmen', description: 'Permanently delete salesman records' },
-        { key: 'couriers', label: 'Couriers', description: 'Permanently delete courier service providers' }
+        { key: 'salesmen', label: 'Salesmen', description: 'Permanently delete salesman records' }
       ]
     },
     {
@@ -163,7 +162,8 @@ const DeveloperSettingsPage = () => {
       tables: [
         { key: 'users', label: 'Users', description: 'Permanently delete non-SUPERADMIN users' },
         { key: 'departments', label: 'Departments', description: 'Permanently delete organization departments' },
-        { key: 'job_titles', label: 'Job Titles', description: 'Permanently delete job title definitions' }
+        { key: 'job_titles', label: 'Job Titles', description: 'Permanently delete job title definitions' },
+        { key: 'couriers', label: 'Couriers', description: 'Permanently delete courier service providers' }
       ]
     },
     {

@@ -26,7 +26,7 @@ export default function HistoryPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           {/* Title */}
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-            History
+            Consolidate
           </h1>
 
           {/* Tabs */}
