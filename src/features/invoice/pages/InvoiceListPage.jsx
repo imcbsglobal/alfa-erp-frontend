@@ -753,7 +753,7 @@ export default function InvoiceListPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {ongoingTasks.map((task, i) => (
+                        {ongoingTasks && ongoingTasks.length > 0 && ongoingTasks.map((task, i) => (
                           <tr key={i} className="hover:bg-gray-50">
                             <td className="px-4 py-3">
                               <p className="font-semibold">{task.invoice_no}</p>
