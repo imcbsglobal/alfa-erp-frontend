@@ -50,25 +50,25 @@ export const MENU_CONFIG = [
     icon: Pill, // or use Package, Box, or any icon that represents orders
     type: "dropdown",
     hasAccess: (user) => 
-      !["USER"].includes(user?.role), // Adjust based on who should see orders
+      ["SUPERADMIN", "ADMIN", "BILLER", "PICKER", "PACKER", "DELIVERY", "STORE"].includes(user?.role),
     submenu: [
       {
         label: "Invoice",
         icon: FileText,
         type: "nested-dropdown",
-        hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+        hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
         submenu: [
           {
             label: "Invoice List",
             icon: ListChecks,
             path: (user) => user?.role === "BILLER" ? "/ops/billing/invoices" : "/billing/invoices",
-            hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+            hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
           },
           {
             label: "Reviewed Bills",
             icon: AlertCircle,
             path: (user) => user?.role === "BILLER" ? "/ops/billing/reviewed" : "/billing/reviewed",
-            hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN",
+            hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
           },
         ],
       },
@@ -77,7 +77,7 @@ export const MENU_CONFIG = [
         icon: ClipboardCheck,
         type: "nested-dropdown",
         hasAccess: (user) =>
-          !["PICKER", "PACKER", "BILLER", "DELIVERY"].includes(user?.role),
+          ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
         submenu: [
           {
             label: "Picking List",
@@ -97,13 +97,13 @@ export const MENU_CONFIG = [
         label: "Packing",
         icon: Box,
         type: "nested-dropdown",
-        hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
+        hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
         submenu: [
           {
             label: "Packing List",
             icon: Box,
             path: (user) => user?.role === "PACKER" ? "/ops/packing/invoices" : "/packing/invoices",
-            hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN",
+            hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
           },
           {
             label: "My Assigned Packing",
@@ -112,6 +112,7 @@ export const MENU_CONFIG = [
             hasAccess: (user, permissions) =>
               user?.role === "PACKER" || 
               user?.role === "SUPERADMIN" || 
+              user?.role === "ADMIN" ||
               permissions["my-packing"]?.view === true,
           },
         ],

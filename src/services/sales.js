@@ -34,6 +34,11 @@ export const getDeliveryHistory = (params) => {
   return api.get("/sales/delivery/history/", { params });
 };
 
+// Get billing history
+export const getBillingHistory = (params) => {
+  return api.get("/sales/billing/history/", { params });
+};
+
 // Start delivery (for dispatch - first assignment)
 export const startDelivery = (data) => {
   return api.post("/sales/delivery/start/", data);

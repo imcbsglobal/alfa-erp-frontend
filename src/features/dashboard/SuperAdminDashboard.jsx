@@ -31,7 +31,8 @@ export default function SuperAdminDashboard() {
     totalInvoices: 0,
     completedPicking: 0,
     completedPacking: 0,
-    completedDelivery: 0
+    completedDelivery: 0,
+    holdInvoices: 0
   });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -74,7 +75,8 @@ export default function SuperAdminDashboard() {
               totalInvoices: data.stats.totalInvoices || 0,
               completedPicking: data.stats.completedPicking || 0,
               completedPacking: data.stats.completedPacking || 0,
-              completedDelivery: data.stats.completedDelivery || 0
+              completedDelivery: data.stats.completedDelivery || 0,
+              holdInvoices: data.stats.holdInvoices || 0
             });
           }
         } catch (error) {
@@ -172,7 +174,8 @@ export default function SuperAdminDashboard() {
           totalInvoices: response.data.stats.totalInvoices || 0,
           completedPicking: response.data.stats.completedPicking || 0,
           completedPacking: response.data.stats.completedPacking || 0,
-          completedDelivery: response.data.stats.completedDelivery || 0
+          completedDelivery: response.data.stats.completedDelivery || 0,
+          holdInvoices: response.data.stats.holdInvoices || 0
         });
       }
     } catch (error) {
@@ -398,6 +401,14 @@ export default function SuperAdminDashboard() {
       textColor: 'text-white'
     },
     { 
+      title: 'Hold Invoices', 
+      value: loading ? '...' : todayStats.holdInvoices, 
+      icon: '⏸️',
+      color: 'bg-gradient-to-br from-amber-400 to-orange-600',
+      textColor: 'text-white',
+      onClick: () => navigate('/invoices/pending')
+    },
+    { 
       title: 'Completed Picking', 
       value: loading ? '...' : todayStats.completedPicking, 
       icon: '📦',
@@ -560,11 +571,12 @@ export default function SuperAdminDashboard() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             <span className="text-2xl">📊</span> Session Overview
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
             {overviewCards.map((stat, index) => (
               <div 
                 key={index} 
-                className={`${stat.color} ${stat.textColor} rounded-xl shadow-lg p-6 transform hover:scale-105 transition-all duration-200 relative overflow-hidden`}
+                onClick={stat.onClick}
+                className={`${stat.color} ${stat.textColor} rounded-xl shadow-lg p-6 transform hover:scale-105 transition-all duration-200 relative overflow-hidden ${stat.onClick ? 'cursor-pointer hover:shadow-2xl' : ''}`}
               >
                 <div className="flex items-center justify-between relative z-10">
                   <div>

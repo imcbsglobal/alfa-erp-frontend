@@ -104,8 +104,11 @@ export default function MainLayout() {
 
   // Build menus from backend data with proper icon mapping
   const visibleMenus = useMemo(() => {
-    if (user?.role === "SUPERADMIN") {
-      return MENU_CONFIG;
+    // Use frontend menu config for SUPERADMIN and ADMIN
+    if (user?.role === "SUPERADMIN" || user?.role === "ADMIN") {
+      return MENU_CONFIG.filter(menu => 
+        menu.hasAccess ? menu.hasAccess(user) : true
+      );
     }
 
     return menus.map(menu => ({

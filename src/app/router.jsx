@@ -20,6 +20,7 @@ import AddCourierPage from "../features/master/pages/AddCourierPage";
 import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
 // import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
 import MyInvoiceListPage from "../features/invoice/pages/MyInvoiceListPage";
+import PendingInvoicesPage from "../features/invoice/pages/PendingInvoicesPage";
 import HistoryPage from "../features/history/pages/HistoryPage";
 import InvoiceHistoryView from "../features/history/pages/InvoiceHistoryView";
 import { useAuth } from "../features/auth/AuthContext";
@@ -87,6 +88,7 @@ export default function AppRouter() {
           <Route path="/invoices" element={<InvoiceListPage />} />
           {/* <Route path="/invoices/view/:id" element={<InvoiceViewPage />} /> */}
           <Route path="/invoices/my" element={<MyInvoiceListPage />} />
+          <Route path="/invoices/pending" element={<PendingInvoicesPage />} />
           
           {/* Packing routes for SUPERADMIN */}
           <Route path="/packing/invoices" element={<PackingInvoiceListPage />} />
@@ -159,6 +161,7 @@ export default function AppRouter() {
           {/* Picking */}
           <Route path="/ops/picking/invoices" element={<InvoiceListPage />} />
           {/* <Route path="/ops/picking/invoices/view/:id" element={<InvoiceViewPage />} /> */}
+          <Route path="/ops/picking/pending" element={<PendingInvoicesPage />} />
 
           {/* Packing */}
           <Route path="/ops/packing/invoices" element={<PackingInvoiceListPage />} />

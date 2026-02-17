@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Pagination from "../../../components/Pagination";
-import { getPickingHistory, getPackingHistory, getDeliveryHistory } from "../../../services/sales";
+import { getPickingHistory, getPackingHistory, getDeliveryHistory, getBillingHistory } from "../../../services/sales";
 import ConsolidateDetailModal from "../../../components/ConsolidateDetailModal";
 import { formatDateTime } from '../../../utils/formatters';
 import { X } from 'lucide-react';
@@ -35,24 +35,50 @@ export default function InvoiceHistoryView() {
       if (search.trim()) params.search = search.trim();
       if (filterDate) params.start_date = filterDate;
 
-      // Fetch all three histories in parallel
-      const [pickingRes, packingRes, deliveryRes] = await Promise.all([
+      // Fetch all four histories in parallel
+      const [pickingRes, packingRes, deliveryRes, billingRes] = await Promise.all([
         getPickingHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
         getPackingHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
         getDeliveryHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
+        getBillingHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
       ]);
 
       // Combine and organize data by invoice
       const invoiceMap = new Map();
 
-      // Add picking data
-      (pickingRes.data?.results || []).forEach(item => {
+      // Add billing data first
+      (billingRes.data?.results || []).forEach(item => {
         if (!invoiceMap.has(item.invoice_no)) {
           invoiceMap.set(item.invoice_no, {
             invoice_no: item.invoice_no,
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            billing: item,
+            picking: null,
+            packing: null,
+            delivery: null,
+            latest_date: new Date(item.start_time),
+          });
+        }
+      });
+
+      // Add picking data
+      (pickingRes.data?.results || []).forEach(item => {
+        const invoice = invoiceMap.get(item.invoice_no);
+        if (invoice) {
+          invoice.picking = item;
+          const pickDate = new Date(item.start_time);
+          if (pickDate > invoice.latest_date) {
+            invoice.latest_date = pickDate;
+          }
+        } else {
+          invoiceMap.set(item.invoice_no, {
+            invoice_no: item.invoice_no,
+            customer_name: item.customer_name,
+            customer_email: item.customer_email,
+            customer_phone: item.customer_phone,
+            billing: null,
             picking: item,
             packing: null,
             delivery: null,
@@ -76,6 +102,7 @@ export default function InvoiceHistoryView() {
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            billing: null,
             picking: null,
             packing: item,
             delivery: null,
@@ -99,6 +126,7 @@ export default function InvoiceHistoryView() {
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            billing: null,
             picking: null,
             packing: null,
             delivery: item,
@@ -164,6 +192,9 @@ export default function InvoiceHistoryView() {
       PACKED: "bg-green-100 text-green-700 border-green-200",
       IN_TRANSIT: "bg-blue-100 text-blue-700 border-blue-200",
       DELIVERED: "bg-green-100 text-green-700 border-green-200",
+      BILLED: "bg-teal-100 text-teal-700 border-teal-200",
+      REVIEW: "bg-orange-100 text-orange-700 border-orange-200",
+      RE_INVOICED: "bg-purple-100 text-purple-700 border-purple-200",
     };
 
     if (!status) return <span className="text-gray-400 text-xs">Not Started</span>;
@@ -212,7 +243,7 @@ export default function InvoiceHistoryView() {
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
         {/* HEADER + FILTERS */}
         <div className="mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Complete Invoice History</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Invoice Workflow</h2>
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative min-w-[350px]">
@@ -291,6 +322,7 @@ export default function InvoiceHistoryView() {
                     <th className="px-4 py-4 text-sm font-bold text-white">Invoice</th>
                     <th className="px-4 py-4 text-sm font-bold text-white">Customer</th>
                     <th className="px-4 py-4 text-sm font-bold text-white">Overall Status</th>
+                    <th className="px-4 py-4 text-sm font-bold text-white">Billing</th>
                     <th className="px-4 py-4 text-sm font-bold text-white">Picking</th>
                     <th className="px-4 py-4 text-sm font-bold text-white">Packing</th>
                     <th className="px-4 py-4 text-sm font-bold text-white">Delivery</th>
@@ -329,6 +361,17 @@ export default function InvoiceHistoryView() {
                           <span className={`px-3 py-1 rounded-full text-xs font-bold border ${overallStatus.color}`}>
                             {overallStatus.label}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.billing ? (
+                            <div className="space-y-1">
+                              {statusBadge(item.billing.billing_status)}
+                              <p className="text-xs text-gray-500">{item.billing.biller_name}</p>
+                              <p className="text-xs text-gray-400">{formatDuration(item.billing.duration)}</p>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           {item.picking ? (
@@ -381,7 +424,7 @@ export default function InvoiceHistoryView() {
 
                   {history.length === 0 && (
                     <tr>
-                      <td colSpan="7" className="text-center py-8 text-gray-500">
+                      <td colSpan="8" className="text-center py-8 text-gray-500">
                         No invoice history found
                       </td>
                     </tr>
@@ -395,7 +438,22 @@ export default function InvoiceHistoryView() {
                   {(() => {
                     const item = history.find(h => h.invoice_no === expandedRow);
                     return (
-                      <div className="grid grid-cols-3 gap-6">
+                      <div className="grid grid-cols-4 gap-6">
+                        {/* Billing Details */}
+                        <div className="space-y-2">
+                          <h4 className="font-bold text-gray-700 border-b pb-2">💳 Billing Details</h4>
+                          {item.billing ? (
+                            <>
+                              <div><span className="font-medium">Biller:</span> {item.billing.biller_name}</div>
+                              <div><span className="font-medium">Email:</span> {item.billing.biller_email}</div>
+                              <div><span className="font-medium">Status:</span> {statusBadge(item.billing.billing_status)}</div>
+                              <div><span className="font-medium">Created:</span> {formatDateTime(item.billing.start_time)}</div>
+                            </>
+                          ) : (
+                            <p className="text-gray-400 text-sm">Not billed</p>
+                          )}
+                        </div>
+
                         {/* Picking Details */}
                         <div className="space-y-2">
                           <h4 className="font-bold text-gray-700 border-b pb-2">📦 Picking Details</h4>
@@ -502,6 +560,16 @@ export default function InvoiceHistoryView() {
                     </div>
 
                     <div className="space-y-2 text-sm">
+                      {item.billing && (
+                        <div className="flex justify-between items-center py-1 border-b">
+                          <span className="text-gray-600">💳 Billing:</span>
+                          <div className="text-right">
+                            {statusBadge(item.billing.billing_status)}
+                            <p className="text-xs text-gray-500">{item.billing.biller_name}</p>
+                          </div>
+                        </div>
+                      )}
+
                       {item.picking && (
                         <div className="flex justify-between items-center py-1 border-b">
                           <span className="text-gray-600">📦 Picking:</span>

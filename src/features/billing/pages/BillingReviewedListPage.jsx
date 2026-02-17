@@ -477,6 +477,57 @@ export default function BillingReviewedListPage() {
             </div>
 
             <div className="p-4 sm:p-6 space-y-4">
+              {/* Billing Details Section - Always Show */}
+              <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 sm:p-4">
+                <h4 className="font-semibold text-teal-900 mb-3 text-sm sm:text-base flex items-center gap-2">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Original Billing Details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-teal-700 mb-1">Created By (Biller)</p>
+                    <p className="font-medium text-teal-900 text-sm">
+                      {reviewModal.invoice.salesman?.name || reviewModal.invoice.created_by || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-teal-700 mb-1">Invoice Date</p>
+                    <p className="font-medium text-teal-900 text-sm">
+                      {formatDateDDMMYYYY(reviewModal.invoice.invoice_date)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-teal-700 mb-1">Created At</p>
+                    <p className="font-medium text-teal-900 text-sm">
+                      {formatDateTime(reviewModal.invoice.created_at)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-teal-700 mb-1">Invoice Amount</p>
+                    <p className="font-bold text-base text-teal-900">
+                      {formatAmount(reviewModal.invoice.Total)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-teal-700 mb-1">Customer</p>
+                    <p className="font-medium text-teal-900 text-sm">
+                      {reviewModal.invoice.customer?.name || "—"}
+                    </p>
+                    <p className="text-xs text-teal-600">
+                      {reviewModal.invoice.customer?.area || reviewModal.invoice.customer?.address1 || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-teal-700 mb-1">Current Billing Status</p>
+                    <span className={`inline-block px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(reviewModal.invoice.billing_status)}`}>
+                      {getStatusLabel(reviewModal.invoice.billing_status)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {reviewModal.invoice.return_info ? (
                 <>
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
@@ -506,12 +557,6 @@ export default function BillingReviewedListPage() {
                           ? formatDateTime(reviewModal.invoice.return_info.returned_at)
                           : "—"}
                       </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 mb-1">Current Status</p>
-                      <span className={`inline-block px-2.5 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(reviewModal.invoice.billing_status)}`}>
-                        {getStatusLabel(reviewModal.invoice.billing_status)}
-                      </span>
                     </div>
                   </div>
                 </>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, User, Mail, Phone, Clock, CheckCircle, Package, Truck, FileText, AlertTriangle } from "lucide-react";
+import { X, User, Mail, Phone, Clock, CheckCircle, Package, Truck, FileText, AlertTriangle, DollarSign } from "lucide-react";
 import { formatDetailedDateTime } from "../utils/formatters";
 
 export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, invoiceData }) {
@@ -17,6 +17,8 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
       setActiveSection("packing");
     } else if (invoiceData.picking) {
       setActiveSection("picking");
+    } else if (invoiceData.billing) {
+      setActiveSection("billing");
     }
   }, [isOpen, invoiceNo, invoiceData]);
 
@@ -47,6 +49,9 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
       PACKING: "bg-blue-100 text-blue-700",
       IN_TRANSIT: "bg-blue-100 text-blue-700",
       DELIVERED: "bg-green-100 text-green-700",
+      BILLED: "bg-teal-100 text-teal-700",
+      REVIEW: "bg-orange-100 text-orange-700",
+      RE_INVOICED: "bg-purple-100 text-purple-700",
     };
 
     if (!status) return <span className="text-gray-400 text-xs">Not Started</span>;
@@ -63,6 +68,9 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
   };
 
   const getStepStatus = (step) => {
+    if (step === "billing") {
+      return invoiceData.billing ? "completed" : "pending";
+    }
     if (step === "picking") {
       return invoiceData.picking ? "completed" : "pending";
     }
@@ -188,6 +196,38 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
 
               {/* PROGRESS STEPPER - CLICKABLE */}
               <div className="flex items-center justify-center gap-3 py-4">
+                {/* BILLING STEP */}
+                <button
+                  onClick={() => invoiceData.billing && setActiveSection("billing")}
+                  disabled={!invoiceData.billing}
+                  className={`flex flex-col items-center ${invoiceData.billing ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                >
+                  <div
+                    className={`w-14 h-14 rounded-full flex items-center justify-center relative transition-all ${
+                      getStepStatus("billing") === "completed"
+                        ? "bg-teal-500 text-white"
+                        : "bg-gray-200 text-gray-500"
+                    } ${activeSection === "billing" ? "ring-4 ring-teal-200" : ""}`}
+                  >
+                    {getStepStatus("billing") === "completed" ? (
+                      <CheckCircle size={24} />
+                    ) : (
+                      <FileText size={24} />
+                    )}
+                    <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-700 shadow">
+                      1
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium mt-1.5 text-gray-700">Billing</p>
+                </button>
+
+                {/* LINE */}
+                <div
+                  className={`h-0.5 w-16 ${
+                    invoiceData.picking ? "bg-teal-500" : "bg-gray-300"
+                  }`}
+                ></div>
+
                 {/* PICKING STEP */}
                 <button
                   onClick={() => invoiceData.picking && setActiveSection("picking")}
@@ -207,7 +247,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                       <Package size={24} />
                     )}
                     <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-700 shadow">
-                      1
+                      2
                     </span>
                   </div>
                   <p className="text-xs font-medium mt-1.5 text-gray-700">Picking</p>
@@ -241,7 +281,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                       <Package size={24} />
                     )}
                     <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-700 shadow">
-                      2
+                      3
                     </span>
                   </div>
                   <p className="text-xs font-medium mt-1.5 text-gray-700">Packing</p>
@@ -275,7 +315,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                       <Truck size={24} />
                     )}
                     <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-700 shadow">
-                      3
+                      4
                     </span>
                   </div>
                   <p className="text-xs font-medium mt-1.5 text-gray-700">Delivery</p>
@@ -285,7 +325,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
               {/* TOGGLE BUTTON */}
               <div className="flex justify-center">
                 <button
-                  onClick={() => setActiveSection(activeSection ? null : (invoiceData.delivery ? "delivery" : invoiceData.packing ? "packing" : "picking"))}
+                  onClick={() => setActiveSection(activeSection ? null : (invoiceData.delivery ? "delivery" : invoiceData.packing ? "packing" : invoiceData.picking ? "picking" : "billing"))}
                   className="text-teal-600 hover:text-teal-700 text-sm font-medium"
                 >
                   {activeSection ? "▲ Hide Details" : "▼ Show Details"}
@@ -295,6 +335,42 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
               {/* SECTIONS */}
               {activeSection && (
                 <div>
+                  {/* BILLING SECTION */}
+                  {activeSection === "billing" && invoiceData.billing && (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="bg-teal-50 px-4 py-2.5 border-b border-gray-200">
+                        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                          <FileText size={16} />
+                          Billing Details
+                        </h3>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-gray-500 text-xs mb-0.5">Biller Name</p>
+                            <p className="font-medium text-gray-900">{invoiceData.billing.biller_name}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs mb-0.5">Biller Email</p>
+                            <p className="font-medium text-gray-900">{invoiceData.billing.biller_email}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs mb-0.5">Billing Status</p>
+                            <div className="mt-1">{statusBadge(invoiceData.billing.billing_status)}</div>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs mb-0.5">Created At</p>
+                            <p className="font-medium text-gray-900">{formatDetailedDateTime(invoiceData.billing.start_time)}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs mb-0.5">Invoice Total</p>
+                            <p className="font-medium text-gray-900">₹{parseFloat(invoiceData.billing.Total || 0).toFixed(2)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* PICKING SECTION */}
                   {activeSection === "picking" && invoiceData.picking && (
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
