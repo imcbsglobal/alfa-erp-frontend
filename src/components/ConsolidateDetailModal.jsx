@@ -347,12 +347,10 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                       <div className="p-4 space-y-3">
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <p className="text-gray-500 text-xs mb-0.5">Biller Name</p>
-                            <p className="font-medium text-gray-900">{invoiceData.billing.biller_name}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500 text-xs mb-0.5">Biller Email</p>
-                            <p className="font-medium text-gray-900">{invoiceData.billing.biller_email}</p>
+                            <p className="text-gray-500 text-xs mb-0.5">Billed By</p>
+                            <p className="font-medium text-gray-900">
+                              {invoiceData.billing.biller_name || invoiceData.billing.salesman_name || "-"}
+                            </p>
                           </div>
                           <div>
                             <p className="text-gray-500 text-xs mb-0.5">Billing Status</p>
@@ -430,19 +428,6 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                             </div>
                           </div>
                         )}
-
-                        {/* Regular Notes */}
-                        {/* {invoiceData.picking.notes && (
-                          <div className="mt-3">
-                            <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
-                              <FileText size={14} />
-                              <span className="font-medium text-xs">Notes</span>
-                            </div>
-                            <div className="bg-yellow-50 p-2.5 rounded border border-yellow-200">
-                              <p className="text-gray-800 text-xs whitespace-pre-line">{invoiceData.picking.notes}</p>
-                            </div>
-                          </div>
-                        )} */}
                       </div>
                     </div>
                   )}
@@ -506,19 +491,6 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                             </div>
                           </div>
                         )}
-
-                        {/* Regular Notes */}
-                        {/* {invoiceData.packing.notes && (
-                          <div className="mt-3">
-                            <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
-                              <FileText size={14} />
-                              <span className="font-medium text-xs">Notes</span>
-                            </div>
-                            <div className="bg-yellow-50 p-2.5 rounded border border-yellow-200">
-                              <p className="text-gray-800 text-xs whitespace-pre-line">{invoiceData.packing.notes}</p>
-                            </div>
-                          </div>
-                        )} */}
                       </div>
                     </div>
                   )}
@@ -615,19 +587,6 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                             </div>
                           </div>
                         )}
-
-                        {/* Regular Notes */}
-                        {/* {invoiceData.delivery.notes && (
-                          <div className="mt-3">
-                            <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
-                              <FileText size={14} />
-                              <span className="font-medium text-xs">Notes</span>
-                            </div>
-                            <div className="bg-yellow-50 p-2.5 rounded border border-yellow-200">
-                              <p className="text-gray-800 text-xs whitespace-pre-line">{invoiceData.delivery.notes}</p>
-                            </div>
-                          </div>
-                        )} */}
                       </div>
                     </div>
                   )}

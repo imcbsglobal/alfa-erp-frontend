@@ -22,7 +22,7 @@ export default function InvoiceHistoryView() {
 
   useEffect(() => {
     load();
-  }, [currentPage, filterStatus, filterDate, search]); // ✅ Added 'search' for real-time filtering
+  }, [currentPage, filterStatus, filterDate, search]);
 
   const load = async () => {
     setLoading(true);
@@ -31,49 +31,68 @@ export default function InvoiceHistoryView() {
       if (search.trim()) params.search = search.trim();
       if (filterDate) params.start_date = filterDate;
 
-      // Fetch all four histories in parallel (no pagination)
-      const [pickingRes, packingRes, deliveryRes, billingRes] = await Promise.all([
-        getPickingHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
-        getPackingHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
-        getDeliveryHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
-        getBillingHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
+      // Helper: fetch ALL pages for a given history API function
+      const fetchAll = async (apiFn, baseParams) => {
+        let page = 1;
+        let allResults = [];
+        while (true) {
+          try {
+            const res = await apiFn({ ...baseParams, page, page_size: 100 });
+            const results = res.data?.results || [];
+            allResults = allResults.concat(results);
+            if (!res.data?.next) break;
+            page++;
+          } catch {
+            break;
+          }
+        }
+        return allResults;
+      };
+
+      const [pickingResults, packingResults, deliveryResults, billingResults] = await Promise.all([
+        fetchAll(getPickingHistory, params),
+        fetchAll(getPackingHistory, params),
+        fetchAll(getDeliveryHistory, params),
+        fetchAll(getBillingHistory, params),
       ]);
 
-      // Combine and organize data by invoice
       const invoiceMap = new Map();
 
-      // Add billing data first
-      (billingRes.data?.results || []).forEach(item => {
+      (billingResults).forEach(item => {
         if (!invoiceMap.has(item.invoice_no)) {
           invoiceMap.set(item.invoice_no, {
             invoice_no: item.invoice_no,
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            salesman_name: item.salesman_name || null,
             billing: item,
             picking: null,
             packing: null,
             delivery: null,
+            return_info: item.return_info || null,
             latest_date: new Date(item.start_time),
           });
         }
       });
 
-      // Add picking data
-      (pickingRes.data?.results || []).forEach(item => {
+      (pickingResults).forEach(item => {
         const invoice = invoiceMap.get(item.invoice_no);
         if (invoice) {
           invoice.picking = item;
-          const pickDate = new Date(item.start_time);
-          if (pickDate > invoice.latest_date) {
-            invoice.latest_date = pickDate;
+          // Use salesman from picking if not already set from billing
+          if (!invoice.salesman_name && item.salesman_name) {
+            invoice.salesman_name = item.salesman_name;
           }
+          const pickDate = new Date(item.start_time);
+          if (pickDate > invoice.latest_date) invoice.latest_date = pickDate;
         } else {
           invoiceMap.set(item.invoice_no, {
             invoice_no: item.invoice_no,
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            salesman_name: item.salesman_name || null,
             billing: null,
             picking: item,
             packing: null,
@@ -83,15 +102,12 @@ export default function InvoiceHistoryView() {
         }
       });
 
-      // Add packing data
-      (packingRes.data?.results || []).forEach(item => {
+      (packingResults).forEach(item => {
         const invoice = invoiceMap.get(item.invoice_no);
         if (invoice) {
           invoice.packing = item;
           const packDate = new Date(item.start_time);
-          if (packDate > invoice.latest_date) {
-            invoice.latest_date = packDate;
-          }
+          if (packDate > invoice.latest_date) invoice.latest_date = packDate;
         } else {
           invoiceMap.set(item.invoice_no, {
             invoice_no: item.invoice_no,
@@ -107,15 +123,12 @@ export default function InvoiceHistoryView() {
         }
       });
 
-      // Add delivery data
-      (deliveryRes.data?.results || []).forEach(item => {
+      (deliveryResults).forEach(item => {
         const invoice = invoiceMap.get(item.invoice_no);
         if (invoice) {
           invoice.delivery = item;
           const delDate = new Date(item.start_time);
-          if (delDate > invoice.latest_date) {
-            invoice.latest_date = delDate;
-          }
+          if (delDate > invoice.latest_date) invoice.latest_date = delDate;
         } else {
           invoiceMap.set(item.invoice_no, {
             invoice_no: item.invoice_no,
@@ -131,28 +144,20 @@ export default function InvoiceHistoryView() {
         }
       });
 
-      // Convert to array and sort by oldest first (ascending order)
       let combined = Array.from(invoiceMap.values()).sort(
         (a, b) => a.latest_date - b.latest_date
       );
 
-      // Apply status filter
       if (filterStatus) {
         combined = combined.filter(item => {
-          if (filterStatus === "COMPLETED") {
-            return item.delivery?.delivery_status === "DELIVERED";
-          } else if (filterStatus === "IN_PROGRESS") {
-            return item.delivery?.delivery_status !== "DELIVERED" || !item.delivery;
-          } else if (filterStatus === "PICKED") {
-            return item.picking?.picking_status === "PICKED";
-          } else if (filterStatus === "PACKED") {
-            return item.packing?.packing_status === "PACKED";
-          }
+          if (filterStatus === "COMPLETED") return item.delivery?.delivery_status === "DELIVERED";
+          if (filterStatus === "IN_PROGRESS") return item.delivery?.delivery_status !== "DELIVERED" || !item.delivery;
+          if (filterStatus === "PICKED") return item.picking?.picking_status === "PICKED";
+          if (filterStatus === "PACKED") return item.packing?.packing_status === "PACKED";
           return true;
         });
       }
 
-      // Paginate on frontend
       const startIdx = (currentPage - 1) * itemsPerPage;
       const paginated = combined.slice(startIdx, startIdx + itemsPerPage);
       setHistory(paginated);
@@ -231,7 +236,7 @@ export default function InvoiceHistoryView() {
   const handleClearFilters = () => {
     setSearch("");
     setFilterStatus("");
-    setFilterDate(new Date().toISOString().split('T')[0]); // Reset to today
+    setFilterDate(new Date().toISOString().split('T')[0]);
     setCurrentPage(1);
   };
 
@@ -252,7 +257,7 @@ export default function InvoiceHistoryView() {
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
-                  setCurrentPage(1); // Reset to page 1 when searching
+                  setCurrentPage(1);
                 }}
                 className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               />
@@ -361,12 +366,21 @@ export default function InvoiceHistoryView() {
                             {overallStatus.label}
                           </span>
                         </td>
+                        {/* BILLING COLUMN — status + salesman + created time */}
                         <td className="px-4 py-3">
                           {item.billing ? (
                             <div className="space-y-1">
                               {statusBadge(item.billing.billing_status)}
-                              <p className="text-xs text-gray-500">{item.billing.biller_name}</p>
-                              <p className="text-xs text-gray-400">{formatDuration(item.billing.duration)}</p>
+                              {(item.salesman_name || item.billing.salesman_name) && (
+                                <p className="text-xs text-gray-500">
+                                  {item.salesman_name || item.billing.salesman_name}
+                                </p>
+                              )}
+                              {item.billing.start_time && (
+                                <p className="text-xs text-gray-400">
+                                  {new Date(item.billing.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              )}
                             </div>
                           ) : (
                             <span className="text-gray-400 text-xs">-</span>
@@ -431,20 +445,18 @@ export default function InvoiceHistoryView() {
                 </tbody>
               </table>
 
-              {/* EXPANDED DETAILS (optional inline view) */}
+              {/* EXPANDED DETAILS */}
               {expandedRow && history.find(h => h.invoice_no === expandedRow) && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                   {(() => {
                     const item = history.find(h => h.invoice_no === expandedRow);
                     return (
                       <div className="grid grid-cols-4 gap-6">
-                        {/* Billing Details */}
                         <div className="space-y-2">
                           <h4 className="font-bold text-gray-700 border-b pb-2">💳 Billing Details</h4>
                           {item.billing ? (
                             <>
-                              <div><span className="font-medium">Biller:</span> {item.billing.biller_name}</div>
-                              <div><span className="font-medium">Email:</span> {item.billing.biller_email}</div>
+                              <div><span className="font-medium">Salesman:</span> {item.billing.salesman_name || item.billing.biller_name || "-"}</div>
                               <div><span className="font-medium">Status:</span> {statusBadge(item.billing.billing_status)}</div>
                               <div><span className="font-medium">Created:</span> {formatDateTime(item.billing.start_time)}</div>
                             </>
@@ -453,7 +465,6 @@ export default function InvoiceHistoryView() {
                           )}
                         </div>
 
-                        {/* Picking Details */}
                         <div className="space-y-2">
                           <h4 className="font-bold text-gray-700 border-b pb-2">📦 Picking Details</h4>
                           {item.picking ? (
@@ -473,7 +484,6 @@ export default function InvoiceHistoryView() {
                           )}
                         </div>
 
-                        {/* Packing Details */}
                         <div className="space-y-2">
                           <h4 className="font-bold text-gray-700 border-b pb-2">📦 Packing Details</h4>
                           {item.packing ? (
@@ -493,7 +503,6 @@ export default function InvoiceHistoryView() {
                           )}
                         </div>
 
-                        {/* Delivery Details */}
                         <div className="space-y-2">
                           <h4 className="font-bold text-gray-700 border-b pb-2">🚚 Delivery Details</h4>
                           {item.delivery ? (
@@ -564,7 +573,10 @@ export default function InvoiceHistoryView() {
                           <span className="text-gray-600">💳 Billing:</span>
                           <div className="text-right">
                             {statusBadge(item.billing.billing_status)}
-                            <p className="text-xs text-gray-500">{item.billing.biller_name}</p>
+                            <p className="text-xs text-gray-500">{item.salesman_name || item.billing.salesman_name}</p>
+                            <p className="text-xs text-gray-400">
+                              {item.billing.start_time && new Date(item.billing.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
                           </div>
                         </div>
                       )}
