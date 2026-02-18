@@ -362,14 +362,14 @@ export default function MyPackingListPage() {
         cancel_reason: "Cancelled by packer",
       });
 
-      toast.success(`Bill #${bill.invoice_no} released`);
+      toast.success(`Packing cancelled`);
       
       // Reload the lists
       loadMyCheckingBills();
       loadHeldBills();
     } catch (err) {
-      console.error("Error releasing bill:", err);
-      toast.error(err.response?.data?.message || "Failed to release bill");
+      console.error("Error cancelling packing:", err);
+      toast.error(err.response?.data?.message || "Failed to cancel packing");
     }
   };
 
@@ -490,14 +490,14 @@ export default function MyPackingListPage() {
             
             {!isExpanded && !isCompleted && isChecking && (
               <div className="flex gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                <button
+                {/* <button
                   onClick={() => handleHoldBill(bill)}
                   disabled={loading || isReviewInvoice}
                   className="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
                   title="Hold for Consolidation"
                 >
                   Hold
-                </button>
+                </button> */}
                 <button
                   onClick={() => handleContinueChecking(bill)}
                   disabled={loading || isReviewInvoice}
@@ -509,7 +509,7 @@ export default function MyPackingListPage() {
                 <button
                   onClick={() => handleCancelBill(bill)}
                   disabled={loading || isReviewInvoice}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-gray-500 text-white hover:bg-gray-600 disabled:opacity-50"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 disabled:opacity-50"
                   title="Cancel and Release"
                 >
                   Cancel
@@ -611,13 +611,13 @@ export default function MyPackingListPage() {
 
             {isExpanded && !isCompleted && isChecking && (
               <div className="flex gap-2 mt-3">
-                <button
+                {/* <button
                   onClick={() => handleHoldBill(bill)}
                   disabled={loading || isReviewInvoice}
                   className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
                 >
                   Hold for Consolidation
-                </button>
+                </button> */}
                 <button
                   onClick={() => handleContinueChecking(bill)}
                   disabled={loading || isReviewInvoice}
@@ -628,7 +628,7 @@ export default function MyPackingListPage() {
                 <button
                   onClick={() => handleCancelBill(bill)}
                   disabled={loading || isReviewInvoice}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all bg-gray-500 text-white hover:bg-gray-600 disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -965,8 +965,48 @@ export default function MyPackingListPage() {
               <p className="text-gray-500 text-sm">No completed packing yet</p>
             </div>
           ) : (
-            <div className="p-2 sm:p-3 space-y-2">
-              {completedToday.map(bill => renderBillCard(bill, "completed"))}
+            <div className="divide-y divide-gray-200">
+              {completedToday.map((bill) => (
+                <div key={bill.id} onClick={() => toggleExpand(bill.id)} className="p-3 hover:bg-gray-50 cursor-pointer">
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-xs sm:text-sm">#{bill.invoice_no}</p>
+                      <p className="text-[10px] sm:text-xs text-gray-600 truncate">
+                        {bill.customer?.name || bill.customer_name || "-"}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-0.5 ml-2">
+                      <span className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-[9px] sm:text-[10px] font-semibold whitespace-nowrap">
+                        PACKED
+                      </span>
+                      <p className="text-[9px] sm:text-[10px] text-gray-600">{formatDate(bill.end_time)}</p>
+                    </div>
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-gray-600">
+                    <span>{formatTime(bill.start_time)}</span>
+                    <span className="mx-1">→</span>
+                    <span>{formatTime(bill.end_time)}</span>
+                    <span className="ml-2">
+                      ({bill.duration != null
+                        ? `${Math.floor(bill.duration)}m ${Math.round((bill.duration % 1) * 60)}s`
+                        : "-"})
+                    </span>
+                  </div>
+                  {expandedBill === bill.id && (
+                    <div className="mt-2 pt-2 border-t text-[10px] sm:text-xs">
+                      <p className="font-semibold mb-1">Items ({bill.items?.length || 0})</p>
+                      {bill.items?.map((item, idx) => (
+                        <div key={idx} className="flex justify-between py-0.5">
+                          <span className="truncate mr-2">{item.name || item.item_name}</span>
+                          <span className="font-medium whitespace-nowrap">
+                            {formatQuantity(item.quantity || item.qty, 'pcs')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
