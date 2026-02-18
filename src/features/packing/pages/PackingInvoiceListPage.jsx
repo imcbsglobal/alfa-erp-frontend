@@ -15,6 +15,9 @@ export default function PackingInvoiceListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Only SUPERADMIN and ADMIN can see Ongoing Work and Active Users Dock
+  const isAdminOrSuperadmin = user?.role === "SUPERADMIN" || user?.role === "ADMIN";
+
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPackModal, setShowPackModal] = useState(false);
@@ -54,12 +57,11 @@ export default function PackingInvoiceListPage() {
     };
 
     eventSource.onerror = () => {
-      // SSE connection closed - normal behavior during server restarts or timeouts
       eventSource.close();
     };
 
     return () => eventSource.close();
-  }, []); // Empty dependency - SSE monitors global picked invoice updates
+  }, []);
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -67,18 +69,14 @@ export default function PackingInvoiceListPage() {
       let allInvoices = [];
       let nextUrl = "/sales/invoices/?status=PICKED&page_size=100";
       
-      // Fetch all pages
       while (nextUrl) {
         const res = await api.get(nextUrl);
         const results = res.data.results || [];
         allInvoices = [...allInvoices, ...results];
         
-        // Get next page URL
         nextUrl = res.data.next;
         if (nextUrl) {
-          // Extract just the path and query params if it's a full URL
           const urlObj = new URL(nextUrl, window.location.origin);
-          // Remove /api prefix since axios base URL already includes it
           nextUrl = urlObj.pathname.replace(/^\/api/, '') + urlObj.search;
         }
       }
@@ -98,7 +96,6 @@ export default function PackingInvoiceListPage() {
     try {
       const res = await api.get("/sales/packing/history/?status=IN_PROGRESS");
       const responseData = res.data?.results;
-      console.log("Ongoing tasks data:", responseData);
       if (responseData) {
         setOngoingTasks(responseData);
       } else {
@@ -142,21 +139,16 @@ export default function PackingInvoiceListPage() {
     }
 
     try {
-      // First check if there's already an active packing session
-      console.log("Checking for active packing session...");
       const activeRes = await api.get("/sales/packing/active/");
-      console.log("Active packing response:", activeRes.data);
       
       if (activeRes.data?.data) {
         const activeInvoice = activeRes.data.data.invoice;
-        console.log("Active invoice found:", activeInvoice);
         const customerName = activeInvoice?.customer?.name ? ` for ${activeInvoice.customer.name}` : '';
         toast.error(`You already have an active packing session for Invoice #${activeInvoice?.invoice_no}${customerName}`, { duration: 7000 });
         setShowPackModal(false);
         return;
       }
 
-      // No active session, proceed with starting packing using the logged-in user's email
       await api.post("/sales/packing/start/", {
         invoice_no: selectedInvoice.invoice_no,
         user_email: user.email,
@@ -170,67 +162,47 @@ export default function PackingInvoiceListPage() {
       toast.success(`Packing started for ${selectedInvoice.invoice_no}`);
     } catch (err) {
       console.error("Error in handlePackInvoice:", err);
-      console.log("Error response:", err.response?.data);
-      console.log("Error status:", err.response?.status);
       
-      // Check if it's a 409 Conflict error (active session exists)
       if (err.response?.status === 409) {
-        console.log("409 Conflict - Active session detected, fetching details...");
         try {
           const activeRes = await api.get("/sales/packing/active/");
-          console.log("Fetched active session:", activeRes.data);
-          
-          // Try different possible response structures
-          const activeInvoice = activeRes.data?.data?.invoice || 
-                               activeRes.data?.invoice || 
-                               activeRes.data?.data;
+          const activeInvoice = activeRes.data?.data?.invoice || activeRes.data?.invoice || activeRes.data?.data;
           
           if (activeInvoice && (activeInvoice.id || activeInvoice.invoice_no)) {
-            console.log("Active invoice details:", activeInvoice);
             const customerName = activeInvoice?.customer?.name ? ` for ${activeInvoice.customer.name}` : '';
             toast.error(`You already have an active packing session for Invoice #${activeInvoice?.invoice_no}${customerName}`, { duration: 7000 });
             setShowPackModal(false);
             return;
           }
           
-          // If we can't get invoice details, try to extract from error response
           const errorInvoiceNo = err.response?.data?.invoice_no || 
                                 err.response?.data?.data?.invoice_no ||
                                 err.response?.data?.details?.invoice_no;
           
           if (errorInvoiceNo) {
-            console.log("Using invoice number from error:", errorInvoiceNo);
             toast.error(`You already have an active packing session for Invoice #${errorInvoiceNo}`, { duration: 7000 });
             setShowPackModal(false);
             return;
           }
           
-          // Last resort - show generic warning
-          console.log("Could not get invoice details, showing generic warning");
           toast.error("You already have an active packing session", { duration: 7000 });
           setShowPackModal(false);
           return;
         } catch (activeErr) {
-          console.error("Failed to fetch active session:", activeErr);
-          // Still show warning even if fetch fails
           toast.error("You already have an active packing session", { duration: 7000 });
           setShowPackModal(false);
           return;
         }
       }
       
-      // Check for other error messages indicating active session
       const msg = err.response?.data?.errors?.invoice_no?.[0];
       const errorMessage = err.response?.data?.message || '';
 
       if (msg?.includes("already exists") || 
           errorMessage.toLowerCase().includes("active") ||
           errorMessage.toLowerCase().includes("already")) {
-        console.log("Active session error detected from message, fetching details...");
         try {
           const activeRes = await api.get("/sales/packing/active/");
-          console.log("Fetched active session:", activeRes.data);
-          
           if (activeRes.data?.data) {
             const inv = activeRes.data.data.invoice;
             const customerName = inv?.customer?.name ? ` for ${inv.customer.name}` : '';
@@ -243,10 +215,8 @@ export default function PackingInvoiceListPage() {
         }
       }
 
-      // Check for user not found vs privilege not given
       const userEmailError = err.response?.data?.errors?.user_email?.[0] || err.response?.data?.errors?.user_email || '';
       
-      // User doesn't exist in database
       if (err.response?.status === 404 || 
           userEmailError.toLowerCase().includes('user not found') ||
           userEmailError.toLowerCase().includes('please scan a valid email') ||
@@ -255,7 +225,6 @@ export default function PackingInvoiceListPage() {
         return;
       }
       
-      // User exists but doesn't have privilege/menu access
       if (errorMessage === 'Privilege Not Given' || 
           userEmailError.toLowerCase().includes('does not have access') ||
           userEmailError.toLowerCase().includes('please contact admin')) {
@@ -271,7 +240,6 @@ export default function PackingInvoiceListPage() {
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
-  // Filter by search term
   const filteredInvoices = sortedInvoices.filter(inv => {
     if (!searchTerm.trim()) return true;
     const search = searchTerm.toLowerCase();
@@ -293,7 +261,7 @@ export default function PackingInvoiceListPage() {
   };
 
   const handleViewInvoice = (id) => {
-    if(user?.role === "PACKER"){
+    if (user?.role === "PACKER") {
       navigate(`/ops/packing/invoices/view/${id}`);
       return;
     }
@@ -302,37 +270,24 @@ export default function PackingInvoiceListPage() {
 
   const getPriorityBadgeColor = (priority) => {
     switch (priority) {
-      case "HIGH":
-        return "bg-red-100 text-red-700 border-red-300";
-      case "MEDIUM":
-        return "bg-yellow-100 text-yellow-700 border-yellow-300";
-      case "LOW":
-        return "bg-gray-100 text-gray-600 border-gray-300";
-      default:
-        return "bg-gray-100 text-gray-600 border-gray-300";
+      case "HIGH": return "bg-red-100 text-red-700 border-red-300";
+      case "MEDIUM": return "bg-yellow-100 text-yellow-700 border-yellow-300";
+      case "LOW": return "bg-gray-100 text-gray-600 border-gray-300";
+      default: return "bg-gray-100 text-gray-600 border-gray-300";
     }
   };
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case "INVOICED":
-        return "bg-yellow-100 text-yellow-700 border-yellow-300";
-      case "PICKING":
-        return "bg-blue-100 text-blue-700 border-blue-300";
-      case "PICKED":
-        return "bg-green-100 text-green-700 border-green-300";
-      case "PACKING":
-        return "bg-purple-100 text-purple-700 border-purple-300";
-      case "PACKED":
-        return "bg-emerald-100 text-emerald-700 border-emerald-300";
-      case "DISPATCHED":
-        return "bg-teal-100 text-teal-700 border-teal-300";
-      case "DELIVERED":
-        return "bg-gray-200 text-gray-700 border-gray-300";
-      case "REVIEW":
-        return "bg-red-100 text-red-700 border-red-300";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-300";
+      case "INVOICED": return "bg-yellow-100 text-yellow-700 border-yellow-300";
+      case "PICKING": return "bg-blue-100 text-blue-700 border-blue-300";
+      case "PICKED": return "bg-green-100 text-green-700 border-green-300";
+      case "PACKING": return "bg-purple-100 text-purple-700 border-purple-300";
+      case "PACKED": return "bg-emerald-100 text-emerald-700 border-emerald-300";
+      case "DISPATCHED": return "bg-teal-100 text-teal-700 border-teal-300";
+      case "DELIVERED": return "bg-gray-200 text-gray-700 border-gray-300";
+      case "REVIEW": return "bg-red-100 text-red-700 border-red-300";
+      default: return "bg-gray-100 text-gray-700 border-gray-300";
     }
   };
 
@@ -341,13 +296,10 @@ export default function PackingInvoiceListPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header - Responsive */}
+        {/* Header */}
         <div className="mb-6">
-          {/* Desktop: flex-row, Mobile: flex-col */}
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-800">
-              Packing Management
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-800">Packing Management</h1>
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative w-full sm:w-64">
                 <input
@@ -362,10 +314,7 @@ export default function PackingInvoiceListPage() {
                 />
                 {searchTerm && (
                   <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
+                    onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     title="Clear search"
                   >
@@ -373,12 +322,17 @@ export default function PackingInvoiceListPage() {
                   </button>
                 )}
               </div>
-              <button
-                onClick={handleShowOngoingWork}
-                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
-              >
-                Ongoing Work
-              </button>
+
+              {/* Ongoing Work — admin/superadmin only */}
+              {isAdminOrSuperadmin && (
+                <button
+                  onClick={handleShowOngoingWork}
+                  className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
+                >
+                  Ongoing Work
+                </button>
+              )}
+
               <button
                 onClick={handleRefresh}
                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
@@ -392,13 +346,9 @@ export default function PackingInvoiceListPage() {
         {/* Table */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {loading ? (
-            <div className="py-20 text-center text-gray-500">
-              Loading invoices...
-            </div>
+            <div className="py-20 text-center text-gray-500">Loading invoices...</div>
           ) : invoices.length === 0 ? (
-            <div className="py-20 text-center text-gray-500">
-              No invoices found
-            </div>
+            <div className="py-20 text-center text-gray-500">No invoices found</div>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -419,22 +369,14 @@ export default function PackingInvoiceListPage() {
                     {currentItems.map((inv) => (
                       <tr
                         key={inv.id}
-                        className={`transition hover:bg-grey-50 ${
-                          inv.priority === "HIGH" ? "bg-red-50" : ""
-                        }`}
+                        className={`transition hover:bg-grey-50 ${inv.priority === "HIGH" ? "bg-red-50" : ""}`}
                       >
                         <td className="px-4 py-3">
                           <p className="font-semibold">{inv.invoice_no}</p>
-                          <p className="text-xs text-gray-500">
-                            {inv.customer?.code}
-                          </p>
+                          <p className="text-xs text-gray-500">{inv.customer?.code}</p>
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getPriorityBadgeColor(
-                              inv.priority
-                            )}`}
-                          >
+                          <span className={`px-3 py-1 rounded-full border text-xs font-bold ${getPriorityBadgeColor(inv.priority)}`}>
                             {inv.priority || "—"}
                           </span>
                         </td>
@@ -448,18 +390,12 @@ export default function PackingInvoiceListPage() {
                             {inv.customer?.area || inv.customer?.address1 || inv.temp_name || "—"}
                           </p>
                         </td>
-                        <td className="px-4 py-3 text-sm">
-                          {inv.salesman?.name}
-                        </td>
+                        <td className="px-4 py-3 text-sm">{inv.salesman?.name}</td>
                         <td className="px-4 py-3 text-right font-semibold">
                           {formatNumber(inv.Total, 2, '0.00')}
                         </td>
-                        <td className="px-4 py-3 text-center ">
-                          <span
-                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
-                              inv.status
-                            )}`}
-                          >
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(inv.status)}`}>
                             {getStatusLabel(inv.status)}
                           </span>
                         </td>
@@ -508,8 +444,8 @@ export default function PackingInvoiceListPage() {
         customerName={selectedInvoice?.customer?.name}
       />
 
-      {/* Ongoing Work Modal */}
-      {showOngoingModal && (
+      {/* Ongoing Work Modal — admin/superadmin only */}
+      {isAdminOrSuperadmin && showOngoingModal && (
         <>
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-50"
@@ -521,9 +457,7 @@ export default function PackingInvoiceListPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">
-                  Ongoing Packing Tasks
-                </h2>
+                <h2 className="text-xl font-bold text-white">Ongoing Packing Tasks</h2>
                 <button
                   onClick={() => setShowOngoingModal(false)}
                   className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition"
@@ -534,13 +468,9 @@ export default function PackingInvoiceListPage() {
 
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
                 {loadingOngoing ? (
-                  <div className="py-20 text-center text-gray-500">
-                    Loading ongoing tasks...
-                  </div>
+                  <div className="py-20 text-center text-gray-500">Loading ongoing tasks...</div>
                 ) : ongoingTasks.length === 0 ? (
-                  <div className="py-20 text-center text-gray-500">
-                    No ongoing tasks
-                  </div>
+                  <div className="py-20 text-center text-gray-500">No ongoing tasks</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -569,15 +499,9 @@ export default function PackingInvoiceListPage() {
                                 {task.customer_address || task.customer?.area || task.customer?.address1 || task.temp_name || "—"}
                               </p>
                             </td>
-                            <td className="px-4 py-3 text-sm">
-                              {formatDate(task?.invoice_date)}
-                            </td>
-                            <td className="px-4 py-3 text-sm">
-                              {formatTime(task.start_time)}
-                            </td>
-                            <td className="px-4 py-3 text-sm font-semibold">
-                              {formatDuration(task.start_time)}
-                            </td>
+                            <td className="px-4 py-3 text-sm">{formatDate(task?.invoice_date)}</td>
+                            <td className="px-4 py-3 text-sm">{formatTime(task.start_time)}</td>
+                            <td className="px-4 py-3 text-sm font-semibold">{formatDuration(task.start_time)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -589,7 +513,9 @@ export default function PackingInvoiceListPage() {
           </div>
         </>
       )}
-      <ActiveUsersDock type="packing" />
+
+      {/* Active Users Dock — admin/superadmin only */}
+      {isAdminOrSuperadmin && <ActiveUsersDock type="packing" />}
     </div>
   );
 }

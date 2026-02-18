@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useMemo } from "react";
 import toast from "react-hot-toast";
 
 export default function HoldForConsolidationModal({
@@ -12,7 +12,19 @@ export default function HoldForConsolidationModal({
   primaryHolderEmail = null,
 }) {
   const [holdBill, setHoldBill] = useState(heldBills.length > 0); // Auto-hold if there are existing held bills
-  const [editableCustomerName, setEditableCustomerName] = useState(customerName || "");
+  // If customerName is provided, use it; else use temp_name from heldBills[0] if available (always up-to-date)
+  const resolvedCustomerName = useMemo(() => {
+    if (customerName && customerName.trim()) return customerName;
+    if (heldBills[0]?.temp_name) return heldBills[0].temp_name;
+    return "";
+  }, [customerName, heldBills]);
+
+  const [editableCustomerName, setEditableCustomerName] = useState(resolvedCustomerName);
+
+  // Keep editableCustomerName in sync if resolvedCustomerName changes (e.g., after API loads)
+  React.useEffect(() => {
+    setEditableCustomerName(resolvedCustomerName);
+  }, [resolvedCustomerName]);
 
   const handleConfirm = () => {
     if (holdBill && !editableCustomerName.trim()) {
@@ -57,9 +69,14 @@ export default function HoldForConsolidationModal({
             <input
               type="text"
               value={editableCustomerName}
-              onChange={(e) => setEditableCustomerName(e.target.value)}
+              onChange={(e) => {
+                // Only make readOnly if customerName is provided (not for temp_name)
+                if (!customerName) setEditableCustomerName(e.target.value);
+              }}
               placeholder="Enter customer name for grouping..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              readOnly={!!customerName}
+              style={customerName ? { backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' } : {}}
             />
             <p className="text-xs text-gray-500 mt-1">
               Bills with this exact customer name will be grouped together
