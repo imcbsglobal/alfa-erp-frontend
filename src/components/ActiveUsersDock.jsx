@@ -197,7 +197,7 @@ export default function ActiveUsersDock({ type = 'picking' }) {
   const loadActiveUsers = async () => {
     try {
       const res = await api.get(currentConfig.endpoint, {
-        params: { status: currentConfig.status }
+        params: { status: currentConfig.status, page_size: 9999 }
       });
       const users = res.data?.results || [];
       console.log(`🔵 ActiveUsersDock [${type}]: Loaded ${users.length} active users`, users);

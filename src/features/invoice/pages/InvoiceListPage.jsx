@@ -162,7 +162,9 @@ export default function InvoiceListPage() {
     try {
       // Fetch from picking history API which has start_time and duration fields
       // Use status=PREPARING to get ongoing picking sessions
-      const res = await api.get("/sales/picking/history/?status=PREPARING");
+      const res = await api.get("/sales/picking/history/", {
+        params: { status: "PREPARING", page_size: 9999 }
+      });
       const responseData = res.data?.results || [];
       
       console.log("Ongoing tasks data:", responseData);
