@@ -15,9 +15,6 @@ export default function PackingInvoiceListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Only ADMIN, SUPERADMIN, and STORE can see ongoing work and active users dock
-  const canSeeAdminFeatures = ["ADMIN", "SUPERADMIN", "STORE"].includes(user?.role);
-
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPackModal, setShowPackModal] = useState(false);
@@ -138,7 +135,12 @@ export default function PackingInvoiceListPage() {
     setShowPackModal(true);
   };
 
-  const handlePackInvoice = async (employeeEmail) => {
+  const handlePackInvoice = async () => {
+    if (!user?.email) {
+      toast.error("Could not determine your account. Please log in again.");
+      return;
+    }
+
     try {
       // First check if there's already an active packing session
       console.log("Checking for active packing session...");
@@ -154,10 +156,10 @@ export default function PackingInvoiceListPage() {
         return;
       }
 
-      // No active session, proceed with starting packing
+      // No active session, proceed with starting packing using the logged-in user's email
       await api.post("/sales/packing/start/", {
         invoice_no: selectedInvoice.invoice_no,
-        user_email: employeeEmail,
+        user_email: user.email,
         notes: "Packing started",
       });
 
@@ -371,14 +373,12 @@ export default function PackingInvoiceListPage() {
                   </button>
                 )}
               </div>
-              {canSeeAdminFeatures && (
               <button
                 onClick={handleShowOngoingWork}
                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
               >
                 Ongoing Work
               </button>
-              )}
               <button
                 onClick={handleRefresh}
                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
@@ -505,10 +505,11 @@ export default function PackingInvoiceListPage() {
         onClose={() => setShowPackModal(false)}
         onPack={handlePackInvoice}
         invoiceNumber={selectedInvoice?.invoice_no}
+        customerName={selectedInvoice?.customer?.name}
       />
 
-      {/* Ongoing Work Modal - Admin/Superadmin/Store only */}
-      {canSeeAdminFeatures && showOngoingModal && (
+      {/* Ongoing Work Modal */}
+      {showOngoingModal && (
         <>
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-50"
@@ -588,7 +589,7 @@ export default function PackingInvoiceListPage() {
           </div>
         </>
       )}
-      {canSeeAdminFeatures && <ActiveUsersDock type="packing" />}
+      <ActiveUsersDock type="packing" />
     </div>
   );
 }
