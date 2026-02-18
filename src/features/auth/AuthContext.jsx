@@ -38,6 +38,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("menus", JSON.stringify(menus || []));
   };
 
+  // ✅ must be defined BEFORE value object
+  const updateUser = (updatedData) => {
+    const updated = { ...user, ...updatedData };
+    setUser(updated);
+    localStorage.setItem("user", JSON.stringify(updated));
+  };
+
   const logout = () => {
     localStorage.clear();
     setUser(null);
@@ -55,6 +62,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated: !!user,
     setUserSession,
+    updateUser, // ✅ now it's defined above
     logout,
   };
 

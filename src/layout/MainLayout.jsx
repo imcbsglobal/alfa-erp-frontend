@@ -236,8 +236,8 @@ export default function MainLayout() {
               </div>
 
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-teal-100 overflow-hidden">
-                {user?.profilePhoto ? (
-                  <img src={user.profilePhoto} alt={user.name} className="w-full h-full object-cover" />
+                {(user?.avatar || user?.profilePhoto) ? (
+                  <img src={user.avatar || user.profilePhoto} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-sm sm:text-base">{user?.name?.charAt(0).toUpperCase() || "U"}</span>
                 )}
