@@ -405,18 +405,6 @@ export default function SuperAdminDashboard() {
       gradient: 'from-indigo-500 to-blue-600',
     },
     {
-      title: 'HOLD INVOICES',
-      value: loading ? '...' : todayStats.holdInvoices,
-      icon: (
-        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      gradient: 'from-amber-400 to-orange-500',
-      onClick: () => navigate('/invoices/pending'),
-    },
-    {
       title: 'COMPLETED PICKING',
       value: loading ? '...' : todayStats.completedPicking,
       icon: (
@@ -448,6 +436,18 @@ export default function SuperAdminDashboard() {
         </svg>
       ),
       gradient: 'from-pink-500 to-rose-600',
+    },
+    {
+      title: 'HOLD INVOICES',
+      value: loading ? '...' : todayStats.holdInvoices,
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      gradient: 'from-amber-400 to-orange-500',
+      onClick: () => navigate('/invoices/pending'),
     },
   ];
 
@@ -619,7 +619,7 @@ export default function SuperAdminDashboard() {
                 </div>
 
                 {/* Large number */}
-                <p className="text-white text-5xl font-extrabold leading-none tracking-tight">
+                <p className="text-white text-5xl leading-none tracking-tight">
                   {stat.value}
                 </p>
 
@@ -631,104 +631,6 @@ export default function SuperAdminDashboard() {
               </div>
             ))}
           </div>
-
-          {/* Visual Session Distribution Chart */}
-          {!loading && todayStats.totalInvoices > 0 && (
-            <div className="mt-6 bg-white rounded-xl shadow-md p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Completed Sessions Distribution </h3>
-              
-              {/* Stacked Progress Bar */}
-              <div className="mb-4">
-                <div className="flex h-8 sm:h-10 rounded-lg overflow-hidden shadow-inner">
-                  <div 
-                    className="bg-gradient-to-r from-blue-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(todayStats.completedPicking / todayStats.totalInvoices) * 100}%` }}
-                  >
-                    {todayStats.completedPicking > 0 && <span className="hidden sm:inline">{todayStats.completedPicking}</span>}
-                  </div>
-                  <div 
-                    className="bg-gradient-to-r from-purple-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(todayStats.completedPacking / todayStats.totalInvoices) * 100}%` }}
-                  >
-                    {todayStats.completedPacking > 0 && <span className="hidden sm:inline">{todayStats.completedPacking}</span>}
-                  </div>
-                  <div 
-                    className="bg-gradient-to-r from-green-400 to-green-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-500"
-                    style={{ width: `${(todayStats.completedDelivery / todayStats.totalInvoices) * 100}%` }}
-                  >
-                    {todayStats.completedDelivery > 0 && <span className="hidden sm:inline">{todayStats.completedDelivery}</span>}
-                  </div>
-                </div>
-                
-                {/* Legend */}
-                <div className="flex flex-wrap gap-4 mt-3 text-xs sm:text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500"></div>
-                    <span className="text-gray-600">Picking ({Math.round((todayStats.completedPicking / todayStats.totalInvoices) * 100)}%)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-400 to-purple-500"></div>
-                    <span className="text-gray-600">Packing ({Math.round((todayStats.completedPacking / todayStats.totalInvoices) * 100)}%)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-400 to-green-500"></div>
-                    <span className="text-gray-600">Delivery ({Math.round((todayStats.completedDelivery / todayStats.totalInvoices) * 100)}%)</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Completion Rate Circle */}
-              <div className="flex flex-col sm:flex-row items-center justify-around gap-4 mt-6">
-                <div className="text-center">
-                  <div className="relative inline-flex items-center justify-center">
-                    <svg className="transform -rotate-90 w-24 h-24 sm:w-32 sm:h-32">
-                      <circle
-                        cx="48"
-                        cy="48"
-                        r="40"
-                        stroke="currentColor"
-                        strokeWidth="8"
-                        fill="none"
-                        className="text-gray-200"
-                      />
-                      <circle
-                        cx="48"
-                        cy="48"
-                        r="40"
-                        stroke="currentColor"
-                        strokeWidth="8"
-                        fill="none"
-                        strokeDasharray={251.2}
-                        strokeDashoffset={251.2 - (251.2 * (todayStats.completedDelivery / todayStats.totalInvoices))}
-                        className="text-green-500 transition-all duration-1000"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <span className="absolute text-xl sm:text-2xl font-bold text-gray-800">
-                      {Math.round((todayStats.completedDelivery / todayStats.totalInvoices) * 100)}%
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-gray-600 mt-2 font-medium">Delivery Completion</p>
-                </div>
-
-                {/* Mini Stats Grid */}
-                <div className="grid grid-cols-3 gap-3 sm:gap-4 flex-1 max-w-md">
-                  <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-lg sm:text-2xl font-bold text-blue-700">{todayStats.completedPicking}</p>
-                    <p className="text-xs text-blue-600">Picked</p>
-                  </div>
-                  <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-                    <p className="text-lg sm:text-2xl font-bold text-purple-700">{todayStats.completedPacking}</p>
-                    <p className="text-xs text-purple-600">Packed</p>
-                  </div>
-                  <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-lg sm:text-2xl font-bold text-green-700">{todayStats.completedDelivery}</p>
-                    <p className="text-xs text-green-600">Delivered</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Two Column Layout for Medium to Large Screens */}
