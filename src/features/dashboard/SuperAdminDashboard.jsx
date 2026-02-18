@@ -393,43 +393,64 @@ export default function SuperAdminDashboard() {
 
   // Overview Stats Cards - Top Row (Real-time updates for today)
   const overviewCards = [
-    { 
-      title: 'Total Invoices', 
-      value: loading ? '...' : todayStats.totalInvoices, 
-      icon: '📋', 
-      color: 'bg-gradient-to-br from-teal-400 to-teal-600',
-      textColor: 'text-white'
+    {
+      title: 'TOTAL INVOICES',
+      value: loading ? '...' : todayStats.totalInvoices,
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      gradient: 'from-indigo-500 to-blue-600',
     },
-    { 
-      title: 'Hold Invoices', 
-      value: loading ? '...' : todayStats.holdInvoices, 
-      icon: '⏸️',
-      color: 'bg-gradient-to-br from-amber-400 to-orange-600',
-      textColor: 'text-white',
-      onClick: () => navigate('/invoices/pending')
+    {
+      title: 'HOLD INVOICES',
+      value: loading ? '...' : todayStats.holdInvoices,
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      gradient: 'from-amber-400 to-orange-500',
+      onClick: () => navigate('/invoices/pending'),
     },
-    { 
-      title: 'Completed Picking', 
-      value: loading ? '...' : todayStats.completedPicking, 
-      icon: '📦',
-      color: 'bg-gradient-to-br from-blue-400 to-blue-600',
-      textColor: 'text-white'
+    {
+      title: 'COMPLETED PICKING',
+      value: loading ? '...' : todayStats.completedPicking,
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      ),
+      gradient: 'from-teal-400 to-cyan-600',
     },
-    { 
-      title: 'Completed Packing', 
-      value: loading ? '...' : todayStats.completedPacking, 
-      icon: '🎁',
-      color: 'bg-gradient-to-br from-purple-400 to-purple-600',
-      textColor: 'text-white'
+    {
+      title: 'COMPLETED PACKING',
+      value: loading ? '...' : todayStats.completedPacking,
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      ),
+      gradient: 'from-purple-500 to-violet-600',
     },
-    { 
-      title: 'Completed Delivery', 
-      value: loading ? '...' : todayStats.completedDelivery, 
-      icon: '🚚',
-      color: 'bg-gradient-to-br from-green-400 to-green-600',
-      textColor: 'text-white'
-    }
+    {
+      title: 'COMPLETED DELIVERY',
+      value: loading ? '...' : todayStats.completedDelivery,
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+        </svg>
+      ),
+      gradient: 'from-pink-500 to-rose-600',
+    },
   ];
+
 
   // User & System Stats
   const userSystemCards = [
@@ -573,22 +594,40 @@ export default function SuperAdminDashboard() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
             {overviewCards.map((stat, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 onClick={stat.onClick}
-                className={`${stat.color} ${stat.textColor} rounded-xl shadow-lg p-6 transform hover:scale-105 transition-all duration-200 relative overflow-hidden ${stat.onClick ? 'cursor-pointer hover:shadow-2xl' : ''}`}
+                className={`
+                  bg-gradient-to-br ${stat.gradient}
+                  rounded-2xl shadow-lg p-5
+                  flex flex-col gap-3
+                  relative overflow-hidden
+                  transition-all duration-200
+                  hover:shadow-2xl hover:scale-[1.03]
+                  ${stat.onClick ? 'cursor-pointer' : ''}
+                `}
               >
-                <div className="flex items-center justify-between relative z-10">
-                  <div>
-                    <p className="text-white/80 text-sm font-medium mb-1">{stat.title}</p>
-                    <p className="text-3xl sm:text-4xl font-bold">{stat.value}</p>
-                  </div>
-                  <div className="text-4xl sm:text-5xl opacity-80">
+                {/* Top row: label left, icon right */}
+                <div className="flex items-start justify-between">
+                  <p className="text-white/90 text-xs font-bold tracking-widest uppercase leading-tight">
+                    {stat.title}
+                  </p>
+                  {/* Icon badge */}
+                  <div className="bg-white/20 rounded-xl p-2 text-white flex-shrink-0">
                     {stat.icon}
                   </div>
                 </div>
-                {/* Decorative wave pattern */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20"></div>
+
+                {/* Large number */}
+                <p className="text-white text-5xl font-extrabold leading-none tracking-tight">
+                  {stat.value}
+                </p>
+
+                {/* Decorative bottom strip */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 rounded-b-2xl" />
+
+                {/* Subtle decorative circle */}
+                <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full pointer-events-none" />
               </div>
             ))}
           </div>

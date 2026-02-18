@@ -27,15 +27,11 @@ export default function InvoiceHistoryView() {
   const load = async () => {
     setLoading(true);
     try {
-      const params = {
-        page: currentPage,
-        page_size: itemsPerPage,
-      };
-
+      const params = {};
       if (search.trim()) params.search = search.trim();
       if (filterDate) params.start_date = filterDate;
 
-      // Fetch all four histories in parallel
+      // Fetch all four histories in parallel (no pagination)
       const [pickingRes, packingRes, deliveryRes, billingRes] = await Promise.all([
         getPickingHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
         getPackingHistory(params).catch(() => ({ data: { results: [], count: 0 } })),
@@ -156,7 +152,10 @@ export default function InvoiceHistoryView() {
         });
       }
 
-      setHistory(combined);
+      // Paginate on frontend
+      const startIdx = (currentPage - 1) * itemsPerPage;
+      const paginated = combined.slice(startIdx, startIdx + itemsPerPage);
+      setHistory(paginated);
       setTotalCount(combined.length);
     } catch (error) {
       console.error("Failed to load invoice history:", error);

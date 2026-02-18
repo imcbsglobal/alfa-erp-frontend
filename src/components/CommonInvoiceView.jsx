@@ -47,6 +47,11 @@ export default function CommonInvoiceView() {
   };
 
   const handleBack = () => {
+    // If navigated from Hold/Pending Invoices, always go back there
+    if (location.state && location.state.fromPendingInvoices) {
+      navigate("/invoices/pending");
+      return;
+    }
     // Role-based navigation
     if (user?.role === "PICKER") {
       navigate(`/ops/picking/invoices/`);

@@ -98,7 +98,7 @@ export default function PendingInvoicesPage() {
   };
 
   const handleInvoiceClick = (invoice) => {
-    navigate(`/invoices/view/${invoice.id}`);
+    navigate(`/invoices/view/${invoice.id}`, { state: { fromPendingInvoices: true } });
   };
 
   // Filter and search logic
@@ -213,8 +213,8 @@ export default function PendingInvoicesPage() {
                     <tr>
                       <th className="px-4 py-3 text-left">Invoice</th>
                       <th className="px-4 py-3 text-left">Customer</th>
-                      <th className="px-4 py-3 text-left">Created Date</th>
-                      <th className="px-4 py-3 text-left">Age</th>
+                      <th className="px-4 py-3 text-left">Created Date/Time</th>
+                      <th className="px-4 py-3 text-left">Delay</th>
                       <th className="px-4 py-3 text-left">Items</th>
                       <th className="px-4 py-3 text-left">Actions</th>
                     </tr>
@@ -240,7 +240,10 @@ export default function PendingInvoicesPage() {
                           <p className="text-xs text-gray-500">{invoice.customer?.area || invoice.customer?.address1 || '—'}</p>
                         </td>
                         <td className="px-4 py-3">
-                          <p className="text-sm">{formatDateDDMMYYYY(invoice.created_at)}</p>
+                          <p className="text-sm">
+                            {formatDateDDMMYYYY(invoice.created_at)}{' '}
+                            <span className="text-gray-500">{new Date(invoice.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</span>
+                          </p>
                         </td>
                         <td className="px-4 py-3">
                           <span className={`text-sm font-semibold ${getAgeColor(invoice.created_at)}`}>
