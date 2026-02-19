@@ -260,18 +260,22 @@ export default function BoxAssignmentPage() {
     toast.success("Box completed! You can now print the label.");
   };
 
-  const handlePrintBoxLabel = (boxId) => {
+  // REPLACE the existing handlePrintBoxLabel function with this updated version
+
+const handlePrintBoxLabel = (boxId) => {
     const box = boxes.find(b => b.id === boxId);
     if (!box) return;
     
     setPrintedBoxes(prev => new Set([...prev, boxId]));
     
-    // Get customer details - PRIORITIZE delivery_address field
-    const customerName = bill?.customer?.name || bill?.customer_name || 'No Customer Name';
-    const customerAddress = bill?.delivery_address || bill?.customer?.address1 || bill?.customer?.address || 'No address provided';
-    const customerPhone = bill?.customer_phone || bill?.customer?.phone1 || bill?.customer?.phone || '';
-    
-    // Create hidden iframe for printing
+    const customerName    = bill?.customer?.name     || bill?.customer_name  || '';
+    const customerArea    = bill?.customer?.area     || '';
+    const customerAddr1   = bill?.customer?.address1 || bill?.delivery_address || '';
+    const customerAddr2   = bill?.customer?.address2 || '';
+    const customerPhone1  = bill?.customer?.phone1   || bill?.customer_phone || '';
+    const customerPhone2  = bill?.customer?.phone2   || '';
+    const customerEmail   = bill?.customer?.email    || '';
+
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
     iframe.style.width = '0';
@@ -289,128 +293,211 @@ export default function BoxAssignmentPage() {
           <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
           <style>
             @page { 
-              margin: 0; 
-              size: A4; 
+              margin: 0;
+              size: 15cm 10cm;
             }
             * {
               margin: 0;
               padding: 0;
               box-sizing: border-box;
             }
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 0; 
-              padding: 0;
-              width: 100%;
-              height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
+            html, body {
+              width: 15cm;
+              height: 10cm;
+              font-family: Arial, sans-serif;
               background: white;
+              color: black;
+              overflow: hidden;
             }
             .label-container {
-              width: 90%;
-              max-width: 800px;
-              min-height: 400px;
-              border: 4px solid #dc2626;
-              border-radius: 12px;
-              padding: 40px;
+              width: 15cm;
+              height: 10cm;
+              border: 2px solid #000;
+              border-radius: 5px;
               display: flex;
               flex-direction: column;
+              overflow: hidden;
               background: white;
             }
-            .header {
+
+            /* ── Company Header ── */
+            .company-header {
               display: flex;
               align-items: center;
-              gap: 16px;
-              margin-bottom: 40px;
+              gap: 10px;
+              padding: 6px 10px;
+              border-bottom: 1.5px solid #000;
+              background: white;
+              flex-shrink: 0;
             }
-            .logo {
-              height: 60px;
+            .company-logo {
+              height: 50px;
               width: auto;
+              /* render at 2x then scale down — sharper on high-DPI */
+              image-rendering: -webkit-optimize-contrast;
+              image-rendering: crisp-edges;
             }
-            .content-grid {
+            .company-divider {
+              width: 1.5px;
+              height: 50px;
+              background: #000;
+              flex-shrink: 0;
+            }
+            .company-info {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+            }
+            .company-address {
+              font-size: 13px;
+              color: #000;
+              line-height: 1.6;
+              font-weight: 500;
+            }
+
+            /* ── Main Content ── */
+            .main-content {
               display: grid;
-              grid-template-columns: 240px 1fr;
-              gap: 40px;
-              margin-bottom: auto;
+              grid-template-columns: 4cm 1fr;
               flex: 1;
+              /* allow main area to grow if text wraps */
+              overflow: visible;
             }
+
+            /* Left: QR Code */
             .qr-section {
               display: flex;
               flex-direction: column;
-              align-items: flex-start;
+              align-items: center;
+              justify-content: center;
+              padding: 12px;
+              background: white;
+              /* keep QR fixed, don't stretch */
+              align-self: center;
             }
             .qr-container {
+              border: 1.5px solid #000;
+              padding: 4px;
               background: white;
-              border: 2px solid #d1d5db;
-              padding: 12px;
-              border-radius: 4px;
             }
             #qrcode {
-              width: 180px;
-              height: 180px;
+              width: 100px;
+              height: 100px;
             }
-            #qrcode img {
-              width: 100% !important;
-              height: 100% !important;
+            #qrcode img,
+            #qrcode canvas {
+              width: 100px !important;
+              height: 100px !important;
             }
-            .customer-details {
+            .box-id-label {
+              margin-top: 4px;
+              font-size: 10px;
+              font-weight: bold;
+              color: #000000;
+              text-align: center;
+              word-break: break-all;
+              max-width: 3.6cm;
+            }
+
+            /* Right: Customer Details — wraps freely */
+            .customer-section {
+              padding: 10px 14px;
               display: flex;
               flex-direction: column;
-              gap: 8px;
+              justify-content: center;
+              gap: 2px;
+              background: white;
+              /* NO overflow:hidden — let text wrap to next line */
+              overflow: visible;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              word-break: break-word;
+            }
+            .to-label {
+              font-size: 8px;
+              font-weight: bold;
+              text-transform: uppercase;
+              color: #000000;
+              letter-spacing: 1px;
+              margin-bottom: 3px;
             }
             .customer-name {
               font-weight: bold;
-              color: #000;
-              font-size: 28px;
-              line-height: 1.2;
+              font-size: 20px;
               text-transform: uppercase;
-              margin: 0 0 8px 0;
+              color: #000000;
+              line-height: 1.2;
+              white-space: normal;
+              word-wrap: break-word;
             }
-            .customer-address {
-              color: #000;
-              font-size: 20px;
-              line-height: 1.4;
-              margin: 0;
+            .customer-area {
+              font-size: 15px;
+              color: #000000;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-top: 1px;
+              white-space: normal;
+              word-wrap: break-word;
             }
-            .customer-phone {
+            .customer-addr {
+              font-size: 15px;
               color: #000;
-              font-size: 20px;
-              line-height: 1.4;
-              margin: 8px 0 0 0;
+              line-height: 1.5;
+              margin-top: 2px;
+              /* key: wrap long addresses */
+              white-space: normal;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+            }
+            .customer-contact {
+              font-size: 12px;
               font-weight: bold;
+              color: #000;
+              margin-top: 3px;
+              line-height: 1.5;
+              white-space: normal;
+              word-wrap: break-word;
             }
+            .customer-email {
+              font-size: 12px;
+              font-weight: bold;
+              color: #000000;
+              margin-top: 2px;
+              white-space: normal;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+            }
+
+            /* ── Instructions Banner ── */
             .instructions-banner {
-              margin-top: 40px;
+              border-top: 1.5px solid #000;
+              background: #fff;
+              padding: 7px 12px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              flex-shrink: 0;
             }
-            .banner-content {
-              background: #dc2626;
-              color: white;
-              padding: 24px 28px;
-              border-radius: 8px;
+            .instruction-texts {
+              display: flex;
+              flex-direction: column;
+              gap: 3px;
             }
             .instruction-text {
               font-weight: bold;
-              font-size: 18px;
+              font-size: 10px;
               text-transform: uppercase;
-              line-height: 1.3;
-              margin: 0 0 8px 0;
-            }
-            .instruction-text-2 {
-              font-weight: bold;
-              font-size: 18px;
-              text-transform: uppercase;
-              line-height: 1.3;
-              margin: 0;
+              color: #000;
+              line-height: 1.4;
             }
             .icons-row {
               display: flex;
-              gap: 32px;
-              margin-top: 16px;
+              gap: 10px;
               align-items: center;
-              font-size: 32px;
+              font-size: 20px;
+              filter: grayscale(100%) brightness(0);
             }
+
             @media print {
               body {
                 -webkit-print-color-adjust: exact;
@@ -422,67 +509,76 @@ export default function BoxAssignmentPage() {
         </head>
         <body>
           <div class="label-container">
-            <!-- Header Section -->
-            <div class="header">
-              <img src="/alfa3.png" alt="Alfa Agencies" class="logo" />
+
+            <!-- Company Header -->
+            <div class="company-header">
+              <img src="/black.png" alt="Alfa Agencies" class="company-logo" />
+              <div class="company-divider"></div>
+              <div class="company-info">
+                <span class="company-address">18/1143 A7, Ground Floor, Meyon Building, Jail Road, Calicut - 673 004</span>
+                <span class="company-address">Ph: (Off) 0495 2300644, 2701899, 2306728</span>
+                <span class="company-address">Ph: (MOb) 9387724365, 7909220300, 7909220400</span>
+              </div>
             </div>
-            
-            <!-- Content Grid -->
-            <div class="content-grid">
-              <!-- QR Code Section -->
+
+            <!-- Main Content -->
+            <div class="main-content">
+              <!-- QR Code -->
               <div class="qr-section">
                 <div class="qr-container">
                   <div id="qrcode"></div>
                 </div>
+                <p class="box-id-label">${box.boxId}</p>
               </div>
-              
-              <!-- Customer Details Section -->
-              <div class="customer-details">
-                <p class="customer-name">${customerName}</p>
-                <p class="customer-address">${customerAddress}</p>
-                ${customerPhone ? `
-                  <p class="customer-phone">TEL: ${customerPhone}</p>
-                ` : ''}
+
+              <!-- Customer Details -->
+              <div class="customer-section">
+                <p class="to-label">Ship To</p>
+                ${customerName  ? '<p class="customer-name">'    + customerName  + '</p>' : ''}
+                ${customerArea  ? '<p class="customer-area">'    + customerArea  + '</p>' : ''}
+                ${customerAddr1 ? '<p class="customer-addr">'    + customerAddr1 + '</p>' : ''}
+                ${customerAddr2 ? '<p class="customer-addr">'    + customerAddr2 + '</p>' : ''}
+                ${(customerPhone1 || customerPhone2) ?
+                  '<p class="customer-contact">' +
+                    [customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ') +
+                  '</p>'
+                  : ''}
+                ${customerEmail ? '<p class="customer-email">'   + customerEmail + '</p>' : ''}
               </div>
             </div>
-            
+
             <!-- Instructions Banner -->
             <div class="instructions-banner">
-              <div class="banner-content">
-                <p class="instruction-text">
-                  HANDLING INSTRUCTIONS: KEEP REFRIGERATED.
-                </p>
-                <p class="instruction-text-2">
-                  DO NOT SHAKE. FRAGILE. PROTECT FROM LIGHT
-                </p>
-                
-                <div class="icons-row">
-                  <span>❄️</span>
-                  <span>🍷</span>
-                  <span>☂️</span>
-                </div>
+              <div class="instruction-texts">
+                <p class="instruction-text">HANDLE WITH CARE. KEEP REFRIGERATED.</p>
+                <p class="instruction-text">DO NOT SHAKE. FRAGILE. PROTECT FROM LIGHT</p>
+              </div>
+              <div class="icons-row">
+                <span>❄️</span>
+                <span>🍷</span>
+                <span>☂️</span>
               </div>
             </div>
+
           </div>
           
           <script>
             window.onload = function() {
-              // Generate QR code with full URL
-              const boxUrl = window.location.origin + '/box/${box.boxId}';
+              var boxUrl = window.location.origin + '/box/${box.boxId}';
               new QRCode(document.getElementById('qrcode'), {
                 text: boxUrl,
-                width: 180,
-                height: 180,
+                width: 100,
+                height: 100,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
                 correctLevel: QRCode.CorrectLevel.H
               });
               
-              // Wait for QR code to render, then print
               setTimeout(function() {
                 window.print();
-                
-                // Clean up after printing
                 setTimeout(function() {
-                  window.parent.document.querySelector('iframe')?.remove();
+                  var iframes = window.parent.document.querySelectorAll('iframe');
+                  iframes.forEach(function(f) { f.remove(); });
                 }, 1000);
               }, 500);
             }
