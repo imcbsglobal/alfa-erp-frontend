@@ -30,26 +30,26 @@ export default function BoxLabelPrintPage() {
       @media print {
         @page {
           margin: 0;
-          size: A4;
+          size: 100mm 150mm;
         }
-        
+
         html, body {
           margin: 0 !important;
           padding: 0 !important;
           width: 100% !important;
           height: 100% !important;
         }
-        
+
         /* Hide everything by default */
         body * {
           visibility: hidden;
         }
-        
+
         /* Show only print content */
         .print-container, .print-container * {
           visibility: visible;
         }
-        
+
         .print-container {
           position: fixed !important;
           left: 0 !important;
@@ -67,19 +67,25 @@ export default function BoxLabelPrintPage() {
           padding: 0 !important;
           overflow: hidden;
         }
-        
+
         .print-label {
           page-break-after: always;
           page-break-inside: avoid;
-          min-height: 100vh;
-          width: 100%;
-          padding: 30px;
-          margin: 0 !important;
+          width: 100mm;
+          height: 150mm;
+          min-height: unset;
+          max-height: unset;
+          max-width: unset;
+          padding: 0;
+          margin: 0 auto !important;
           background: white;
           box-sizing: border-box;
           position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        
+
         .print-label:last-child {
           page-break-after: auto;
         }
