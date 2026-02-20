@@ -88,7 +88,6 @@ export default function BillingUserSummaryPage() {
                   onChange={(e) => setRowsPerPage(parseInt(e.target.value))}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white min-w-[80px]"
                 >
-                  <option value="10">10</option>
                   <option value="20">20</option>
                   <option value="50">50</option>
                   <option value="100">100</option>
@@ -153,6 +152,19 @@ export default function BillingUserSummaryPage() {
                         </td>
                       </tr>
                     ))}
+                    {/* Total Invoice Summary Row */}
+                    <tr className="bg-teal-100 font-bold">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900" colSpan={2}>
+                        Total Invoices
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900">
+                        {formatNumber(
+                          summary.slice(0, rowsPerPage).reduce((sum, item) => sum + item.bill_count, 0),
+                          0,
+                          '0'
+                        )}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>

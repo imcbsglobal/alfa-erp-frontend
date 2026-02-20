@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
@@ -6,6 +6,14 @@ import toast from "react-hot-toast";
 import { formatQuantity } from "../../../utils/formatters";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
 
 export default function BoxAssignmentPage() {
   const { invoiceNo } = useParams();
@@ -18,8 +26,13 @@ export default function BoxAssignmentPage() {
   const [nextBoxId, setNextBoxId] = useState(1);
   const [completing, setCompleting] = useState(false);
   const [errors, setErrors] = useState([]);
-  const [completedBoxes, setCompletedBoxes] = useState(new Set());
+  // completedBoxes is now derived from backend is_sealed
   const [printedBoxes, setPrintedBoxes] = useState(new Set());
+
+  // DERIVED: Set of completed (sealed) box IDs
+  const completedBoxes = useMemo(() => {
+    return new Set(boxes.filter(b => b.is_sealed).map(b => b.id));
+  }, [boxes]);
   
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
@@ -45,62 +58,121 @@ export default function BoxAssignmentPage() {
   // SSE live updates for RE_INVOICED bills
   useEffect(() => {
     if (!user) return;
-    
+
     let es = null;
     let reconnectTimeout = null;
     let reconnectAttempts = 0;
-    const maxReconnectDelay = 30000;
-    const baseDelay = 1000;
+    let isUnmounted = false;
+    const MAX_ATTEMPTS = 10;
+    const BASE_DELAY = 2000;
+    const MAX_DELAY = 30000;
 
     const connect = () => {
-      if (es) es.close();
+      if (isUnmounted) return;
 
-      es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+      try {
+        es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
-      es.onmessage = (event) => {
-        reconnectAttempts = 0;
-        try {
-          const data = JSON.parse(event.data);
-          if (!data.invoice_no) return;
-          
-          // Handle RE_INVOICED bills - corrected and sent back from PACKING section
-          if (data.billing_status === "RE_INVOICED" && 
+        es.onopen = () => {
+          reconnectAttempts = 0;
+        };
+
+        es.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (!data.invoice_no) return;
+
+            if (
+              data.billing_status === "RE_INVOICED" &&
               data.return_info?.returned_from_section === "PACKING" &&
               data.return_info?.returned_by_email === user?.email &&
-              data.invoice_no === invoiceNo) {
-            console.log('🔄 RE_INVOICED packing bill received for current user');
-            toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, {
-              duration: 4000,
-              icon: '✓'
-            });
-            loadBillDetails();
+              data.invoice_no === invoiceNo
+            ) {
+              toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, {
+                duration: 4000,
+                icon: '✓'
+              });
+              loadBillDetails();
+            }
+          } catch (e) {
+            console.error("SSE: Bad data", e);
           }
-        } catch (e) {
-          console.error("Bad SSE data", e);
-        }
-      };
+        };
 
-      es.onerror = () => {
-        es.close();
-        reconnectAttempts++;
-        const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxReconnectDelay);
-        reconnectTimeout = setTimeout(() => connect(), delay);
-      };
+        es.onerror = () => {
+          es.close();
+          es = null;
+
+          if (isUnmounted) return;
+          if (reconnectAttempts >= MAX_ATTEMPTS) {
+            console.warn("SSE: Max reconnect attempts reached, stopping.");
+            return;
+          }
+
+          const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttempts), MAX_DELAY);
+          reconnectAttempts++;
+          reconnectTimeout = setTimeout(connect, delay);
+        };
+
+      } catch (err) {
+        console.error("SSE: Failed to create EventSource", err);
+      }
     };
 
     connect();
 
     return () => {
+      isUnmounted = true;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (es) es.close();
+      if (es) {
+        es.close();
+        es = null;
+      }
     };
   }, [user, invoiceNo]);
+
+  const saveDraft = useMemo(() => debounce(async (currentBoxes) => {
+    if (!currentBoxes.length) return;
+    try {
+      await api.post("/sales/packing/save-draft/", {
+        invoice_no: invoiceNo,
+        boxes: currentBoxes.map(box => ({
+          box_id: box.boxId,
+          is_sealed: box.is_sealed,
+          items: box.items.map(item => ({
+            item_id: item.itemId,
+            quantity: item.quantity,
+          }))
+        }))
+      });
+    } catch (err) {
+      console.warn("Draft save failed", err);
+    }
+  }, 1500), [invoiceNo]);
+
+  useEffect(() => {
+    if (!loading) saveDraft(boxes);
+  }, [boxes]);
 
   const loadBillDetails = async () => {
     try {
       setLoading(true);
       const res = await api.get(`/sales/packing/bill/${invoiceNo}/`);
       setBill(res.data?.data);
+      // If boxes are returned from backend, use them and set completedBoxes from is_sealed
+      if (res.data?.data?.boxes && res.data.data.boxes.length > 0) {
+        setBoxes(res.data.data.boxes.map((box, idx) => ({
+          id: box.id || Date.now() + idx,
+          boxId: box.box_id,           // backend uses snake_case
+          items: (box.items || []).map(item => ({
+            itemId: item.invoice_item_id || item.id,
+            itemName: item.item_name,
+            itemCode: item.item_code,
+            quantity: parseFloat(item.quantity),
+          })),
+          is_sealed: box.is_sealed,
+        })));
+      }
     } catch (err) {
       console.error("Failed to load bill details", err);
       toast.error("Failed to load bill details");
@@ -202,25 +274,34 @@ export default function BoxAssignmentPage() {
   };
 
   const generateBoxId = () => {
-    const billPrefix = invoiceNo.toString().slice(-4).padStart(4, '0');
+    // Extract series prefix (e.g. "C-" from "C-0044", "A-" from "A-123")
+    const seriesMatch = invoiceNo.toString().match(/^([A-Za-z]+-)/);
+    const series = seriesMatch ? seriesMatch[1] : '';
+    
+    // Extract numeric part of invoice number
+    const numericPart = invoiceNo.toString().replace(/^[A-Za-z]+-/, '');
+    const billPrefix = numericPart.slice(-4).padStart(4, '0');
+    
     const boxNum = nextBoxId.toString().padStart(3, '0');
     const timestamp = Date.now().toString().slice(-6);
-    return `BOX-${billPrefix}-${boxNum}-${timestamp}`;
+    return `BOX-${series}${billPrefix}-${boxNum}-${timestamp}`;
   };
 
   const addNewBox = () => {
     if (boxes.length > 0) {
       const lastBox = boxes[boxes.length - 1];
-      if (!completedBoxes.has(lastBox.id)) {
+      if (lastBox.is_sealed) {
+        // allow
+      } else {
         toast.error("Please complete the current box before adding a new one");
         return;
       }
     }
-    
     const newBox = {
       id: Date.now(),
       boxId: generateBoxId(),
       items: [],
+      is_sealed: false,
     };
     setBoxes(prev => [...prev, newBox]);
     setNextBoxId(prev => prev + 1);
@@ -231,42 +312,41 @@ export default function BoxAssignmentPage() {
       toast.error("You must have at least one box");
       return;
     }
-    
     const box = boxes.find(b => b.id === boxId);
-    
-    if (completedBoxes.has(boxId)) {
+    if (box.is_sealed) {
       toast.error("Cannot remove a completed box");
       return;
     }
-    
     if (box.items.length > 0) {
       if (!window.confirm("This box contains items. Are you sure you want to remove it? Items will become unassigned.")) {
         return;
       }
     }
-    
     setBoxes(prev => prev.filter(b => b.id !== boxId));
   };
 
   const handleCompleteBox = (boxId) => {
     const box = boxes.find(b => b.id === boxId);
-    
     if (!box || box.items.length === 0) {
       toast.error("Cannot complete an empty box. Please assign items first.");
       return;
     }
-    
-    setCompletedBoxes(prev => new Set([...prev, boxId]));
+    // Mark as sealed in local state (for immediate UI feedback)
+    setBoxes(prev => prev.map(b => b.id === boxId ? { ...b, is_sealed: true } : b));
     toast.success("Box completed! You can now print the label.");
+    // Optionally, send to backend if you want to persist immediately
   };
 
-  // REPLACE the existing handlePrintBoxLabel function with this updated version
-
-const handlePrintBoxLabel = (boxId) => {
+  const handlePrintBoxLabel = (boxId) => {
     const box = boxes.find(b => b.id === boxId);
     if (!box) return;
     
     setPrintedBoxes(prev => new Set([...prev, boxId]));
+    
+    // --- NEW: box count info ---
+    const boxIndex   = boxes.findIndex(b => b.id === boxId) + 1;   // 1-based
+    const totalBoxes = boxes.length;
+    // --------------------------
     
     const customerName    = bill?.customer?.name     || bill?.customer_name  || '';
     const customerArea    = bill?.customer?.area     || '';
@@ -333,7 +413,6 @@ const handlePrintBoxLabel = (boxId) => {
             .company-logo {
               height: 50px;
               width: auto;
-              /* render at 2x then scale down — sharper on high-DPI */
               image-rendering: -webkit-optimize-contrast;
               image-rendering: crisp-edges;
             }
@@ -360,7 +439,6 @@ const handlePrintBoxLabel = (boxId) => {
               display: grid;
               grid-template-columns: 4cm 1fr;
               flex: 1;
-              /* allow main area to grow if text wraps */
               overflow: visible;
             }
 
@@ -370,11 +448,23 @@ const handlePrintBoxLabel = (boxId) => {
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              padding: 12px;
+              padding: 8px 12px;
               background: white;
-              /* keep QR fixed, don't stretch */
               align-self: center;
+              gap: 3px;
             }
+
+            /* ── NEW: Invoice number label above QR ── */
+            .invoice-label {
+              font-size: 12px;
+              font-weight: bold;
+              color: #000;
+              text-align: center;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              white-space: nowrap;
+            }
+
             .qr-container {
               border: 1.5px solid #000;
               padding: 4px;
@@ -390,16 +480,27 @@ const handlePrintBoxLabel = (boxId) => {
               height: 100px !important;
             }
             .box-id-label {
-              margin-top: 4px;
               font-size: 10px;
               font-weight: bold;
-              color: #000000;
+              color: #000;
               text-align: center;
               word-break: break-all;
               max-width: 3.6cm;
             }
 
-            /* Right: Customer Details — wraps freely */
+            /* ── NEW: Box count badge ── */
+            .box-count-label {
+              font-size: 9px;
+              font-weight: bold;
+              color: #fff;
+              background: #000;
+              padding: 1px 6px;
+              border-radius: 10px;
+              text-align: center;
+              white-space: nowrap;
+            }
+
+            /* Right: Customer Details */
             .customer-section {
               padding: 10px 14px;
               display: flex;
@@ -407,7 +508,6 @@ const handlePrintBoxLabel = (boxId) => {
               justify-content: center;
               gap: 2px;
               background: white;
-              /* NO overflow:hidden — let text wrap to next line */
               overflow: visible;
               word-wrap: break-word;
               overflow-wrap: break-word;
@@ -417,7 +517,7 @@ const handlePrintBoxLabel = (boxId) => {
               font-size: 8px;
               font-weight: bold;
               text-transform: uppercase;
-              color: #000000;
+              color: #000;
               letter-spacing: 1px;
               margin-bottom: 3px;
             }
@@ -425,14 +525,14 @@ const handlePrintBoxLabel = (boxId) => {
               font-weight: bold;
               font-size: 20px;
               text-transform: uppercase;
-              color: #000000;
+              color: #000;
               line-height: 1.2;
               white-space: normal;
               word-wrap: break-word;
             }
             .customer-area {
               font-size: 15px;
-              color: #000000;
+              color: #000;
               text-transform: uppercase;
               letter-spacing: 0.5px;
               margin-top: 1px;
@@ -444,7 +544,6 @@ const handlePrintBoxLabel = (boxId) => {
               color: #000;
               line-height: 1.5;
               margin-top: 2px;
-              /* key: wrap long addresses */
               white-space: normal;
               word-wrap: break-word;
               overflow-wrap: break-word;
@@ -461,7 +560,7 @@ const handlePrintBoxLabel = (boxId) => {
             .customer-email {
               font-size: 12px;
               font-weight: bold;
-              color: #000000;
+              color: #000;
               margin-top: 2px;
               white-space: normal;
               word-wrap: break-word;
@@ -517,18 +616,26 @@ const handlePrintBoxLabel = (boxId) => {
               <div class="company-info">
                 <span class="company-address">18/1143 A7, Ground Floor, Meyon Building, Jail Road, Calicut - 673 004</span>
                 <span class="company-address">Ph: (Off) 0495 2300644, 2701899, 2306728</span>
-                <span class="company-address">Ph: (MOb) 9387724365, 7909220300, 7909220400</span>
+                <span class="company-address">Ph: (Mob) 9387724365, 7909220300, 7909220400</span>
               </div>
             </div>
 
             <!-- Main Content -->
             <div class="main-content">
-              <!-- QR Code -->
+              <!-- QR Code + labels -->
               <div class="qr-section">
+                <!-- Invoice number ABOVE QR -->
+                <p class="invoice-label">Inv No:${invoiceNo}</p>
+
                 <div class="qr-container">
                   <div id="qrcode"></div>
                 </div>
+
+                <!-- Box ID below QR -->
                 <p class="box-id-label">${box.boxId}</p>
+
+                <!-- Box count badge -->
+                <span class="box-count-label">Box ${boxIndex} of ${totalBoxes}</span>
               </div>
 
               <!-- Customer Details -->
@@ -1053,7 +1160,13 @@ const handlePrintBoxLabel = (boxId) => {
             </div>
             
             <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
-              {bill.items?.map((item) => {
+              {[...(bill.items || [])].sort((a, b) => {
+                const aRemaining = getRemainingQuantityForItem(a.id);
+                const bRemaining = getRemainingQuantityForItem(b.id);
+                if (aRemaining === 0 && bRemaining > 0) return 1;
+                if (aRemaining > 0 && bRemaining === 0) return -1;
+                return 0;
+              }).map((item) => {
                 // Disable interactions when in review
                 const isDisabled = isReviewInvoice;
                 const totalRequired = item.quantity || item.qty || 0;
@@ -1323,7 +1436,10 @@ const handlePrintBoxLabel = (boxId) => {
                     <p className="text-sm mb-4">Click "+ Add Box" above to create your first box</p>
                   </div>
                 ) : (
-                  boxes.map(box => (
+                  [...boxes].sort((a, b) => {
+                    if (a.is_sealed === b.is_sealed) return 0;
+                    return a.is_sealed ? 1 : -1;
+                  }).map(box => (
                   <div 
                     key={box.id} 
                     onDragOver={handleDragOver}
@@ -1381,7 +1497,7 @@ const handlePrintBoxLabel = (boxId) => {
                               <span className="font-bold text-teal-700">
                                 {formatQuantity(item.quantity, 'pcs')}
                               </span>
-                              {!completedBoxes.has(box.id) && (
+                              {!box.is_sealed && (
                                 <button
                                   onClick={() => handleRemoveItemFromBox(box.id, item.itemId)}
                                   className="text-red-600 hover:text-red-800"
@@ -1399,7 +1515,7 @@ const handlePrintBoxLabel = (boxId) => {
                     )}
                     
                     {/* Box Actions */}
-                    {!completedBoxes.has(box.id) ? (
+                    {!box.is_sealed ? (
                       <button
                         onClick={() => handleCompleteBox(box.id)}
                         disabled={box.items.length === 0}
