@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { getInvoiceReport } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatDateTime, formatNumber } from '../../../utils/formatters';
 import { X } from 'lucide-react';
+import { useAuth } from "../../auth/AuthContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -25,13 +27,16 @@ function useDebounce(value, delay) {
 }
 
 export default function InvoiceReportPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [customerFilter, setCustomerFilter] = useState('');
   const [createdByFilter, setCreatedByFilter] = useState('');
   const searchInputRef = useRef(null);
@@ -57,32 +62,24 @@ export default function InvoiceReportPage() {
     eventSource.onmessage = (event) => {
       try {
         const invoice = JSON.parse(event.data);
-        
-        // Check if invoice matches current filters
+
         const matchesStatus = !statusFilter || invoice.status === statusFilter;
-        
-        const matchesDate = !dateFilter || 
-          invoice.created_at?.startsWith(dateFilter);
-        
-        const matchesCustomer = !debouncedCustomerFilter || 
+        const matchesDate = !dateFilter || invoice.created_at?.startsWith(dateFilter);
+        const matchesCustomer = !debouncedCustomerFilter ||
           (invoice.customer?.name || invoice.temp_name || '').toLowerCase().includes(debouncedCustomerFilter.toLowerCase());
-        
-        const matchesCreatedBy = !debouncedCreatedByFilter || 
+        const matchesCreatedBy = !debouncedCreatedByFilter ||
           (invoice.salesman?.name || '').toLowerCase().includes(debouncedCreatedByFilter.toLowerCase());
 
         if (matchesStatus && matchesDate && matchesCustomer && matchesCreatedBy) {
           setInvoices(prev => {
             const exists = prev.find(inv => inv.id === invoice.id);
             if (exists) {
-              // Update existing invoice
               return prev.map(inv => inv.id === invoice.id ? invoice : inv);
             } else {
-              // Add new invoice at the top
-              return [invoice, ...prev];
+              const updated = [invoice, ...prev];
+              return updated.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             }
           });
-          
-          // Update total count
           setTotalCount(prev => prev + 1);
         }
       } catch (e) {
@@ -91,12 +88,11 @@ export default function InvoiceReportPage() {
     };
 
     eventSource.onerror = () => {
-      // SSE connection closed - normal behavior during server restarts or timeouts
       eventSource.close();
     };
 
     return () => eventSource.close();
-  }, [statusFilter, dateFilter, debouncedCustomerFilter, debouncedCreatedByFilter]); // Re-subscribe when filters change
+  }, [statusFilter, dateFilter, debouncedCustomerFilter, debouncedCreatedByFilter]);
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -112,7 +108,7 @@ export default function InvoiceReportPage() {
 
       if (dateFilter) {
         params.start_date = dateFilter;
-        params.end_date = dateFilter; // Same date for single day filter
+        params.end_date = dateFilter;
       }
 
       if (debouncedCustomerFilter) {
@@ -134,6 +130,19 @@ export default function InvoiceReportPage() {
     }
   };
 
+  const handleViewInvoice = (id) => {
+    const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
+    if (isOpsUser) {
+      navigate(`/ops/billing/invoices/view/${id}`, {
+        state: { backPath: "/history/invoice-report" }
+      });
+    } else {
+      navigate(`/billing/invoices/view/${id}`, {
+        state: { backPath: "/history/invoice-report" }
+      });
+    }
+  };
+
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
   };
@@ -145,7 +154,7 @@ export default function InvoiceReportPage() {
 
   const handleRowsPerPageChange = (e) => {
     setItemsPerPage(parseInt(e.target.value));
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
   };
 
   return (
@@ -177,6 +186,7 @@ export default function InvoiceReportPage() {
                 <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Customer:</label>
                 <div className="relative">
                   <input
+                    ref={searchInputRef}
                     type="text"
                     placeholder="Search customer..."
                     value={customerFilter}
@@ -245,12 +255,12 @@ export default function InvoiceReportPage() {
                 </select>
               </div>
 
-              {/* Refresh Button */}
+              {/* Generate / Refresh Button */}
               <button
                 onClick={handleRefresh}
                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
               >
-                Refresh
+                Generate
               </button>
             </div>
           </div>
@@ -287,6 +297,9 @@ export default function InvoiceReportPage() {
                       <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">
                         Amount
                       </th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -312,8 +325,16 @@ export default function InvoiceReportPage() {
                             {inv.customer?.area || inv.customer?.address1 || inv.temp_name || "—"}
                           </p>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900 whitespace-nowrap">
                           ₹{formatNumber(inv.Total, 2, '0.00')}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <button
+                            onClick={() => handleViewInvoice(inv.id)}
+                            className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                          >
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}

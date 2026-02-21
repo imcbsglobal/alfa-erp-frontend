@@ -10,6 +10,9 @@ import { formatDateDDMMYYYY, formatNumber, formatTime, formatAmount } from '../.
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
+// Always return today's date in YYYY-MM-DD format
+const getTodayDate = () => new Date().toISOString().split('T')[0];
+
 export default function BillingInvoiceListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -23,17 +26,13 @@ export default function BillingInvoiceListPage() {
   const [totalCount, setTotalCount] = useState(0);
 
   // Filters
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [dateFilter, setDateFilter] = useState(() => {
-    // Default to today's date in YYYY-MM-DD format
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
 
-  // Load when page, itemsPerPage, statusFilter, or dateFilter changes
+  // Load when page, itemsPerPage, statusFilter, or searchTerm changes
   useEffect(() => {
     loadInvoices();
-  }, [currentPage, itemsPerPage, statusFilter, dateFilter]);
+  }, [currentPage, itemsPerPage, statusFilter, searchTerm]);
 
   // 🔴 SSE live updates
   useEffect(() => {
@@ -53,32 +52,34 @@ export default function BillingInvoiceListPage() {
         try {
           const data = JSON.parse(event.data);
 
-          // 🔴 Filter by salesman name - only show if matches logged-in user (unless admin)
+          // Filter by salesman name - only show if matches logged-in user (unless admin)
           const isAdmin = user?.role === "ADMIN" || user?.is_superuser;
           const salesmanName = data.salesman?.name;
           const userName = user?.username || user?.name;
-          
-          // Skip if not admin and salesman doesn't match logged-in user
+
           if (!isAdmin && salesmanName !== userName) {
             return;
           }
 
+          // Only include invoices from today
+          const invoiceDate = data.invoice_date || data.created_at;
+          if (invoiceDate && invoiceDate.split('T')[0] !== getTodayDate()) {
+            return;
+          }
+
           setInvoices((prev) => {
-            // Remove if status is REVIEW (moved to reviewed list)
             if (data.billing_status === "REVIEW") {
               return prev.filter(i => i.id !== data.id);
             }
 
-            // Normal update/add for non-REVIEW invoices
             const idx = prev.findIndex((i) => i.id === data.id);
             if (idx !== -1) {
-              // Update existing invoice
               const copy = [...prev];
               copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
-            // Add new invoice at the beginning
-            return [{ ...data, _isLive: true }, ...prev];
+            const updated = [{ ...data, _isLive: true }, ...prev];
+            return updated.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
           });
           setCurrentPage(1);
         } catch (e) {
@@ -105,40 +106,36 @@ export default function BillingInvoiceListPage() {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      // Build query params for server-side filtering and pagination
       const params = {
         page: currentPage,
-        page_size: itemsPerPage
+        page_size: itemsPerPage,
+        // Always filter by today's date
+        date: getTodayDate(),
       };
-      
-      // Add status filter if not "ALL"
+
       if (statusFilter !== "ALL") {
         params.status = statusFilter;
       }
-      
-      // Add date filter
-      if (dateFilter) {
-        params.date = dateFilter;
+
+      if (searchTerm) {
+        params.search = searchTerm;
       }
-      
-      // Don't filter by billing_status on frontend - let backend handle
-      // Backend already excludes REVIEW status bills
-      
+
       const res = await api.get("/sales/billing/invoices/", { params });
       const results = res.data.results || [];
       const count = res.data.count || 0;
-      
-      // Filter client-side only for non-admin users by salesman name
+
+      // Filter client-side for non-admin users by salesman name
       const isAdmin = user?.role === "ADMIN" || user?.is_superuser;
       const userName = user?.username || user?.name;
-      
+
       let filteredResults = results;
       if (!isAdmin) {
         filteredResults = results.filter(
           inv => inv.salesman?.name === userName
         );
       }
-      
+
       setInvoices(filteredResults);
       setTotalCount(count);
     } catch {
@@ -155,13 +152,12 @@ export default function BillingInvoiceListPage() {
 
   const handleClearFilters = () => {
     setStatusFilter("ALL");
-    setDateFilter(new Date().toISOString().split('T')[0]);
+    setSearchTerm("");
     setItemsPerPage(10);
     setCurrentPage(1);
   };
 
-  // Check if any filters are active (non-default values)
-  const hasActiveFilters = statusFilter !== "ALL" || itemsPerPage !== 10;
+  const hasActiveFilters = statusFilter !== "ALL" || itemsPerPage !== 10 || searchTerm !== "";
 
   const handleViewInvoice = (id) => {
     if (user?.role === "BILLER") {
@@ -209,28 +205,16 @@ export default function BillingInvoiceListPage() {
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case "INVOICED":
-        return "Invoiced";
-      case "PICKED":
-        return "Picked";
-      case "PACKED":
-        return "Packed";
-      case "DELIVERED":
-        return "Delivered";
-      case "REVIEW":
-        return "Under Review";
-      default:
-        return status;
+      case "INVOICED": return "Invoiced";
+      case "PICKED":   return "Picked";
+      case "PACKED":   return "Packed";
+      case "DELIVERED": return "Delivered";
+      case "REVIEW":   return "Under Review";
+      default:         return status;
     }
   };
 
-  const getDisplayStatus = (inv) => {
-    return inv.status;
-  };
-
-  // No client-side sorting or filtering needed - backend handles pagination
   const currentItems = invoices;
-  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const handlePageChange = (n) => {
     setCurrentPage(n);
@@ -240,33 +224,43 @@ export default function BillingInvoiceListPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header - Responsive */}
+        {/* Header */}
         <div className="mb-6">
-          {/* Desktop: flex-row, Mobile: flex-col */}
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-800">
-              Invoice Management
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Invoice Management</h1>
+            </div>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-semibold text-gray-700">Date:</label>
+              <div className="relative w-64">
                 <input
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                  type="text"
+                  placeholder="Search invoice or customer..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 w-full text-sm"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
                 <label className="text-sm font-semibold text-gray-700">Status:</label>
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                 >
                   <option value="ALL">All</option>
-                  <option value="INVOICED">Invoiced</option> 
+                  <option value="INVOICED">Invoiced</option>
                   <option value="PICKED">Picked</option>
                   <option value="PACKED">Packed</option>
                   <option value="DISPATCHED">Dispatched</option>
@@ -278,7 +272,7 @@ export default function BillingInvoiceListPage() {
                 <label className="text-sm font-semibold text-gray-700">Rows:</label>
                 <select
                   value={itemsPerPage}
-                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                 >
                   <option value={10}>10</option>
@@ -309,12 +303,12 @@ export default function BillingInvoiceListPage() {
 
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {loading ? (
-            <div className="py-20 text-center text-gray-500">
-              Loading invoices...
-            </div>
+            <div className="py-20 text-center text-gray-500">Loading invoices...</div>
           ) : invoices.length === 0 ? (
             <div className="py-20 text-center text-gray-500">
-              {statusFilter === "ALL" ? "No invoices found" : `No ${getStatusLabel(statusFilter).toLowerCase()} invoices found`}
+              {statusFilter === "ALL"
+                ? "No invoices found for today"
+                : `No ${getStatusLabel(statusFilter).toLowerCase()} invoices found for today`}
             </div>
           ) : (
             <>
@@ -336,7 +330,7 @@ export default function BillingInvoiceListPage() {
                     {currentItems.map((inv) => (
                       <tr
                         key={inv.id}
-                        className={`transition hover:bg-grey-50 ${
+                        className={`transition hover:bg-gray-50 ${
                           inv.priority === "HIGH" ? "bg-red-50" : ""
                         }`}
                       >
@@ -344,11 +338,7 @@ export default function BillingInvoiceListPage() {
                           <p className="font-semibold">{inv.invoice_no}</p>
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getPriorityBadgeColor(
-                              inv.priority
-                            )}`}
-                          >
+                          <span className={`px-3 py-1 rounded-full border text-xs font-bold ${getPriorityBadgeColor(inv.priority)}`}>
                             {inv.priority || "—"}
                           </span>
                         </td>
@@ -362,30 +352,22 @@ export default function BillingInvoiceListPage() {
                             {inv.customer?.area || inv.customer?.address1 || inv.temp_name || "—"}
                           </p>
                         </td>
-                        <td className="px-4 py-3 text-sm">
-                          {inv.salesman?.name}
-                        </td>
+                        <td className="px-4 py-3 text-sm">{inv.salesman?.name}</td>
                         <td className="px-4 py-3 text-right font-semibold">
                           {formatAmount(inv.Total)}
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(
-                              getDisplayStatus(inv)
-                            )}`}
-                          >
-                            {getStatusLabel(getDisplayStatus(inv))}
+                          <span className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(inv.status)}`}>
+                            {getStatusLabel(inv.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleViewInvoice(inv.id)}
-                              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-                            >
-                              View
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleViewInvoice(inv.id)}
+                            className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold flex items-center gap-2 shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                          >
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}

@@ -32,7 +32,8 @@ export default function SuperAdminDashboard() {
     completedPicking: 0,
     completedPacking: 0,
     completedDelivery: 0,
-    holdInvoices: 0
+    holdInvoices: 0,
+    pendingInvoices: 0,
   });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -76,7 +77,8 @@ export default function SuperAdminDashboard() {
               completedPicking: data.stats.completedPicking || 0,
               completedPacking: data.stats.completedPacking || 0,
               completedDelivery: data.stats.completedDelivery || 0,
-              holdInvoices: data.stats.holdInvoices || 0
+              holdInvoices: data.stats.holdInvoices || 0,
+              pendingInvoices: data.stats.pendingInvoices || 0,
             });
           }
         } catch (error) {
@@ -175,7 +177,8 @@ export default function SuperAdminDashboard() {
           completedPicking: response.data.stats.completedPicking || 0,
           completedPacking: response.data.stats.completedPacking || 0,
           completedDelivery: response.data.stats.completedDelivery || 0,
-          holdInvoices: response.data.stats.holdInvoices || 0
+          holdInvoices: response.data.stats.holdInvoices || 0,
+          pendingInvoices: response.data.stats.pendingInvoices || 0,
         });
       }
     } catch (error) {
@@ -394,7 +397,19 @@ export default function SuperAdminDashboard() {
   // Overview Stats Cards - Top Row (Real-time updates for today)
   const overviewCards = [
     {
-      title: 'TOTAL INVOICES',
+      title: 'HOLD INVOICES',
+      value: loading ? '...' : todayStats.holdInvoices,
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      gradient: 'from-amber-400 to-orange-500',
+      onClick: () => navigate('/invoices/pending'),
+    },
+    {
+      title: 'TODAYS INVOICES',
       value: loading ? '...' : todayStats.totalInvoices,
       icon: (
         <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -403,6 +418,7 @@ export default function SuperAdminDashboard() {
         </svg>
       ),
       gradient: 'from-indigo-500 to-blue-600',
+      onClick: () => navigate('/history/invoice-report'),
     },
     {
       title: 'COMPLETED PICKING',
@@ -414,6 +430,7 @@ export default function SuperAdminDashboard() {
         </svg>
       ),
       gradient: 'from-teal-400 to-cyan-600',
+      onClick: () => navigate('/history/picking-report'),
     },
     {
       title: 'COMPLETED PACKING',
@@ -425,6 +442,7 @@ export default function SuperAdminDashboard() {
         </svg>
       ),
       gradient: 'from-purple-500 to-violet-600',
+      onClick: () => navigate('/history/packing-report'),
     },
     {
       title: 'COMPLETED DELIVERY',
@@ -436,18 +454,6 @@ export default function SuperAdminDashboard() {
         </svg>
       ),
       gradient: 'from-pink-500 to-rose-600',
-    },
-    {
-      title: 'HOLD INVOICES',
-      value: loading ? '...' : todayStats.holdInvoices,
-      icon: (
-        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      gradient: 'from-amber-400 to-orange-500',
-      onClick: () => navigate('/invoices/pending'),
     },
   ];
 
@@ -592,7 +598,7 @@ export default function SuperAdminDashboard() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             <span className="text-2xl">📊</span> Session Overview
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
             {overviewCards.map((stat, index) => (
               <div
                 key={index}

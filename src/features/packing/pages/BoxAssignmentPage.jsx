@@ -15,6 +15,27 @@ function debounce(fn, delay) {
   };
 }
 
+// Translate/transliterate English text to Malayalam using Google Translate API
+const transliterateToMalayalam = async (text) => {
+  try {
+    const res = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ml&dt=t&q=${encodeURIComponent(text)}`
+    );
+    const data = await res.json();
+    // Response format: [[[translated, original, ...],...], ...]
+    // Collect all translated segments and join them
+    if (data?.[0]) {
+      return data[0]
+        .map(segment => segment?.[0] || "")
+        .join("")
+        .trim();
+    }
+    return "";
+  } catch {
+    return "";
+  }
+};
+
 export default function BoxAssignmentPage() {
   const { invoiceNo } = useParams();
   const navigate = useNavigate();
@@ -26,7 +47,6 @@ export default function BoxAssignmentPage() {
   const [nextBoxId, setNextBoxId] = useState(1);
   const [completing, setCompleting] = useState(false);
   const [errors, setErrors] = useState([]);
-  // completedBoxes is now derived from backend is_sealed
   const [printedBoxes, setPrintedBoxes] = useState(new Set());
 
   // DERIVED: Set of completed (sealed) box IDs
@@ -159,11 +179,10 @@ export default function BoxAssignmentPage() {
       setLoading(true);
       const res = await api.get(`/sales/packing/bill/${invoiceNo}/`);
       setBill(res.data?.data);
-      // If boxes are returned from backend, use them and set completedBoxes from is_sealed
       if (res.data?.data?.boxes && res.data.data.boxes.length > 0) {
         setBoxes(res.data.data.boxes.map((box, idx) => ({
           id: box.id || Date.now() + idx,
-          boxId: box.box_id,           // backend uses snake_case
+          boxId: box.box_id,
           items: (box.items || []).map(item => ({
             itemId: item.invoice_item_id || item.id,
             itemName: item.item_name,
@@ -259,7 +278,6 @@ export default function BoxAssignmentPage() {
       toast.success("Invoice sent to billing review");
       setSavedIssues([]);
       
-      // Reload to show updated status
       await loadBillDetails();
       
       toast.info("This invoice is now under review. You'll be notified when it's corrected.", {
@@ -274,14 +292,10 @@ export default function BoxAssignmentPage() {
   };
 
   const generateBoxId = () => {
-    // Extract series prefix (e.g. "C-" from "C-0044", "A-" from "A-123")
     const seriesMatch = invoiceNo.toString().match(/^([A-Za-z]+-)/);
     const series = seriesMatch ? seriesMatch[1] : '';
-    
-    // Extract numeric part of invoice number
     const numericPart = invoiceNo.toString().replace(/^[A-Za-z]+-/, '');
     const billPrefix = numericPart.slice(-4).padStart(4, '0');
-    
     const boxNum = nextBoxId.toString().padStart(3, '0');
     const timestamp = Date.now().toString().slice(-6);
     return `BOX-${series}${billPrefix}-${boxNum}-${timestamp}`;
@@ -331,22 +345,19 @@ export default function BoxAssignmentPage() {
       toast.error("Cannot complete an empty box. Please assign items first.");
       return;
     }
-    // Mark as sealed in local state (for immediate UI feedback)
     setBoxes(prev => prev.map(b => b.id === boxId ? { ...b, is_sealed: true } : b));
     toast.success("Box completed! You can now print the label.");
-    // Optionally, send to backend if you want to persist immediately
   };
 
-  const handlePrintBoxLabel = (boxId) => {
+  // ── Updated: async to support Malayalam transliteration ──
+  const handlePrintBoxLabel = async (boxId) => {
     const box = boxes.find(b => b.id === boxId);
     if (!box) return;
     
     setPrintedBoxes(prev => new Set([...prev, boxId]));
     
-    // --- NEW: box count info ---
-    const boxIndex   = boxes.findIndex(b => b.id === boxId) + 1;   // 1-based
+    const boxIndex   = boxes.findIndex(b => b.id === boxId) + 1;
     const totalBoxes = boxes.length;
-    // --------------------------
     
     const customerName    = bill?.customer?.name     || bill?.customer_name  || '';
     const customerArea    = bill?.customer?.area     || '';
@@ -355,6 +366,16 @@ export default function BoxAssignmentPage() {
     const customerPhone1  = bill?.customer?.phone1   || bill?.customer_phone || '';
     const customerPhone2  = bill?.customer?.phone2   || '';
     const customerEmail   = bill?.customer?.email    || '';
+
+    // ── Fetch Malayalam transliteration of customer name ──
+    let customerNameML = '';
+    if (customerName) {
+      try {
+        customerNameML = await transliterateToMalayalam(customerName);
+      } catch {
+        customerNameML = '';
+      }
+    }
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -370,6 +391,7 @@ export default function BoxAssignmentPage() {
       <html>
         <head>
           <title>Box Label - ${box.boxId}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam:wght@400;600&display=swap" rel="stylesheet">
           <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
           <style>
             @page { 
@@ -454,7 +476,6 @@ export default function BoxAssignmentPage() {
               gap: 3px;
             }
 
-            /* ── NEW: Invoice number label above QR ── */
             .invoice-label {
               font-size: 12px;
               font-weight: bold;
@@ -488,18 +509,6 @@ export default function BoxAssignmentPage() {
               max-width: 3.6cm;
             }
 
-            /* ── NEW: Box count badge ── */
-            .box-count-label {
-              font-size: 9px;
-              font-weight: bold;
-              color: #fff;
-              background: #000;
-              padding: 1px 6px;
-              border-radius: 10px;
-              text-align: center;
-              white-space: nowrap;
-            }
-
             /* Right: Customer Details */
             .customer-section {
               padding: 10px 14px;
@@ -527,6 +536,17 @@ export default function BoxAssignmentPage() {
               text-transform: uppercase;
               color: #000;
               line-height: 1.2;
+              white-space: normal;
+              word-wrap: break-word;
+            }
+            /* ── Malayalam name ── */
+            .customer-name-ml {
+              font-family: 'Noto Sans Malayalam', Arial, sans-serif;
+              font-size: 18px;
+              font-weight: bold;
+              color: #000000;
+              line-height: 1.4;
+              margin-top: 1px;
               white-space: normal;
               word-wrap: break-word;
             }
@@ -624,33 +644,25 @@ export default function BoxAssignmentPage() {
             <div class="main-content">
               <!-- QR Code + labels -->
               <div class="qr-section">
-                <!-- Invoice number ABOVE QR -->
                 <p class="invoice-label">Inv No:${invoiceNo}</p>
-
                 <div class="qr-container">
                   <div id="qrcode"></div>
                 </div>
-
-                <!-- Box ID below QR -->
                 <p class="box-id-label">${box.boxId}</p>
-
-                <!-- Box count badge -->
-                <span class="box-count-label">Box ${boxIndex} of ${totalBoxes}</span>
               </div>
 
               <!-- Customer Details -->
               <div class="customer-section">
                 <p class="to-label">Ship To</p>
-                ${customerName  ? '<p class="customer-name">'    + customerName  + '</p>' : ''}
-                ${customerArea  ? '<p class="customer-area">'    + customerArea  + '</p>' : ''}
-                ${customerAddr1 ? '<p class="customer-addr">'    + customerAddr1 + '</p>' : ''}
-                ${customerAddr2 ? '<p class="customer-addr">'    + customerAddr2 + '</p>' : ''}
-                ${(customerPhone1 || customerPhone2) ?
-                  '<p class="customer-contact">' +
-                    [customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ') +
-                  '</p>'
+                ${customerName    ? `<p class="customer-name">${customerName}</p>` : ''}
+                ${customerNameML  ? `<p class="customer-name-ml">${customerNameML}</p>` : ''}
+                ${customerArea    ? `<p class="customer-area">${customerArea}</p>` : ''}
+                ${customerAddr1   ? `<p class="customer-addr">${customerAddr1}</p>` : ''}
+                ${customerAddr2   ? `<p class="customer-addr">${customerAddr2}</p>` : ''}
+                ${(customerPhone1 || customerPhone2)
+                  ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>`
                   : ''}
-                ${customerEmail ? '<p class="customer-email">'   + customerEmail + '</p>' : ''}
+                ${customerEmail   ? `<p class="customer-email">${customerEmail}</p>` : ''}
               </div>
             </div>
 
@@ -992,8 +1004,6 @@ export default function BoxAssignmentPage() {
       
       const errorData = err.response?.data;
       if (errorData?.errors) {
-        console.error("Validation errors:", JSON.stringify(errorData.errors, null, 2));
-        
         const errorMessages = Object.entries(errorData.errors)
           .map(([field, messages]) => {
             if (Array.isArray(messages)) {
@@ -1167,14 +1177,12 @@ export default function BoxAssignmentPage() {
                 if (aRemaining > 0 && bRemaining === 0) return -1;
                 return 0;
               }).map((item) => {
-                // Disable interactions when in review
                 const isDisabled = isReviewInvoice;
                 const totalRequired = item.quantity || item.qty || 0;
                 const totalAssigned = getTotalAssignedForItem(item.id);
                 const remaining = totalRequired - totalAssigned;
                 const isFullyAssigned = remaining === 0;
                 const isOverAssigned = remaining < 0;
-
                 const isSelected = selectedItems.includes(item.id);
 
                 return (
@@ -1219,7 +1227,6 @@ export default function BoxAssignmentPage() {
                             {item.name || item.item_name}
                           </p>
                           
-                          {/* Item Details */}
                           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
                             {(item.code || item.item_code || item.itemCode) && (
                               <span className="flex items-center gap-1">
@@ -1344,7 +1351,6 @@ export default function BoxAssignmentPage() {
                 </div>
               </div>
             ) : selectedItem ? (
-
               <div className="bg-teal-50 border-2 border-teal-500 rounded-lg p-4">
                 <h3 className="font-semibold text-teal-900 text-base mb-3">Assign Item</h3>
                 <div className="space-y-3">
@@ -1440,101 +1446,99 @@ export default function BoxAssignmentPage() {
                     if (a.is_sealed === b.is_sealed) return 0;
                     return a.is_sealed ? 1 : -1;
                   }).map(box => (
-                  <div 
-                    key={box.id} 
-                    onDragOver={handleDragOver}
-                    onDragEnter={(e) => handleDragEnter(e, box.id)}
-                    onDragLeave={(e) => handleDragLeave(e, box.id)}
-                    onDrop={(e) => handleDrop(e, box)}
-                    className={`border-2 rounded-lg p-3 transition-all ${
-                      completedBoxes.has(box.id)
-                        ? "border-green-500 bg-green-50"
-                        : dragOverBox === box.id 
-                        ? "border-teal-500 bg-teal-50 border-dashed" 
-                        : "border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-base text-gray-800">{box.boxId}</h3>
-                        {completedBoxes.has(box.id) && (
-                          <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-semibold">
-                            ✓
-                          </span>
+                    <div 
+                      key={box.id} 
+                      onDragOver={handleDragOver}
+                      onDragEnter={(e) => handleDragEnter(e, box.id)}
+                      onDragLeave={(e) => handleDragLeave(e, box.id)}
+                      onDrop={(e) => handleDrop(e, box)}
+                      className={`border-2 rounded-lg p-3 transition-all ${
+                        completedBoxes.has(box.id)
+                          ? "border-green-500 bg-green-50"
+                          : dragOverBox === box.id 
+                          ? "border-teal-500 bg-teal-50 border-dashed" 
+                          : "border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-base text-gray-800">{box.boxId}</h3>
+                          {completedBoxes.has(box.id) && (
+                            <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-semibold">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                        {!completedBoxes.has(box.id) && (
+                          <button
+                            onClick={() => removeBox(box.id)}
+                            className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                          >
+                            Remove
+                          </button>
                         )}
                       </div>
-                      {!completedBoxes.has(box.id) && (
+
+                      {box.items.length === 0 ? (
+                        <div className="text-center py-4">
+                          <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                          </svg>
+                          <p className="text-sm text-gray-500 italic">
+                            {completedBoxes.has(box.id) ? "Empty" : "Drop here"}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {box.items.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-800 truncate">{item.itemName}</p>
+                                {item.itemCode && (
+                                  <p className="text-xs text-gray-600">Code: {item.itemCode}</p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 ml-2">
+                                <span className="font-bold text-teal-700">
+                                  {formatQuantity(item.quantity, 'pcs')}
+                                </span>
+                                {!box.is_sealed && (
+                                  <button
+                                    onClick={() => handleRemoveItemFromBox(box.id, item.itemId)}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Box Actions */}
+                      {!box.is_sealed ? (
                         <button
-                          onClick={() => removeBox(box.id)}
-                          className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                          onClick={() => handleCompleteBox(box.id)}
+                          disabled={box.items.length === 0}
+                          className="w-full mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
                         >
-                          Remove
+                          Complete Box
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handlePrintBoxLabel(box.id)}
+                          className="w-full mt-3 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                          </svg>
+                          {printedBoxes.has(box.id) ? "Reprint" : "Print Label"}
                         </button>
                       )}
                     </div>
-
-                    {box.items.length === 0 ? (
-                      <div className="text-center py-4">
-                        <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                        </svg>
-                        <p className="text-sm text-gray-500 italic">
-                          {completedBoxes.has(box.id) ? "Empty" : "Drop here"}
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                      <div className="space-y-1.5">
-                        {box.items.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-800 truncate">{item.itemName}</p>
-                              {item.itemCode && (
-                                <p className="text-xs text-gray-600">Code: {item.itemCode}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 ml-2">
-                              <span className="font-bold text-teal-700">
-                                {formatQuantity(item.quantity, 'pcs')}
-                              </span>
-                              {!box.is_sealed && (
-                                <button
-                                  onClick={() => handleRemoveItemFromBox(box.id, item.itemId)}
-                                  className="text-red-600 hover:text-red-800"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      </>
-                    )}
-                    
-                    {/* Box Actions */}
-                    {!box.is_sealed ? (
-                      <button
-                        onClick={() => handleCompleteBox(box.id)}
-                        disabled={box.items.length === 0}
-                        className="w-full mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        Complete Box
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handlePrintBoxLabel(box.id)}
-                        className="w-full mt-3 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                        </svg>
-                        {printedBoxes.has(box.id) ? "Reprint" : "Print Label"}
-                      </button>
-                    )}
-                  </div>
                   ))
                 )}
               </div>

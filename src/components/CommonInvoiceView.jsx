@@ -31,7 +31,14 @@ export default function CommonInvoiceView() {
   const currentSection = detectSection();
 
   useEffect(() => {
-    loadInvoice();
+    // If full invoice data was passed via navigation state (e.g. from picking/packing report),
+    // use it directly without making an API call
+    if (location.state?.invoiceData) {
+      setInvoice(location.state.invoiceData);
+      setLoading(false);
+    } else {
+      loadInvoice();
+    }
   }, [id]);
 
   const loadInvoice = async () => {
@@ -47,8 +54,13 @@ export default function CommonInvoiceView() {
   };
 
   const handleBack = () => {
+    // If a backPath was passed via navigation state, always use it first
+    if (location.state?.backPath) {
+      navigate(location.state.backPath);
+      return;
+    }
     // If navigated from Hold/Pending Invoices, always go back there
-    if (location.state && location.state.fromPendingInvoices) {
+    if (location.state?.fromPendingInvoices) {
       navigate("/invoices/pending");
       return;
     }
@@ -105,11 +117,7 @@ export default function CommonInvoiceView() {
 
   const getSectionColor = () => {
     switch(currentSection) {
-      case 'picking': return 'from-teal-500 to-cyan-600';
-      case 'packing': return 'from-teal-500 to-cyan-600';
-      case 'billing': return 'from-teal-500 to-cyan-600';
       case 'billing-review': return 'from-orange-500 to-red-600';
-      case 'delivery': return 'from-teal-500 to-cyan-600';
       default: return 'from-teal-500 to-cyan-600';
     }
   };
@@ -126,32 +134,19 @@ export default function CommonInvoiceView() {
 
     if (inv.picker_info) {
       const pickerValue = `${inv.picker_info.name || inv.picker_info.email} • ${formatTime(inv.picker_info.end_time)}`;
-      rows.push({
-        label: "Picked By",
-        value: pickerValue,
-      });
+      rows.push({ label: "Picked By", value: pickerValue });
     }
 
     if (inv.packer_info) {
       const packerValue = `${inv.packer_info.name || inv.packer_info.email} • ${formatTime(inv.packer_info.end_time)}`;
-      rows.push({
-        label: "Packed By",
-        value: packerValue,
-      });
+      rows.push({ label: "Packed By", value: packerValue });
     }
 
     if (inv.delivery_info) {
       let v = `${inv.delivery_info.name || inv.delivery_info.email || "—"}`;
-      if (inv.delivery_info.delivery_type) {
-        v += ` • ${inv.delivery_info.delivery_type}`;
-      }
-      if (inv.delivery_info.start_time) {
-        v += ` • ${formatTime(inv.delivery_info.start_time)}`;
-      }
-      rows.push({
-        label: "Dispatched By",
-        value: v,
-      });
+      if (inv.delivery_info.delivery_type) v += ` • ${inv.delivery_info.delivery_type}`;
+      if (inv.delivery_info.start_time) v += ` • ${formatTime(inv.delivery_info.start_time)}`;
+      rows.push({ label: "Dispatched By", value: v });
     }
 
     return rows;
@@ -223,9 +218,7 @@ export default function CommonInvoiceView() {
         <div className="block lg:hidden space-y-4">
           
           <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
-              Invoice Information
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">Invoice Information</h2>
             <div className="space-y-2">
               <MobileInfoRow label="Invoice Number" value={invoice.invoice_no} />
               <MobileInfoRow label="Date & Time" value={`${formatDateDDMMYYYY(invoice.invoice_date)} & ${formatTime(invoice.created_at)}`} />
@@ -236,9 +229,7 @@ export default function CommonInvoiceView() {
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
-              Customer Information
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">Customer Information</h2>
             <div className="space-y-2">
               <MobileInfoRow label="Customer Name" value={invoice.customer?.name} />
               <MobileInfoRow label="Customer Code" value={invoice.customer?.code} />
@@ -252,9 +243,7 @@ export default function CommonInvoiceView() {
 
           {getWorkflowInfo(invoice).length > 0 && (
             <div className="bg-white rounded-lg shadow-md p-4">
-              <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
-                Workflow Details
-              </h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">Workflow Details</h2>
               <div className="space-y-2">
                 {getWorkflowInfo(invoice).map((r, i) => (
                   <MobileInfoRow key={i} label={r.label} value={r.value} />
@@ -267,7 +256,6 @@ export default function CommonInvoiceView() {
             <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b-2 border-teal-500">
               Item Details ({invoice.items.length})
             </h2>
-            
             <div className="space-y-3">
               {currentItems.map((item, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
@@ -275,16 +263,11 @@ export default function CommonInvoiceView() {
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
                       <p className="text-xs text-gray-500">Shelf: {item.shelf_location || "—"}</p>
-                      {item.company_name && (
-                        <p className="text-xs text-gray-500">Company: {item.company_name}</p>
-                      )}
-                      {item.packing && (
-                        <p className="text-xs text-gray-500">Pack: {item.packing}</p>
-                      )}
+                      {item.company_name && <p className="text-xs text-gray-500">Company: {item.company_name}</p>}
+                      {item.packing && <p className="text-xs text-gray-500">Pack: {item.packing}</p>}
                     </div>
                     <span className="text-sm font-bold text-teal-600">Qty: {formatQuantity(item.quantity, 'pcs', false)}</span>
                   </div>
-                  
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-gray-500">MRP:</span>
@@ -302,12 +285,8 @@ export default function CommonInvoiceView() {
                       <span className="text-gray-500">Remarks:</span>
                       {item.remarks ? (
                         <button
-                          onClick={() => {
-                            setSelectedRemark(item.remarks);
-                            setShowRemarkModal(true);
-                          }}
+                          onClick={() => { setSelectedRemark(item.remarks); setShowRemarkModal(true); }}
                           className="text-teal-600 hover:text-teal-800 transition-colors"
-                          title="View remarks"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -328,30 +307,14 @@ export default function CommonInvoiceView() {
                 <button
                   disabled={currentPage === 1}
                   onClick={() => handlePageChange(currentPage - 1)}
-                  className={`px-3 py-1.5 rounded-md border text-sm transition-all ${
-                    currentPage === 1
-                      ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
-                      : "bg-white border-gray-300 text-gray-700 hover:border-teal-500"
-                  }`}
-                >
-                  ‹ Prev
-                </button>
-
-                <span className="text-sm text-gray-600">
-                  Page {currentPage} of {totalPages}
-                </span>
-
+                  className={`px-3 py-1.5 rounded-md border text-sm transition-all ${currentPage === 1 ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed" : "bg-white border-gray-300 text-gray-700 hover:border-teal-500"}`}
+                >‹ Prev</button>
+                <span className="text-sm text-gray-600">Page {currentPage} of {totalPages}</span>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => handlePageChange(currentPage + 1)}
-                  className={`px-3 py-1.5 rounded-md border text-sm transition-all ${
-                    currentPage === totalPages
-                      ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
-                      : "bg-white border-gray-300 text-gray-700 hover:border-teal-500"
-                  }`}
-                >
-                  Next ›
-                </button>
+                  className={`px-3 py-1.5 rounded-md border text-sm transition-all ${currentPage === totalPages ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed" : "bg-white border-gray-300 text-gray-700 hover:border-teal-500"}`}
+                >Next ›</button>
               </div>
             )}
           </div>
@@ -362,14 +325,13 @@ export default function CommonInvoiceView() {
           </div>
         </div>
 
-        {/* Desktop View - Compact Layout */}
+        {/* Desktop View */}
         <div className="hidden lg:block bg-white rounded-lg shadow-md">
           <div className="grid grid-cols-5 min-h-[calc(100vh-180px)]">
 
-            {/* Left Section - 2 columns */}
+            {/* Left Section */}
             <div className="col-span-2 border-r border-gray-200 p-4 space-y-4 overflow-y-auto">
 
-              {/* Invoice Information */}
               <div>
                 <div className="border-b border-teal-500 pb-1 mb-3">
                   <h2 className="text-sm font-bold text-gray-900">Invoice Info</h2>
@@ -381,7 +343,6 @@ export default function CommonInvoiceView() {
                 </div>
               </div>
 
-              {/* Customer Information */}
               <div>
                 <div className="border-b border-teal-500 pb-1 mb-3">
                   <h2 className="text-sm font-bold text-gray-900">Customer Info</h2>
@@ -393,13 +354,10 @@ export default function CommonInvoiceView() {
                 </div>
               </div>
 
-              {/* Workflow Details */}
               {getWorkflowInfo(invoice).length > 0 && (
                 <div>
                   <div className="border-b border-teal-500 pb-1 mb-3">
-                    <h2 className="text-sm font-bold text-gray-900">
-                      Workflow Details
-                    </h2>
+                    <h2 className="text-sm font-bold text-gray-900">Workflow Details</h2>
                   </div>
                   <div className="space-y-2">
                     {getWorkflowInfo(invoice).map((r, i) => (
@@ -412,25 +370,19 @@ export default function CommonInvoiceView() {
                 </div>
               )}
 
-              {/* Total Amount */}
               <div className={`bg-gradient-to-r ${getSectionColor()} text-white rounded-lg p-3 text-center`}>
                 <p className="text-xs font-bold mb-1">Total Amount</p>
                 <p className="text-2xl font-bold">{formatAmount(invoice.Total)}</p>
               </div>
-
             </div>
 
-            {/* Right Section - 3 columns for table */}
+            {/* Right Section */}
             <div className="col-span-3 p-4 flex flex-col">
-
               <div className="border-b border-teal-500 pb-1 mb-3">
                 <h2 className="text-sm font-bold text-gray-900">Item Details</h2>
               </div>
 
-              {/* Table Container */}
               <div className="flex-1 flex flex-col border border-gray-300 rounded-lg overflow-hidden">
-
-                {/* Table Header */}
                 <div className={`bg-gradient-to-r ${getSectionColor()} text-white flex-shrink-0`}>
                   <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs font-bold">
                     <div className="col-span-1 text-center">Shelf</div>
@@ -444,51 +396,28 @@ export default function CommonInvoiceView() {
                   </div>
                 </div>
 
-                {/* Table Body */}
                 <div className="flex-1 divide-y divide-gray-200 overflow-y-auto">
                   {currentItems.map((item, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-12 gap-2 px-3 py-2 hover:bg-gray-50 transition-colors items-center"
-                    >
-                      <div className="col-span-1 text-xs text-center font-semibold text-teal-700">
-                        {item.shelf_location}
-                      </div>
-
+                    <div key={index} className="grid grid-cols-12 gap-2 px-3 py-2 hover:bg-gray-50 transition-colors items-center">
+                      <div className="col-span-1 text-xs text-center font-semibold text-teal-700">{item.shelf_location}</div>
                       <div className="col-span-3 text-xs font-medium text-gray-900 overflow-hidden">
                         <div className="truncate font-semibold" title={item.name}>{item.name}</div>
                         <div className="truncate text-gray-500 text-[10px] mt-0.5" title={item.company_name}>{item.company_name || "—"}</div>
                       </div>
-
                       <div className="col-span-1 text-xs text-center text-gray-600 overflow-hidden">
                         <div className="truncate" title={item.packing}>{item.packing || "—"}</div>
                       </div>
-
-                      <div className="col-span-1 text-xs text-center font-semibold text-gray-800">
-                        {formatQuantity(item.quantity, 'pcs', false)}
-                      </div>
-
-                      <div className="col-span-1 text-xs font-semibold text-gray-900 text-right">
-                        {formatMRP(item.mrp)}
-                      </div>
-                      
+                      <div className="col-span-1 text-xs text-center font-semibold text-gray-800">{formatQuantity(item.quantity, 'pcs', false)}</div>
+                      <div className="col-span-1 text-xs font-semibold text-gray-900 text-right">{formatMRP(item.mrp)}</div>
                       <div className="col-span-2 text-xs text-center text-gray-700 overflow-hidden">
                         <div className="truncate" title={item.batch_no}>{item.batch_no || "—"}</div>
                       </div>
-
-                      <div className="col-span-2 text-xs text-center text-gray-600">
-                        {formatDateDDMMYYYY(item.expiry_date || item.exp_date)}
-                      </div>
-
+                      <div className="col-span-2 text-xs text-center text-gray-600">{formatDateDDMMYYYY(item.expiry_date || item.exp_date)}</div>
                       <div className="col-span-1 text-xs text-center text-gray-500">
                         {item.remarks ? (
                           <button
-                            onClick={() => {
-                              setSelectedRemark(item.remarks);
-                              setShowRemarkModal(true);
-                            }}
+                            onClick={() => { setSelectedRemark(item.remarks); setShowRemarkModal(true); }}
                             className="text-teal-600 hover:text-teal-800 transition-colors mx-auto"
-                            title="View remarks"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -503,51 +432,31 @@ export default function CommonInvoiceView() {
                   ))}
                 </div>
 
-                {/* Pagination */}
                 <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                   <p className="text-xs text-gray-600">
                     Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, invoice.items.length)} of {invoice.items.length}
                   </p>
-
                   <div className="flex items-center gap-1">
                     <button
                       disabled={currentPage === 1}
                       onClick={() => handlePageChange(currentPage - 1)}
-                      className={`w-7 h-7 flex items-center justify-center rounded border text-xs transition-all
-                      ${currentPage === 1
-                        ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
-                        : "bg-white border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
-                    >
-                      ‹
-                    </button>
-
+                      className={`w-7 h-7 flex items-center justify-center rounded border text-xs transition-all ${currentPage === 1 ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed" : "bg-white border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
+                    >‹</button>
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
                       <button
                         key={num}
                         onClick={() => handlePageChange(num)}
-                        className={`w-7 h-7 flex items-center justify-center rounded text-xs font-semibold transition-all
-                        ${currentPage === num
-                          ? `bg-gradient-to-r ${getSectionColor()} text-white shadow`
-                          : "bg-white border border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
-                      >
-                        {num}
-                      </button>
+                        className={`w-7 h-7 flex items-center justify-center rounded text-xs font-semibold transition-all ${currentPage === num ? `bg-gradient-to-r ${getSectionColor()} text-white shadow` : "bg-white border border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
+                      >{num}</button>
                     ))}
-
                     <button
                       disabled={currentPage === totalPages}
                       onClick={() => handlePageChange(currentPage + 1)}
-                      className={`w-7 h-7 flex items-center justify-center rounded border text-xs transition-all
-                      ${currentPage === totalPages
-                        ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
-                        : "bg-white border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
-                    >
-                      ›
-                    </button>
+                      className={`w-7 h-7 flex items-center justify-center rounded border text-xs transition-all ${currentPage === totalPages ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed" : "bg-white border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-600"}`}
+                    >›</button>
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -557,21 +466,12 @@ export default function CommonInvoiceView() {
       {/* Remarks Modal */}
       {showRemarkModal && (
         <>
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50"
-            onClick={() => setShowRemarkModal(false)}
-          />
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowRemarkModal(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
-              className="bg-white rounded-xl shadow-2xl w-full max-w-lg"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
               <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4 rounded-t-xl flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white">Item Remarks</h3>
-                <button
-                  onClick={() => setShowRemarkModal(false)}
-                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1 transition"
-                >
+                <button onClick={() => setShowRemarkModal(false)} className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1 transition">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -584,9 +484,7 @@ export default function CommonInvoiceView() {
                 <button
                   onClick={() => setShowRemarkModal(false)}
                   className="mt-4 w-full px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-600 hover:to-cyan-700 transition-all"
-                >
-                  Close
-                </button>
+                >Close</button>
               </div>
             </div>
           </div>

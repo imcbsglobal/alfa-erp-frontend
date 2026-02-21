@@ -176,7 +176,7 @@ export default function BillingReviewedListPage() {
 
   // Sort + paginate (oldest first)
   const sortedInvoices = [...invoices].sort(
-    (a, b) => new Date(a.created_at || a.invoice_date) - new Date(b.created_at || b.invoice_date)
+    (a, b) => new Date(b.created_at || b.invoice_date) - new Date(a.created_at || a.invoice_date)
   );
 
   const indexOfLastItem = currentPage * itemsPerPage;

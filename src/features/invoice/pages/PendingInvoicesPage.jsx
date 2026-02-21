@@ -44,7 +44,8 @@ export default function PendingInvoicesPage() {
             if (exists) {
               return prev.map(inv => inv.id === invoice.id ? invoice : inv);
             }
-            return [invoice, ...prev];
+            const updated = [invoice, ...prev];
+            return updated.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
           });
         } else {
           // Remove invoice if status changed from INVOICED (e.g., picked)

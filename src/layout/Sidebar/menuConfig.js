@@ -1,5 +1,4 @@
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
-import { Truck as TruckIcon, AlertCircle as AlertCircleIcon, Package as PackageIcon } from "lucide-react";
 import { 
   HomeIcon, 
   UsersIcon, 
@@ -47,7 +46,7 @@ export const MENU_CONFIG = [
   {
     id: "orders",
     label: "Orders",
-    icon: Pill, // or use Package, Box, or any icon that represents orders
+    icon: Pill,
     type: "dropdown",
     hasAccess: (user) => 
       ["SUPERADMIN", "ADMIN", "BILLER", "PICKER", "PACKER", "DELIVERY", "STORE"].includes(user?.role),
@@ -159,7 +158,7 @@ export const MENU_CONFIG = [
     id: "reports",
     label: "Reports",
     icon: Clock,
-    type: "dropdown", // Changed from "single"
+    type: "dropdown",
     hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
     submenu: [
       {
@@ -178,9 +177,38 @@ export const MENU_CONFIG = [
         path: "/history/invoice-report",
       },
       {
-        label: "User Summary - Billing",
+        label: "Picking Reports",
+        icon: ClipboardCheck,
+        path: "/history/picking-report",
+      },
+      {
+        label: "Packing Reports",
+        icon: Box,
+        path: "/history/packing-report",
+      },
+      // ── NEW: User Summary nested dropdown ──────────────
+      {
+        label: "User Summary",
         icon: Users,
-        path: "/history/billing-user-summary",
+        type: "nested-dropdown",
+        hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
+        submenu: [
+          {
+            label: "Billing",
+            icon: FileText,
+            path: "/history/billing-user-summary",
+          },
+          {
+            label: "Picking",
+            icon: ClipboardCheck,
+            path: "/history/picking-user-summary",
+          },
+          {
+            label: "Packing",
+            icon: Box,
+            path: "/history/packing-user-summary",
+          },
+        ],
       },
     ],
     isActive: (pathname) => pathname.startsWith("/history"),
@@ -251,7 +279,6 @@ export const MENU_CONFIG = [
     type: "single",
     hasAccess: (user) => user?.role === "SUPERADMIN",
   },
-  
 ];
 
 // Page title mapping
@@ -290,6 +317,10 @@ export const PAGE_TITLES = {
   "/history/consolidate": "Consolidate History",
   "/history/invoice-report": "Invoice Report",
   "/history/billing-user-summary": "Billing User Summary",
+  "/history/picking-report": "Picking Report",
+  "/history/picking-user-summary": "Picking User Summary",
+  "/history/packing-report": "Packing Report",
+  "/history/packing-user-summary": "Packing User Summary",
   "/developer/settings": "Developer Options",
   "/admin/privilege": "Advanced Control",
 };

@@ -98,6 +98,8 @@ const CourierDeliveryListPage = () => {
     } finally {
       setLoading(false);
     }
+    const sorted = allDeliveries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    setDeliveries(sorted);
   };
 
   const handleRefresh = async () => {

@@ -53,6 +53,12 @@ import AdminPrivilegePage from "../pages/AdminPrivilegePage";
 import InvoiceReportPage from "../features/reports/pages/InvoiceReportPage";
 import BillingUserSummaryPage from "../features/reports/pages/BillingUserSummaryPage";
 
+import PickingInvoiceReportPage from "../features/reports/pages/PickingInvoiceReportPage";
+import PickingUserSummaryPage from "../features/reports/pages/PickingUserSummaryPage";
+
+import PackingInvoiceReportPage from "../features/reports/pages/Packinginvoicereportpage";
+import PackingUserSummaryPage from "../features/reports/pages/Packingusersummarypage";
+
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
   
@@ -135,6 +141,10 @@ export default function AppRouter() {
           <Route path="/history/consolidate" element={<InvoiceHistoryView />} />
           <Route path="/history/invoice-report" element={<InvoiceReportPage />} />
           <Route path="/history/billing-user-summary" element={<BillingUserSummaryPage />} />
+          <Route path="/history/picking-report" element={<PickingInvoiceReportPage />} />
+          <Route path="/history/picking-user-summary" element={<PickingUserSummaryPage />} />
+          <Route path="/history/packing-report" element={<PackingInvoiceReportPage />} />
+          <Route path="/history/packing-user-summary" element={<PackingUserSummaryPage />} />
 
           {/* Developer Options - SUPERADMIN ONLY */}
           <Route 

@@ -69,6 +69,8 @@ export default function ConsolidatedPackingPage() {
     const maxReconnectDelay = 30000;
     const baseDelay = 1000;
 
+    // NOTE: If in the future SSE pushes new invoices into a list, ensure to append (push) to the end, not unshift/prepend.
+    // This handler only reloads the bills, so no ordering change is needed here.
     const connect = () => {
       if (es) es.close();
 

@@ -108,6 +108,10 @@ const CompanyDeliveryListPage = () => {
     } finally {
       setLoading(false);
     }
+
+    // Sort by created_at descending (newest first)
+    const sorted = allDeliveries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    setDeliveries(sorted);
   };
 
   const handleRefresh = async () => {
