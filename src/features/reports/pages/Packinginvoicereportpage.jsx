@@ -7,6 +7,8 @@ import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -39,6 +41,44 @@ export default function PackingInvoiceReportPage() {
   useEffect(() => {
     loadSessions();
   }, [currentPage, itemsPerPage, statusFilter, dateFilter, debouncedCustomerFilter, debouncedPackerFilter]);
+
+  // SSE Live Updates
+  useEffect(() => {
+    const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const invoice = JSON.parse(event.data);
+
+        // Check if matches current filters
+        const matchesDate = !dateFilter || invoice.created_at?.startsWith(dateFilter);
+        const matchesCustomer = !debouncedCustomerFilter ||
+          (invoice.customer?.name || invoice.temp_name || '').toLowerCase().includes(debouncedCustomerFilter.toLowerCase());
+        const matchesPacker = !debouncedPackerFilter ||
+          (invoice.packer_info?.name || '').toLowerCase().includes(debouncedPackerFilter.toLowerCase());
+
+        if (matchesDate && matchesCustomer && matchesPacker) {
+          setSessions(prev => {
+            const exists = prev.find(s => s.id === invoice.id);
+            if (exists) {
+              return prev.map(s => s.id === invoice.id ? { ...s, ...invoice } : s);
+            }
+            const updated = [...prev, invoice];
+            return updated.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+          });
+          setTotalCount(prev => prev + 1);
+        }
+      } catch (e) {
+        console.error("Invalid SSE invoice:", e);
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => eventSource.close();
+  }, [dateFilter, debouncedCustomerFilter, debouncedPackerFilter]);
 
   const loadSessions = async () => {
     setLoading(true);
@@ -209,7 +249,7 @@ export default function PackingInvoiceReportPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{session.invoice_no}</td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           <p>{session.customer_name || '—'}</p>
-                          <p className="text-xs text-gray-500">{session.customer_address || '—'}</p>
+                          <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || "—"}</p>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{session.packer_name || '—'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDateDDMMYYYY(session.created_at)}</td>

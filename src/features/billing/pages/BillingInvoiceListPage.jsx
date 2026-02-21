@@ -78,10 +78,9 @@ export default function BillingInvoiceListPage() {
               copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
-            const updated = [{ ...data, _isLive: true }, ...prev];
-            return updated.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const updated = [...prev, { ...data, _isLive: true }];
+            return updated.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
           });
-          setCurrentPage(1);
         } catch (e) {
           console.error("Bad SSE data", e);
         }

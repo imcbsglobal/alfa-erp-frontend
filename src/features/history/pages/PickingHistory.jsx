@@ -298,7 +298,9 @@ export default function PickingHistory() {
                     </td>
                     <td className="px-3 sm:px-6 py-3">
                       <p className="font-medium">{h.customer_name}</p>
-                      <p className="text-xs text-gray-500">{h.customer_email}</p>
+                      <p className="text-xs text-gray-500">
+                        {h.customer_area || h.customer_address || h.temp_name || "—"}
+                      </p>
                     </td>
                     <td className="px-3 sm:px-6 py-3">
                       <p className="font-medium">{h.picker_name}</p>

@@ -76,8 +76,8 @@ export default function InvoiceReportPage() {
             if (exists) {
               return prev.map(inv => inv.id === invoice.id ? invoice : inv);
             } else {
-              const updated = [invoice, ...prev];
-              return updated.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              const updated = [...prev, invoice];
+              return updated.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             }
           });
           setTotalCount(prev => prev + 1);
