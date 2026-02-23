@@ -4,7 +4,7 @@ import api from "../../../services/api";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
-import { X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
@@ -27,68 +27,51 @@ export default function PackingInvoiceReportPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [customerFilter, setCustomerFilter] = useState('');
-  const [packerFilter, setPackerFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
 
-  const debouncedCustomerFilter = useDebounce(customerFilter, 500);
-  const debouncedPackerFilter = useDebounce(packerFilter, 500);
+  const debouncedSearch = useDebounce(searchQuery, 500);
 
   useEffect(() => { searchInputRef.current?.focus(); }, []);
 
   useEffect(() => {
     loadSessions();
-  }, [currentPage, itemsPerPage, statusFilter, dateFilter, debouncedCustomerFilter, debouncedPackerFilter]);
+  }, [currentPage, itemsPerPage, dateFilter, debouncedSearch]);
 
   // SSE Live Updates
   useEffect(() => {
     const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
-
     eventSource.onmessage = (event) => {
       try {
         const invoice = JSON.parse(event.data);
-
-        // Check if matches current filters
+        const q = debouncedSearch.toLowerCase();
         const matchesDate = !dateFilter || invoice.created_at?.startsWith(dateFilter);
-        const matchesCustomer = !debouncedCustomerFilter ||
-          (invoice.customer?.name || invoice.temp_name || '').toLowerCase().includes(debouncedCustomerFilter.toLowerCase());
-        const matchesPacker = !debouncedPackerFilter ||
-          (invoice.packer_info?.name || '').toLowerCase().includes(debouncedPackerFilter.toLowerCase());
+        const matchesSearch = !q ||
+          (invoice.invoice_no || '').toLowerCase().includes(q) ||
+          (invoice.customer?.name || invoice.temp_name || '').toLowerCase().includes(q) ||
+          (invoice.packer_info?.name || '').toLowerCase().includes(q);
 
-        if (matchesDate && matchesCustomer && matchesPacker) {
+        if (matchesDate && matchesSearch) {
           setSessions(prev => {
             const exists = prev.find(s => s.id === invoice.id);
-            if (exists) {
-              return prev.map(s => s.id === invoice.id ? { ...s, ...invoice } : s);
-            }
-            const updated = [...prev, invoice];
-            return updated.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            if (exists) return prev.map(s => s.id === invoice.id ? { ...s, ...invoice } : s);
+            return [...prev, invoice].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
           });
           setTotalCount(prev => prev + 1);
         }
-      } catch (e) {
-        console.error("Invalid SSE invoice:", e);
-      }
+      } catch (e) { console.error("Invalid SSE invoice:", e); }
     };
-
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
-
+    eventSource.onerror = () => eventSource.close();
     return () => eventSource.close();
-  }, [dateFilter, debouncedCustomerFilter, debouncedPackerFilter]);
+  }, [dateFilter, debouncedSearch]);
 
   const loadSessions = async () => {
     setLoading(true);
     try {
       const params = { page: currentPage, page_size: itemsPerPage };
-      if (statusFilter) params.status = statusFilter;
       if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
-      if (debouncedCustomerFilter) params.search = debouncedCustomerFilter;
-      if (debouncedPackerFilter) params.search = debouncedPackerFilter;
-
+      if (debouncedSearch) params.search = debouncedSearch;
       const res = await api.get("/sales/packing/history/", { params });
       setSessions(res.data.results || []);
       setTotalCount(res.data.count || 0);
@@ -101,7 +84,6 @@ export default function PackingInvoiceReportPage() {
   };
 
   const handleViewSession = (session) => {
-    // Normalize session fields to match the invoice shape CommonInvoiceView expects
     const invoiceData = {
       id: session.id,
       invoice_no: session.invoice_no,
@@ -138,17 +120,10 @@ export default function PackingInvoiceReportPage() {
     };
 
     const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
-    const basePath = isOpsUser ? "/ops/packing/invoices/view" : "/packing/invoices/view";
-
-    navigate(`${basePath}/${session.id}`, {
-      state: {
-        backPath: "/history/packing-report",
-        invoiceData,
-      }
+    navigate(`${isOpsUser ? '/ops/packing/invoices/view' : '/packing/invoices/view'}/${session.id}`, {
+      state: { backPath: "/history/packing-report", invoiceData }
     });
   };
-
-  const handleRefresh = () => { loadSessions(); toast.success("Report refreshed"); };
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
@@ -168,6 +143,8 @@ export default function PackingInvoiceReportPage() {
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-800">Packing Report</h1>
             <div className="flex flex-wrap items-center gap-3">
+
+              {/* Date */}
               <div className="flex items-center gap-2">
                 <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Date:</label>
                 <input type="date" value={dateFilter}
@@ -175,47 +152,41 @@ export default function PackingInvoiceReportPage() {
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                 />
               </div>
+
+              {/* Unified Search */}
               <div className="flex items-center gap-2">
-                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Customer:</label>
+                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Search:</label>
                 <div className="relative">
-                  <input ref={searchInputRef} type="text" placeholder="Search customer..." value={customerFilter}
-                    onChange={(e) => { setCustomerFilter(e.target.value); setCurrentPage(1); }}
-                    className="px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm min-w-[160px]"
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Invoice No, Customer, Packer..."
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    className="pl-8 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm min-w-[240px]"
                   />
-                  {customerFilter && (
-                    <button onClick={() => { setCustomerFilter(''); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <X size={16} />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X size={15} />
                     </button>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Packer:</label>
-                <div className="relative">
-                  <input type="text" placeholder="Search packer..." value={packerFilter}
-                    onChange={(e) => { setPackerFilter(e.target.value); setCurrentPage(1); }}
-                    className="px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm min-w-[160px]"
-                  />
-                  {packerFilter && (
-                    <button onClick={() => { setPackerFilter(''); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
+
+              {/* Rows */}
               <div className="flex items-center gap-2">
                 <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Rows:</label>
                 <select value={itemsPerPage}
                   onChange={(e) => { setItemsPerPage(parseInt(e.target.value)); setCurrentPage(1); }}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white min-w-[80px]"
                 >
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
+                  {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
-              <button onClick={handleRefresh}
+
+              <button onClick={() => { loadSessions(); toast.success("Report refreshed"); }}
                 className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
               >Generate</button>
             </div>
@@ -233,14 +204,9 @@ export default function PackingInvoiceReportPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Invoice No</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Customer</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Packer</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Start Time</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">End Time</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Actions</th>
+                      {["Invoice No", "Customer", "Packer", "Date", "Start Time", "End Time", "Status", "Actions"].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -249,7 +215,7 @@ export default function PackingInvoiceReportPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{session.invoice_no}</td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           <p>{session.customer_name || '—'}</p>
-                          <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || "—"}</p>
+                          <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || '—'}</p>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{session.packer_name || '—'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDateDDMMYYYY(session.created_at)}</td>
@@ -261,8 +227,7 @@ export default function PackingInvoiceReportPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <button
-                            onClick={() => handleViewSession(session)}
+                          <button onClick={() => handleViewSession(session)}
                             className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
                           >View</button>
                         </td>
@@ -271,14 +236,8 @@ export default function PackingInvoiceReportPage() {
                   </tbody>
                 </table>
               </div>
-              <Pagination
-                currentPage={currentPage}
-                totalItems={totalCount}
-                itemsPerPage={itemsPerPage}
-                onPageChange={(p) => setCurrentPage(p)}
-                label="records"
-                colorScheme="teal"
-              />
+              <Pagination currentPage={currentPage} totalItems={totalCount} itemsPerPage={itemsPerPage}
+                onPageChange={(p) => setCurrentPage(p)} label="records" colorScheme="teal" />
             </>
           )}
         </div>
