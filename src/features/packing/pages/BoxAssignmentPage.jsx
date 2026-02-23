@@ -359,9 +359,12 @@ export default function BoxAssignmentPage() {
     const boxIndex   = boxes.findIndex(b => b.id === boxId) + 1;
     const totalBoxes = boxes.length;
     
-    const customerName    = bill?.customer?.name     || bill?.customer_name  || '';
-    const customerArea    = bill?.customer?.area     || '';
     const customerAddr1   = bill?.customer?.address1 || bill?.delivery_address || '';
+    const hasAddress = !!(customerAddr1 || bill?.customer?.address2);
+    const customerName    = hasAddress
+      ? (bill?.customer?.name || bill?.customer_name || '')
+      : (bill?.temp_name || bill?.customer?.name || bill?.customer_name || '');
+    const customerArea    = bill?.customer?.area     || '';
     const customerAddr2   = bill?.customer?.address2 || '';
     const customerPhone1  = bill?.customer?.phone1   || bill?.customer_phone || '';
     const customerPhone2  = bill?.customer?.phone2   || '';
