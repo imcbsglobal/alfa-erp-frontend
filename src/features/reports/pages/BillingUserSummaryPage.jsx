@@ -11,7 +11,7 @@ export default function BillingUserSummaryPage() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
   const [endDate, setEndDate] = useState('');
   const [billingStatus, setBillingStatus] = useState('BILLED');
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   // Load summary data when filters change
   useEffect(() => {
