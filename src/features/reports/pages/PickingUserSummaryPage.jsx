@@ -18,20 +18,31 @@ export default function PickingUserSummaryPage() {
   const loadSummary = async () => {
     setLoading(true);
     try {
-      // Fetch all picking sessions for the selected date, then aggregate by picker
-      const res = await api.get("/sales/picking/history/", {
-        params: {
-          start_date: date,
-          end_date: date,
-          page_size: 9999,
-        }
-      });
+      // Fetch ALL pages to get complete data
+      let page = 1;
+      let allSessions = [];
 
-      const sessions = res.data.results || [];
+      while (true) {
+        const res = await api.get("/sales/picking/history/", {
+          params: {
+            start_date: date,
+            end_date: date,
+            page_size: 100,
+            page,
+          }
+        });
+
+        const results = res.data.results || [];
+        allSessions = allSessions.concat(results);
+
+        // Stop if no more pages
+        if (!res.data.next || results.length === 0) break;
+        page++;
+      }
 
       // Aggregate by picker
       const pickerMap = {};
-      for (const session of sessions) {
+      for (const session of allSessions) {
         const pickerName = session.picker_name || session.picker?.name || session.picker?.email || "Unknown";
         const pickerId = session.picker?.id || pickerName;
 
@@ -49,7 +60,7 @@ export default function PickingUserSummaryPage() {
       const aggregated = Object.values(pickerMap).sort((a, b) => b.pick_count - a.pick_count);
 
       setSummary(aggregated);
-      setTotalPicks(sessions.length);
+      setTotalPicks(allSessions.length);
     } catch (err) {
       console.error("❌ Failed to load picking summary:", err);
       toast.error("Failed to load picking summary");
@@ -104,7 +115,7 @@ export default function PickingUserSummaryPage() {
               {/* Refresh */}
               <button
                 onClick={handleRefresh}
-                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-md font-medium text-sm hover:bg-gradient-to-r from-teal-500 to-cyan-600 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-md font-medium text-sm hover:from-teal-600 hover:to-cyan-700 transition-all flex items-center gap-2"
               >
                 <RefreshCw size={16} />
                 Refresh

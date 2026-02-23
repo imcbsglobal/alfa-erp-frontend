@@ -65,6 +65,8 @@ export default function InvoiceHistoryView() {
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            customer_area: item.customer_area,
+            temp_name: item.temp_name,
             salesman_name: item.salesman_name || null,
             billing: item,
             picking: null,
@@ -84,6 +86,9 @@ export default function InvoiceHistoryView() {
           if (!invoice.salesman_name && item.salesman_name) {
             invoice.salesman_name = item.salesman_name;
           }
+          // Fill in area/temp_name if not already set
+          if (!invoice.customer_area && item.customer_area) invoice.customer_area = item.customer_area;
+          if (!invoice.temp_name && item.temp_name) invoice.temp_name = item.temp_name;
           const pickDate = new Date(item.start_time);
           if (pickDate > invoice.latest_date) invoice.latest_date = pickDate;
         } else {
@@ -92,6 +97,8 @@ export default function InvoiceHistoryView() {
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            customer_area: item.customer_area,
+            temp_name: item.temp_name,
             salesman_name: item.salesman_name || null,
             billing: null,
             picking: item,
@@ -106,6 +113,8 @@ export default function InvoiceHistoryView() {
         const invoice = invoiceMap.get(item.invoice_no);
         if (invoice) {
           invoice.packing = item;
+          if (!invoice.customer_area && item.customer_area) invoice.customer_area = item.customer_area;
+          if (!invoice.temp_name && item.temp_name) invoice.temp_name = item.temp_name;
           const packDate = new Date(item.start_time);
           if (packDate > invoice.latest_date) invoice.latest_date = packDate;
         } else {
@@ -114,6 +123,8 @@ export default function InvoiceHistoryView() {
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            customer_area: item.customer_area,
+            temp_name: item.temp_name,
             billing: null,
             picking: null,
             packing: item,
@@ -127,6 +138,8 @@ export default function InvoiceHistoryView() {
         const invoice = invoiceMap.get(item.invoice_no);
         if (invoice) {
           invoice.delivery = item;
+          if (!invoice.customer_area && item.customer_area) invoice.customer_area = item.customer_area;
+          if (!invoice.temp_name && item.temp_name) invoice.temp_name = item.temp_name;
           const delDate = new Date(item.start_time);
           if (delDate > invoice.latest_date) invoice.latest_date = delDate;
         } else {
@@ -135,6 +148,8 @@ export default function InvoiceHistoryView() {
             customer_name: item.customer_name,
             customer_email: item.customer_email,
             customer_phone: item.customer_phone,
+            customer_area: item.customer_area,
+            temp_name: item.temp_name,
             billing: null,
             picking: null,
             packing: null,
@@ -359,7 +374,8 @@ export default function InvoiceHistoryView() {
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-sm">{item.customer_name}</p>
-                          <p className="text-xs text-gray-500">{item.customer_email}</p>
+                          {/* Show area, fallback to temp_name */}
+                          <p className="text-xs text-gray-500">{item.customer_area || item.temp_name || "—"}</p>
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-3 py-1 rounded-full text-xs font-bold border ${overallStatus.color}`}>
@@ -561,6 +577,7 @@ export default function InvoiceHistoryView() {
                           </span>
                         )}
                         <p className="text-sm text-gray-600">{item.customer_name}</p>
+                        <p className="text-xs text-gray-500">{item.customer_area || item.temp_name || "—"}</p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-bold border ${overallStatus.color}`}>
                         {overallStatus.label}

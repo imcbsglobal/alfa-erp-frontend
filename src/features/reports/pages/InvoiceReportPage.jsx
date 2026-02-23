@@ -21,6 +21,7 @@ export default function InvoiceReportPage() {
   const { user } = useAuth();
 
   const [invoices, setInvoices] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -33,13 +34,22 @@ export default function InvoiceReportPage() {
   const invoiceSearchRef = useRef(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
-  const debouncedSalesman = useDebounce(salesmanQuery, 500);
+  const debouncedSalesman = useDebounce(salesmanQuery, 300);
 
   useEffect(() => { invoiceSearchRef.current?.focus(); }, []);
 
   useEffect(() => {
     loadInvoices();
-  }, [currentPage, itemsPerPage, statusFilter, dateFilter, debouncedSearch, debouncedSalesman, timeFilter]);
+  }, [currentPage, itemsPerPage, statusFilter, dateFilter, debouncedSearch, timeFilter]);
+
+  useEffect(() => {
+    if (!debouncedSalesman.trim()) {
+      setInvoices(allInvoices);
+    } else {
+      const q = debouncedSalesman.toLowerCase();
+      setInvoices(allInvoices.filter(inv => (inv.salesman?.name || '').toLowerCase().includes(q)));
+    }
+  }, [debouncedSalesman, allInvoices]);
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -48,14 +58,20 @@ export default function InvoiceReportPage() {
       if (statusFilter) params.status = statusFilter;
       if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
       if (debouncedSearch) params.search = debouncedSearch;
-      if (debouncedSalesman) params.salesman = debouncedSalesman;
       if (timeFilter) {
         const cutoff = new Date(Date.now() - parseInt(timeFilter) * 60 * 60 * 1000);
         params.start_time = cutoff.toISOString();
       }
       const res = await getInvoiceReport(params);
-      setInvoices(res.data.results || []);
+      const results = res.data.results || [];
+      setAllInvoices(results);
       setTotalCount(res.data.count || 0);
+      if (debouncedSalesman.trim()) {
+        const q = debouncedSalesman.toLowerCase();
+        setInvoices(results.filter(inv => (inv.salesman?.name || '').toLowerCase().includes(q)));
+      } else {
+        setInvoices(results);
+      }
     } catch (err) {
       console.error("❌ Failed to load invoice report:", err);
       toast.error("Failed to load invoice report");
@@ -74,101 +90,109 @@ export default function InvoiceReportPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <div className="flex flex-col gap-4">
 
-            {/* Top Row: Title + Date + Rows + Time + Generate */}
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-800">Invoice Reports</h1>
-              <div className="flex flex-wrap items-center gap-3">
+        {/* Header */}
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-800">Invoice Reports</h1>
+        </div>
 
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Date:</label>
-                  <input type="date" value={dateFilter}
-                    onChange={(e) => { setDateFilter(e.target.value); setCurrentPage(1); }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-                  />
-                </div>
+        {/* Filter Bar */}
+        <div className="bg-white rounded-xl shadow-sm p-3 mb-4">
+          {/* Row 1: Date, Rows, Time, Search bars, Generate — all on one line */}
+          <div className="flex flex-wrap items-center gap-3">
 
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Rows:</label>
-                  <select value={itemsPerPage}
-                    onChange={(e) => { setItemsPerPage(parseInt(e.target.value)); setCurrentPage(1); }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white min-w-[80px]"
-                  >
-                    {[20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Date:</label>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => { setDateFilter(e.target.value); setCurrentPage(1); }}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+              />
+            </div>
 
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Time:</label>
-                  <select value={timeFilter}
-                    onChange={(e) => { setTimeFilter(e.target.value); setCurrentPage(1); }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white min-w-[90px]"
-                  >
-                    <option value="">All</option>
-                    <option value="1">1 hr</option>
-                    <option value="2">2 hr</option>
-                    <option value="3">3 hr</option>
-                    <option value="4">4 hr</option>
-                    <option value="6">6 hr</option>
-                    <option value="12">12 hr</option>
-                  </select>
-                </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Rows:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => { setItemsPerPage(parseInt(e.target.value)); setCurrentPage(1); }}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white w-[70px]"
+              >
+                {[20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
 
-                <button onClick={() => { loadInvoices(); toast.success("Report refreshed"); }}
-                  className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
-                >Generate</button>
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Time:</label>
+              <select
+                value={timeFilter}
+                onChange={(e) => { setTimeFilter(e.target.value); setCurrentPage(1); }}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white w-[80px]"
+              >
+                <option value="">All</option>
+                <option value="1">1 hr</option>
+                <option value="2">2 hr</option>
+                <option value="3">3 hr</option>
+                <option value="4">4 hr</option>
+                <option value="6">6 hr</option>
+                <option value="12">12 hr</option>
+              </select>
+            </div>
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-200" />
+
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Invoice / Customer:</label>
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                  ref={invoiceSearchRef}
+                  type="text"
+                  placeholder="Invoice No or Customer..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                  className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[240px]"
+                />
+                {searchQuery && (
+                  <button onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X size={13} />
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Second Row: Search bars */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Invoice / Customer:</label>
-                <div className="relative">
-                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input
-                    ref={invoiceSearchRef}
-                    type="text"
-                    placeholder="Invoice No or Customer..."
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                    className="pl-8 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm min-w-[220px]"
-                  />
-                  {searchQuery && (
-                    <button onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <X size={15} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Created By:</label>
-                <div className="relative">
-                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Salesman name..."
-                    value={salesmanQuery}
-                    onChange={(e) => { setSalesmanQuery(e.target.value); setCurrentPage(1); }}
-                    className="pl-8 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm min-w-[180px]"
-                  />
-                  {salesmanQuery && (
-                    <button onClick={() => { setSalesmanQuery(''); setCurrentPage(1); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <X size={15} />
-                    </button>
-                  )}
-                </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Created By:</label>
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Salesman name..."
+                  value={salesmanQuery}
+                  onChange={(e) => setSalesmanQuery(e.target.value)}
+                  className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[230px]"
+                />
+                {salesmanQuery && (
+                  <button onClick={() => setSalesmanQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X size={13} />
+                  </button>
+                )}
               </div>
             </div>
 
+            <button
+              onClick={() => { loadInvoices(); toast.success("Report generated successfully"); }}
+              className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap ml-auto"
+            >
+              Generate
+            </button>
           </div>
         </div>
 
+        {/* Table */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {loading ? (
             <div className="py-20 text-center text-gray-500">Loading report...</div>
@@ -193,7 +217,9 @@ export default function InvoiceReportPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDateTime(inv.created_at)}</td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           <p>{inv.customer?.name || inv.temp_name || 'N/A'}</p>
-                          <p className="text-xs text-gray-500">{inv.customer?.area || inv.customer?.address1 || '—'}</p>
+                          <p className="text-xs text-gray-500">
+                            {inv.customer?.area || inv.customer?.address1 || inv.temp_name || '—'}
+                          </p>
                         </td>
                         <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900 whitespace-nowrap">
                           ₹{formatNumber(inv.Total, 2, '0.00')}

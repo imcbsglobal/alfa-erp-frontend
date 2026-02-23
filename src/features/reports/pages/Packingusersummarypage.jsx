@@ -18,19 +18,31 @@ export default function PackingUserSummaryPage() {
   const loadSummary = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/sales/packing/history/", {
-        params: {
-          start_date: date,
-          end_date: date,
-          page_size: 9999,
-        }
-      });
+      // Fetch ALL pages to get complete data
+      let page = 1;
+      let allSessions = [];
 
-      const sessions = res.data.results || [];
+      while (true) {
+        const res = await api.get("/sales/packing/history/", {
+          params: {
+            start_date: date,
+            end_date: date,
+            page_size: 100,
+            page,
+          }
+        });
+
+        const results = res.data.results || [];
+        allSessions = allSessions.concat(results);
+
+        // Stop if no more pages
+        if (!res.data.next || results.length === 0) break;
+        page++;
+      }
 
       // Aggregate by packer
       const packerMap = {};
-      for (const session of sessions) {
+      for (const session of allSessions) {
         const packerName = session.packer_name || session.packer?.name || session.packer?.email || "Unknown";
         const packerId = session.packer?.id || packerName;
 
@@ -48,7 +60,7 @@ export default function PackingUserSummaryPage() {
       const aggregated = Object.values(packerMap).sort((a, b) => b.pack_count - a.pack_count);
 
       setSummary(aggregated);
-      setTotalPacks(sessions.length);
+      setTotalPacks(allSessions.length);
     } catch (err) {
       console.error("❌ Failed to load packing summary:", err);
       toast.error("Failed to load packing summary");
@@ -103,7 +115,7 @@ export default function PackingUserSummaryPage() {
               {/* Refresh */}
               <button
                 onClick={handleRefresh}
-                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-md font-medium text-sm hover:bg-gradient-to-r from-teal-500 to-cyan-600 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-md font-medium text-sm hover:from-teal-600 hover:to-cyan-700 transition-all flex items-center gap-2"
               >
                 <RefreshCw size={16} />
                 Refresh
