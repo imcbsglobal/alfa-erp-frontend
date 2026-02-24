@@ -238,7 +238,7 @@ export default function PendingInvoicesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-900">{invoice.customer?.name || 'N/A'}</p>
-                          <p className="text-xs text-gray-500">{invoice.customer?.area || invoice.customer?.address1 || '—'}</p>
+                          <p className="text-xs text-gray-500">{invoice.customer?.area || invoice.customer?.address1 || invoice.temp_name}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-sm">
