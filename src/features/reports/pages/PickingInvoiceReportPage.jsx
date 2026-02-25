@@ -62,7 +62,7 @@ export default function PickingInvoiceReportPage() {
       }
       const res = await api.get("/sales/picking/history/", { params });
       const results = res.data.results || [];
-      results.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      results.sort((a, b) => new Date(a.invoice_created_at) - new Date(b.invoice_created_at));
       setAllSessions(results);
       setTotalCount(res.data.count || 0);
       if (debouncedPicker.trim()) {
