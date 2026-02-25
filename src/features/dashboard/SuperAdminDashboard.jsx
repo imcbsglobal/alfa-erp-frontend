@@ -343,7 +343,7 @@ export default function SuperAdminDashboard() {
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Recalculate Hold Confirmation Modal ── */}
-      {/* {showRecalcModal && (
+      {showRecalcModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-center w-14 h-14 bg-amber-100 rounded-full mx-auto mb-4">
@@ -394,7 +394,7 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         </div>
-      )} */}
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 text-white py-6 sm:py-8 px-4 sm:px-6 shadow-lg">
@@ -458,7 +458,7 @@ export default function SuperAdminDashboard() {
                 </p>
 
                 {/* Recalculate button — only on HOLD card for superadmins */}
-                {/* {stat.showRecalc && (
+                {stat.showRecalc && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation(); // don't trigger card navigate
@@ -473,7 +473,7 @@ export default function SuperAdminDashboard() {
                     </svg>
                     Recalculate
                   </button>
-                )} */}
+                )}
 
                 {/* Decorative elements */}
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 rounded-b-2xl" />
