@@ -431,7 +431,7 @@ export default function BoxAssignmentPage() {
               align-items: center;
               gap: 10px;
               padding: 6px 10px;
-              border-bottom: 1.5px solid #000;
+              border-top: 1.5px solid #000;
               background: white;
               flex-shrink: 0;
             }
@@ -441,28 +441,22 @@ export default function BoxAssignmentPage() {
               image-rendering: -webkit-optimize-contrast;
               image-rendering: crisp-edges;
             }
-            .company-divider {
-              width: 1.5px;
-              height: 50px;
-              background: #000;
-              flex-shrink: 0;
-            }
+
             .company-info {
               display: flex;
               flex-direction: column;
               gap: 2px;
             }
             .company-address {
-              font-size: 13px;
+              font-size: 12px;
               color: #000;
-              line-height: 1.6;
               font-weight: 500;
             }
 
             /* ── Main Content ── */
             .main-content {
               display: grid;
-              grid-template-columns: 4cm 1fr;
+              grid-template-columns: 4cm 1fr 1.2cm;
               flex: 1;
               overflow: visible;
             }
@@ -589,35 +583,53 @@ export default function BoxAssignmentPage() {
               word-wrap: break-word;
               overflow-wrap: break-word;
             }
-
-            /* ── Instructions Banner ── */
-            .instructions-banner {
-              border-top: 1.5px solid #000;
-              background: #fff;
-              padding: 7px 12px;
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              flex-shrink: 0;
-            }
-            .instruction-texts {
+            .icons-column {
               display: flex;
               flex-direction: column;
-              gap: 3px;
+              align-items: center;
+              justify-content: space-evenly;
+              padding: 6px 4px;
+              border-left: 1.5px solid #000;
+              background: white;
             }
-            .instruction-text {
+            .icon-item {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 1px;
+              padding: 3px 3px;
+              width: 100%;
+            }
+            .icon-emoji {
+              font-size: 14px;
+              filter: grayscale(100%) brightness(0);
+              line-height: 1;
+            }
+            .icon-label {
+              font-size: 5px;
               font-weight: bold;
-              font-size: 10px;
               text-transform: uppercase;
               color: #000;
-              line-height: 1.4;
+              letter-spacing: 0.2px;
+              line-height: 1.2;
+              text-align: center;
+              white-space: nowrap;
             }
-            .icons-row {
+            .this-way-up-box {
               display: flex;
-              gap: 10px;
+              flex-direction: column;
               align-items: center;
-              font-size: 20px;
-              filter: grayscale(100%) brightness(0);
+              gap: 1px;
+              padding: 3px 3px;
+              width: 100%;
+            }
+            .this-way-up-arrows {
+              display: flex;
+              gap: 2px;
+            }
+            .arrow-svg {
+              width: 8px;
+              height: 11px;
             }
 
             @media print {
@@ -631,18 +643,6 @@ export default function BoxAssignmentPage() {
         </head>
         <body>
           <div class="label-container">
-
-            <!-- Company Header -->
-            <div class="company-header">
-              <img src="/black.png" alt="Alfa Agencies" class="company-logo" />
-              <div class="company-divider"></div>
-              <div class="company-info">
-                <span class="company-address">18/1143 A7, Ground Floor, Meyon Building, Jail Road, Calicut - 673 004</span>
-                <span class="company-address">Ph: (Off) 0495 2300644, 2701899, 2306728</span>
-                <span class="company-address">Ph: (Mob) 9387724365, 7909220300, 7909220400</span>
-              </div>
-            </div>
-
             <!-- Main Content -->
             <div class="main-content">
               <!-- QR Code + labels -->
@@ -667,21 +667,43 @@ export default function BoxAssignmentPage() {
                   : ''}
                 ${customerEmail   ? `<p class="customer-email">${customerEmail}</p>` : ''}
               </div>
-            </div>
-
-            <!-- Instructions Banner -->
-            <div class="instructions-banner">
-              <div class="instruction-texts">
-                <p class="instruction-text">HANDLE WITH CARE. KEEP REFRIGERATED.</p>
-                <p class="instruction-text">DO NOT SHAKE. FRAGILE. PROTECT FROM LIGHT</p>
+              <!-- Icons Column (right side) -->
+              <div class="icons-column">
+                <div class="this-way-up-box">
+                  <div class="this-way-up-arrows">
+                    <svg class="arrow-svg" viewBox="0 0 8 11" fill="black">
+                      <polygon points="4,0 8,5 5.5,5 5.5,11 2.5,11 2.5,5 0,5"/>
+                    </svg>
+                    <svg class="arrow-svg" viewBox="0 0 8 11" fill="black">
+                      <polygon points="4,0 8,5 5.5,5 5.5,11 2.5,11 2.5,5 0,5"/>
+                    </svg>
+                  </div>
+                  <span class="icon-label">This Way Up</span>
+                </div>
+                <div class="icon-item">
+                  <span class="icon-emoji">❄️</span>
+                  <span class="icon-label">Keep Cold</span>
+                </div>
+                <div class="icon-item">
+                  <span class="icon-emoji">🍷</span>
+                  <span class="icon-label">Fragile</span>
+                </div>
+                <div class="icon-item">
+                  <span class="icon-emoji">☂️</span>
+                  <span class="icon-label">Keep Dry</span>
+                </div>
               </div>
-              <div class="icons-row">
-                <span>❄️</span>
-                <span>🍷</span>
-                <span>☂️</span>
+            </div>
+            <!-- Company Header -->
+            <div class="company-header">
+              <img src="/black.png" alt="Alfa Agencies" class="company-logo" />
+              <div class="company-divider"></div>
+              <div class="company-info">
+                <span class="company-address">18/1143 A7, Ground Floor, Meyon Building, Jail Road, Calicut - 673 004</span>
+                <span class="company-address">Ph: (Off) 0495 2300644, 2701899, 2306728</span>
+                <span class="company-address">Ph: (Mob) 9387724365, 7909220300, 7909220400</span>
               </div>
             </div>
-
           </div>
           
           <script>
