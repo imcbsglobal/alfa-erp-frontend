@@ -238,7 +238,7 @@ export default function PickingInvoiceReportPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
-                      {["Invoice No", "Customer", "Picker", "Date", "Start Time", "End Time", "Status", "Actions"].map(h => (
+                      {["Invoice No","Invoiced Date & Time", "Customer", "Picker", "Date", "Start Time", "End Time", "Status", "Actions"].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -247,6 +247,10 @@ export default function PickingInvoiceReportPage() {
                     {sessions.map((session, index) => (
                       <tr key={session.id} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{session.invoice_no}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                          <p>{formatDateDDMMYYYY(session.invoice_created_at)}</p>
+                          <p className="text-xs text-gray-500">{formatTime(session.invoice_created_at)}</p>
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           <p>{session.customer_name || '—'}</p>
                           <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || '—'}</p>
