@@ -16,62 +16,80 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
+const STATUS_BADGE = {
+  PACKING:   "bg-blue-100 text-blue-700 border-blue-300",
+  PACKED:    "bg-emerald-100 text-emerald-700 border-emerald-300",
+  VERIFIED:  "bg-green-100 text-green-700 border-green-300",
+  REVIEW:    "bg-red-100 text-red-700 border-red-300",
+  CANCELLED: "bg-gray-100 text-gray-600 border-gray-300",
+};
+
 export default function PackingInvoiceReportPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const [rawSessions, setRawSessions] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [allSessions, setAllSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage] = useState(10000);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [packerQuery, setPackerQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
-  const invoiceSearchRef = useRef(null);
+  const searchRef = useRef(null);
 
-  const debouncedSearch = useDebounce(searchQuery, 500);
-  const debouncedPacker = useDebounce(packerQuery, 300);
+  const debouncedSearch = useDebounce(searchQuery, 400);
 
-  useEffect(() => { invoiceSearchRef.current?.focus(); }, []);
+  useEffect(() => { searchRef.current?.focus(); }, []);
 
   useEffect(() => {
     loadSessions();
-  }, [currentPage, itemsPerPage, dateFilter, debouncedSearch, timeFilter]);
-
-  useEffect(() => {
-    if (!debouncedPacker.trim()) {
-      setSessions(allSessions);
-    } else {
-      const q = debouncedPacker.toLowerCase();
-      setSessions(allSessions.filter(s => (s.packer_name || '').toLowerCase().includes(q)));
-    }
-  }, [debouncedPacker, allSessions]);
+  }, [currentPage, dateFilter, debouncedSearch, timeFilter]);
 
   const loadSessions = async () => {
     setLoading(true);
     try {
       const params = { page: currentPage, page_size: itemsPerPage };
       if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
-      if (debouncedSearch) params.search = debouncedSearch;
       if (timeFilter) {
         const cutoff = new Date(Date.now() - parseInt(timeFilter) * 60 * 60 * 1000);
         params.start_time = cutoff.toISOString();
       }
-      const res = await api.get("/sales/packing/history/", { params });
-      const results = res.data.results || [];
-      setAllSessions(results);
-      setTotalCount(res.data.count || 0);
-      if (debouncedPacker.trim()) {
-        const q = debouncedPacker.toLowerCase();
-        setSessions(results.filter(s => (s.packer_name || '').toLowerCase().includes(q)));
-      } else {
+
+      const q = debouncedSearch.trim().toLowerCase();
+
+      if (!q) {
+        const res = await api.get("/sales/packing/history/", { params });
+        const results = res.data.results || [];
+        setRawSessions(results);
         setSessions(results);
+        setTotalCount(res.data.count || 0);
+      } else {
+        // Fetch all to check for packer name match (client-side)
+        const allRes = await api.get("/sales/packing/history/", { params });
+        const allResults = allRes.data.results || [];
+
+        const packerMatches = allResults.filter(s =>
+          (s.packer_name || '').toLowerCase().includes(q)
+        );
+
+        if (packerMatches.length > 0) {
+          // Packer name search — filter client-side
+          setRawSessions(allResults);
+          setSessions(packerMatches);
+          setTotalCount(allRes.data.count || 0);
+        } else {
+          // Invoice / customer search — send to API
+          const searchRes = await api.get("/sales/packing/history/", { params: { ...params, search: debouncedSearch } });
+          const searchResults = searchRes.data.results || [];
+          setRawSessions(searchResults);
+          setSessions(searchResults);
+          setTotalCount(searchRes.data.count || 0);
+        }
       }
     } catch (err) {
-      console.error("❌ Failed to load packing report:", err);
+      console.error("Failed to load packing report:", err);
       toast.error("Failed to load packing report");
     } finally {
       setLoading(false);
@@ -97,29 +115,21 @@ export default function PackingInvoiceReportPage() {
         phone1: session.customer_phone,
         address1: session.customer_address,
         area: session.customer_area || session.customer_address,
-        code: '',
-        phone2: '',
+        code: '', phone2: '',
       },
       items: session.items || [],
-      picker_info: session.picker_name ? { name: session.picker_name, email: session.picker_email, end_time: session.end_time } : null,
-      packer_info: session.packer_name ? { name: session.packer_name, email: session.packer_email, end_time: session.end_time } : null,
+      picker_info: session.picker_name
+        ? { name: session.picker_name, email: session.picker_email, end_time: session.end_time }
+        : null,
+      packer_info: session.packer_name
+        ? { name: session.packer_name, email: session.packer_email, end_time: session.end_time }
+        : null,
       delivery_info: null,
     };
     const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
     navigate(`${isOpsUser ? '/ops/packing/invoices/view' : '/packing/invoices/view'}/${session.id}`, {
       state: { backPath: "/history/packing-report", invoiceData }
     });
-  };
-
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case "PACKING":   return "bg-blue-100 text-blue-700 border-blue-300";
-      case "PACKED":    return "bg-emerald-100 text-emerald-700 border-emerald-300";
-      case "VERIFIED":  return "bg-green-100 text-green-700 border-green-300";
-      case "REVIEW":    return "bg-red-100 text-red-700 border-red-300";
-      case "CANCELLED": return "bg-gray-100 text-gray-600 border-gray-300";
-      default:          return "bg-gray-100 text-gray-700 border-gray-300";
-    }
   };
 
   return (
@@ -135,6 +145,7 @@ export default function PackingInvoiceReportPage() {
         <div className="bg-white rounded-xl shadow-sm p-3 mb-4">
           <div className="flex flex-wrap items-center gap-3">
 
+            {/* Date */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Date:</label>
               <input
@@ -145,17 +156,7 @@ export default function PackingInvoiceReportPage() {
               />
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Rows:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => { setItemsPerPage(parseInt(e.target.value)); setCurrentPage(1); }}
-                className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white w-[70px]"
-              >
-                {[20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-
+            {/* Time */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Time:</label>
               <select
@@ -175,41 +176,24 @@ export default function PackingInvoiceReportPage() {
 
             <div className="h-6 w-px bg-gray-200" />
 
+            {/* Unified Search — invoice/customer via API, packer via client filter */}
             <div className="flex items-center gap-1.5">
-              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Invoice / Customer:</label>
+              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Search:</label>
               <div className="relative">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 <input
-                  ref={invoiceSearchRef}
+                  ref={searchRef}
                   type="text"
-                  placeholder="Invoice No or Customer..."
+                  placeholder="Invoice No, Customer or Packer..."
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                  className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[245px]"
+                  className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[300px]"
                 />
                 {searchQuery && (
-                  <button onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Packer:</label>
-              <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Packer name..."
-                  value={packerQuery}
-                  onChange={(e) => setPackerQuery(e.target.value)}
-                  className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[245px]"
-                />
-                {packerQuery && (
-                  <button onClick={() => setPackerQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button
+                    onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
                     <X size={13} />
                   </button>
                 )}
@@ -237,7 +221,7 @@ export default function PackingInvoiceReportPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
-                      {["Invoice No", "Customer", "Packer", "Date", "Start Time", "End Time", "Status", "Actions"].map(h => (
+                      {["Invoice No", "Customer", "Packer", "Packing Date & Time", "Status", "Actions"].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -245,32 +229,50 @@ export default function PackingInvoiceReportPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {sessions.map((session, index) => (
                       <tr key={session.id} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{session.invoice_no}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {session.invoice_no}
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           <p>{session.customer_name || '—'}</p>
                           <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || '—'}</p>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{session.packer_name || '—'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDateDDMMYYYY(session.created_at)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatTime(session.start_time)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{session.end_time ? formatTime(session.end_time) : '—'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                          {session.packer_name || '—'}
+                        </td>
+                        {/* Merged Date + Start Time + End Time */}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                          <p>{formatDateDDMMYYYY(session.created_at)}</p>
+                          <p className="text-xs text-gray-500">
+                            {formatTime(session.start_time)}
+                            {session.end_time ? ` → ${formatTime(session.end_time)}` : ''}
+                          </p>
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`px-2 py-1 rounded-full border text-xs font-bold ${getStatusBadgeColor(session.packing_status)}`}>
+                          <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[session.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
                             {session.packing_status || '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <button onClick={() => handleViewSession(session)}
+                          <button
+                            onClick={() => handleViewSession(session)}
                             className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
-                          >View</button>
+                          >
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <Pagination currentPage={currentPage} totalItems={totalCount} itemsPerPage={itemsPerPage}
-                onPageChange={(p) => setCurrentPage(p)} label="records" colorScheme="teal" />
+              <Pagination
+                currentPage={currentPage}
+                totalItems={sessions.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={(p) => setCurrentPage(p)}
+                label="records"
+                colorScheme="teal"
+              />
             </>
           )}
         </div>

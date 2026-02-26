@@ -12,21 +12,10 @@ export default function SuperAdminDashboard() {
     totalAdmins: 0,
     totalUsers: 0,
     activeUsers: 0,
-    pendingApprovals: 0,
     totalInvoices: 0,
     pendingInvoices: 0,
     inProgressInvoices: 0,
     completedInvoices: 0,
-    totalCustomers: 0,
-    totalDepartments: 0,
-    totalJobTitles: 0,
-    totalCouriers: 0,
-    pickingActiveSessions: 0,
-    packingActiveSessions: 0,
-    deliveryActiveSessions: 0,
-    completedPickingSessions: 0,
-    completedPackingSessions: 0,
-    completedDeliverySessions: 0,
   });
   const [todayStats, setTodayStats] = useState({
     totalInvoices: 0,
@@ -36,30 +25,32 @@ export default function SuperAdminDashboard() {
     holdInvoices: 0,
     pendingInvoices: 0,
   });
+  const [breakdown, setBreakdown] = useState({
+    picking: { completed: 0, preparing: 0, pending: 0 },
+    packing: { completed: 0, preparing: 0, pending: 0 },
+    delivery: { completed: 0, preparing: 0, pending: 0 },
+  });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
-  const [showRecalcModal, setShowRecalcModal] = useState(false);
-  const [recalcLoading, setRecalcLoading] = useState(false);
   const eventSourceRef = useRef(null);
-
-  const isSuperAdmin = user?.role === 'SUPERADMIN';
 
   useEffect(() => {
     fetchAllStats();
     fetchTodayStats();
-    
+    fetchBreakdown();
+
     const setupSSE = () => {
       const token = localStorage.getItem('access_token');
       if (!token) return;
-      
-      const baseURL = window.location.origin.includes('localhost') 
-        ? 'http://localhost:8000' 
+
+      const baseURL = window.location.origin.includes('localhost')
+        ? 'http://localhost:8000'
         : window.location.origin;
       const sseUrl = `${baseURL}/api/analytics/dashboard-stats-stream/?token=${token}`;
-      
+
       const eventSource = new EventSource(sseUrl);
       eventSourceRef.current = eventSource;
-      
+
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -72,12 +63,14 @@ export default function SuperAdminDashboard() {
               holdInvoices: data.stats.holdInvoices || 0,
               pendingInvoices: data.stats.pendingInvoices || 0,
             });
+            // Also refresh breakdown on SSE update
+            fetchBreakdown();
           }
         } catch (error) {
           console.error('❌ Error parsing SSE data:', error);
         }
       };
-      
+
       eventSource.onerror = () => {
         if (eventSource.readyState === EventSource.CLOSED) {
           setTimeout(() => {
@@ -87,18 +80,21 @@ export default function SuperAdminDashboard() {
         }
       };
     };
-    
+
     const sseTimeout = setTimeout(setupSSE, 1000);
-    
+
+    // Poll breakdown every 10s for live feel
+    const breakdownInterval = setInterval(fetchBreakdown, 5000);
+
     const fetchRecentActivity = async () => {
       try {
         const [pickingHistoryRes, packingHistoryRes] = await Promise.allSettled([
-          api.get('/sales/picking/history/', { params: { page_size: 4, ordering: '-created_at' } }),
-          api.get('/sales/packing/history/', { params: { page_size: 4, ordering: '-created_at' } }),
+          api.get('/sales/picking/history/', { params: { page_size: 5, ordering: '-created_at' } }),
+          api.get('/sales/packing/history/', { params: { page_size: 5, ordering: '-created_at' } }),
         ]);
 
         const activities = [];
-        
+
         if (pickingHistoryRes.status === 'fulfilled') {
           const sessions = pickingHistoryRes.value?.data?.results || [];
           sessions.forEach(session => {
@@ -107,11 +103,11 @@ export default function SuperAdminDashboard() {
               user: session.picker_name || 'Unknown',
               action: session.picking_status === 'PICKED' ? 'Completed picking' : 'Started picking',
               time: session.end_time || session.start_time || session.created_at,
-              status: session.picking_status
+              status: session.picking_status,
             });
           });
         }
-        
+
         if (packingHistoryRes.status === 'fulfilled') {
           const sessions = packingHistoryRes.value?.data?.results || [];
           sessions.forEach(session => {
@@ -120,13 +116,13 @@ export default function SuperAdminDashboard() {
               user: session.packer_name || 'Unknown',
               action: session.packing_status === 'PACKED' ? 'Completed packing' : 'Started packing',
               time: session.end_time || session.start_time || session.created_at,
-              status: session.packing_status
+              status: session.packing_status,
             });
           });
         }
 
         activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-        setRecentActivity(activities.slice(0, 4));
+        setRecentActivity(activities.slice(0, 5));
       } catch (error) {
         console.error('❌ Error fetching recent activity:', error);
       }
@@ -134,13 +130,25 @@ export default function SuperAdminDashboard() {
 
     fetchRecentActivity();
     const activityInterval = setInterval(fetchRecentActivity, 10000);
-    
+
     return () => {
       clearTimeout(sseTimeout);
       clearInterval(activityInterval);
+      clearInterval(breakdownInterval);
       if (eventSourceRef.current) eventSourceRef.current.close();
     };
   }, []);
+
+  const fetchBreakdown = async () => {
+    try {
+      const response = await api.get('/analytics/status-breakdown/');
+      if (response.data.success && response.data.breakdown) {
+        setBreakdown(response.data.breakdown);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching breakdown:', error);
+    }
+  };
 
   const fetchTodayStats = async () => {
     try {
@@ -156,58 +164,24 @@ export default function SuperAdminDashboard() {
         });
       }
     } catch (error) {
-      console.error('❌ Error fetching today\'s stats:', error);
+      console.error("❌ Error fetching today's stats:", error);
     }
   };
-
-  // ─── Recalculate Hold ──────────────────────────────────────────────────────
-
-  const handleRecalculateHold = async () => {
-    setRecalcLoading(true);
-    try {
-      const response = await api.post('/analytics/recalculate-hold/');
-      if (response.data.success) {
-        const { stats } = response.data;
-        setTodayStats({
-          totalInvoices: stats.totalInvoices || 0,
-          completedPicking: stats.completedPicking || 0,
-          completedPacking: stats.completedPacking || 0,
-          completedDelivery: stats.completedDelivery || 0,
-          holdInvoices: stats.holdInvoices || 0,
-          pendingInvoices: stats.pendingInvoices || 0,
-        });
-        toast.success(`Hold recalculated → ${stats.holdInvoices} hold invoices`);
-        setShowRecalcModal(false);
-      } else {
-        toast.error(response.data.message || 'Recalculation failed');
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to recalculate hold');
-    } finally {
-      setRecalcLoading(false);
-    }
-  };
-
-  // ──────────────────────────────────────────────────────────────────────────
 
   const fetchAllStats = async () => {
     setLoading(true);
     try {
-      const [usersRes, invoicesRes, tableStatsRes, pickingHistoryRes, packingHistoryRes, deliveryHistoryRes] = await Promise.allSettled([
+      const [usersRes, invoicesRes] = await Promise.allSettled([
         getUsers(),
         api.get('/sales/invoices/', { params: { page_size: 1000 } }),
-        api.get('/developer/table-stats/'),
-        api.get('/sales/picking/history/', { params: { page_size: 10, ordering: '-created_at' } }),
-        api.get('/sales/packing/history/', { params: { page_size: 10, ordering: '-created_at' } }),
-        api.get('/sales/delivery/history/', { params: { page_size: 10, ordering: '-created_at' } }),
       ]);
 
       let totalAdmins = 0, totalUsers = 0, activeUsers = 0;
       if (usersRes.status === 'fulfilled') {
         const users = usersRes.value?.data?.data?.results || [];
-        totalAdmins = users.filter((u) => u.role === "ADMIN" || u.role === "SUPERADMIN").length;
+        totalAdmins = users.filter(u => u.role === 'ADMIN' || u.role === 'SUPERADMIN').length;
         totalUsers = users.length;
-        activeUsers = users.filter((u) => u.is_active === true).length;
+        activeUsers = users.filter(u => u.is_active === true).length;
       }
 
       let totalInvoices = 0, pendingInvoices = 0, inProgressInvoices = 0, completedInvoices = 0;
@@ -219,58 +193,114 @@ export default function SuperAdminDashboard() {
         completedInvoices = invoices.filter(inv => ['PACKED', 'DELIVERED', 'COMPLETED'].includes(inv.status)).length;
       }
 
-      let totalCustomers = 0, totalDepartments = 0, totalJobTitles = 0, totalCouriers = 0;
-      if (tableStatsRes.status === 'fulfilled') {
-        const tableStats = tableStatsRes.value?.data?.stats || {};
-        totalCustomers = tableStats.customers?.count || 0;
-        totalDepartments = tableStats.departments?.count || 0;
-        totalJobTitles = tableStats.job_titles?.count || 0;
-        totalCouriers = tableStats.couriers?.count || 0;
-      }
-
-      let pickingActiveSessions = 0, packingActiveSessions = 0, deliveryActiveSessions = 0;
-      let completedPickingSessions = 0, completedPackingSessions = 0, completedDeliverySessions = 0;
-      
-      if (pickingHistoryRes.status === 'fulfilled') {
-        const sessions = pickingHistoryRes.value?.data?.results || [];
-        pickingActiveSessions = sessions.filter(s => s.picking_status === 'PREPARING').length;
-        completedPickingSessions = sessions.filter(s => s.picking_status === 'PICKED').length;
-      }
-      if (packingHistoryRes.status === 'fulfilled') {
-        const sessions = packingHistoryRes.value?.data?.results || [];
-        packingActiveSessions = sessions.filter(s => s.packing_status === 'IN_PROGRESS').length;
-        completedPackingSessions = sessions.filter(s => s.packing_status === 'PACKED').length;
-      }
-      if (deliveryHistoryRes.status === 'fulfilled') {
-        const sessions = deliveryHistoryRes.value?.data?.results || [];
-        deliveryActiveSessions = sessions.filter(s => s.delivery_status === 'IN_TRANSIT').length;
-        completedDeliverySessions = sessions.filter(s => s.delivery_status === 'DELIVERED').length;
-      }
-
-      setStats({
-        totalAdmins, totalUsers, activeUsers, pendingApprovals: 0,
-        totalInvoices, pendingInvoices, inProgressInvoices, completedInvoices,
-        totalCustomers, totalDepartments, totalJobTitles, totalCouriers,
-        pickingActiveSessions, packingActiveSessions, deliveryActiveSessions,
-        completedPickingSessions, completedPackingSessions, completedDeliverySessions,
-      });
+      setStats({ totalAdmins, totalUsers, activeUsers, totalInvoices, pendingInvoices, inProgressInvoices, completedInvoices });
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      console.error('Error fetching stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const quickActions = [
-    { title: 'Invoice Management', description: 'View all invoices', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>), color: 'from-teal-400 to-teal-600', action: () => navigate('/invoices') },
-    { title: 'User Management', description: 'Manage all users', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>), color: 'from-orange-400 to-orange-600', action: () => navigate('/user-management') },
-    { title: 'Create User', description: 'Add new user', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>), color: 'from-blue-400 to-blue-600', action: () => navigate('/add-user?action=create-user') },
-    { title: 'Packing Management', description: 'View packing operations', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>), color: 'from-purple-400 to-purple-600', action: () => navigate('/packing/invoices') },
-    { title: 'Delivery Dispatch', description: 'Manage deliveries', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>), color: 'from-green-400 to-green-600', action: () => navigate('/delivery/dispatch') },
-    { title: 'User Control', description: 'Manage permissions', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>), color: 'from-pink-400 to-pink-600', action: () => navigate('/user-control') },
-    { title: 'Master Data', description: 'Manage departments', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>), color: 'from-indigo-400 to-indigo-600', action: () => navigate('/master/department') },
-    { title: 'History', description: 'View history logs', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>), color: 'from-yellow-400 to-yellow-600', action: () => navigate('/history') },
-  ];
+  // ── Donut Chart Component ──────────────────────────────────────────────────
+  const formatCount = (n) => {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1_000)     return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  };
+
+  const DonutChart = ({ title, data }) => {
+    const total = data.completed + data.preparing + data.pending;
+    const COLORS = {
+      completed: '#10b981', // emerald
+      preparing: '#f59e0b', // amber
+      pending: '#8b5cf6',   // violet
+    };
+    const LABELS = { completed: 'Completed', preparing: 'Preparing', pending: 'Pending' };
+
+    // SVG donut math
+    const cx = 60, cy = 60, r = 44, strokeWidth = 14;
+    const circumference = 2 * Math.PI * r;
+
+    const segments = [
+      { key: 'completed', value: data.completed, color: COLORS.completed },
+      { key: 'preparing', value: data.preparing, color: COLORS.preparing },
+      { key: 'pending', value: data.pending, color: COLORS.pending },
+    ].filter(s => s.value > 0);
+
+    let offset = 0;
+    const arcs = segments.map(seg => {
+      const fraction = total > 0 ? seg.value / total : 0;
+      const dashArray = circumference * fraction;
+      const dashOffset = -(offset * circumference);
+      offset += fraction;
+      return { ...seg, dashArray, dashOffset };
+    });
+
+    const isEmpty = total === 0;
+
+    return (
+      <div
+        className="bg-white rounded-2xl shadow-md p-5 border border-gray-100"
+      >
+        <h3 className="text-sm font-bold text-gray-700 mb-4 tracking-wide uppercase">{title}</h3>
+
+        <div className="flex items-center gap-4">
+          {/* SVG Donut */}
+          <div className="relative flex-shrink-0">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              {isEmpty ? (
+                <circle
+                  cx={cx} cy={cy} r={r}
+                  fill="none"
+                  stroke="#e5e7eb"
+                  strokeWidth={strokeWidth}
+                />
+              ) : (
+                arcs.map(arc => (
+                  <circle
+                    key={arc.key}
+                    cx={cx} cy={cy} r={r}
+                    fill="none"
+                    stroke={arc.color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={`${arc.dashArray} ${circumference}`}
+                    strokeDashoffset={arc.dashOffset}
+                    strokeLinecap="butt"
+                    style={{
+                      transform: 'rotate(-90deg)',
+                      transformOrigin: `${cx}px ${cy}px`,
+                      transition: 'stroke-dasharray 0.6s ease, stroke-dashoffset 0.6s ease',
+                    }}
+                  />
+                ))
+              )}
+            </svg>
+          </div>
+
+          {/* Legend + Values */}
+          <div className="flex flex-col gap-2 flex-1">
+            {Object.entries(COLORS).map(([key, color]) => (
+              <div key={key} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-xs text-gray-600 font-medium">{LABELS[key]}</span>
+                </div>
+                <span
+                  className="text-sm font-bold tabular-nums"
+                  style={{ color }}
+                >
+                  {formatCount(data[key])}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const overviewCards = [
     {
@@ -279,8 +309,6 @@ export default function SuperAdminDashboard() {
       icon: (<svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>),
       gradient: 'from-amber-400 to-orange-500',
       onClick: () => navigate('/invoices/pending'),
-      // Show recalc button only on this card for superadmins
-      showRecalc: isSuperAdmin,
     },
     {
       title: 'TODAYS INVOICES',
@@ -311,18 +339,15 @@ export default function SuperAdminDashboard() {
     },
   ];
 
-  const userSystemCards = [
-    { title: 'Total Users', value: loading ? '...' : stats.totalUsers, icon: '👥', color: 'bg-blue-500', onClick: () => navigate('/user-management') },
-    { title: 'Total Admins', value: loading ? '...' : stats.totalAdmins, icon: '👨‍💼', color: 'bg-purple-500', onClick: () => navigate('/user-management') },
-    { title: 'Active Users', value: loading ? '...' : stats.activeUsers, icon: '✔️', color: 'bg-green-500' },
-    { title: 'Total Customers', value: loading ? '...' : stats.totalCustomers, icon: '🏢', color: 'bg-teal-500' },
-  ];
-
-  const masterDataCards = [
-    { title: 'Departments', value: loading ? '...' : stats.totalDepartments, icon: '🏢', color: 'bg-cyan-500', onClick: () => navigate('/master/department') },
-    { title: 'Job Titles', value: loading ? '...' : stats.totalJobTitles, icon: '💼', color: 'bg-pink-500', onClick: () => navigate('/master/job-title') },
-    { title: 'Courier Services', value: loading ? '...' : stats.totalCouriers, icon: '📮', color: 'bg-amber-500', onClick: () => navigate('/master/courier') },
-    { title: 'System Health', value: '100%', icon: '💚', color: 'bg-emerald-500' },
+  const quickActions = [
+    { title: 'Invoice Management', description: 'View all invoices', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>), color: 'from-teal-400 to-teal-600', action: () => navigate('/invoices') },
+    { title: 'User Management', description: 'Manage all users', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>), color: 'from-orange-400 to-orange-600', action: () => navigate('/user-management') },
+    { title: 'Create User', description: 'Add new user', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>), color: 'from-blue-400 to-blue-600', action: () => navigate('/add-user?action=create-user') },
+    { title: 'Packing Management', description: 'View packing operations', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>), color: 'from-purple-400 to-purple-600', action: () => navigate('/packing/invoices') },
+    { title: 'Delivery Dispatch', description: 'Manage deliveries', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>), color: 'from-green-400 to-green-600', action: () => navigate('/delivery/dispatch') },
+    { title: 'User Control', description: 'Manage permissions', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>), color: 'from-pink-400 to-pink-600', action: () => navigate('/user-control') },
+    { title: 'Master Data', description: 'Manage departments', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>), color: 'from-indigo-400 to-indigo-600', action: () => navigate('/master/department') },
+    { title: 'History', description: 'View history logs', icon: (<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>), color: 'from-yellow-400 to-yellow-600', action: () => navigate('/history') },
   ];
 
   const formatTime = (dateString) => {
@@ -342,60 +367,6 @@ export default function SuperAdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ── Recalculate Hold Confirmation Modal ── */}
-      {/* {showRecalcModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-center w-14 h-14 bg-amber-100 rounded-full mx-auto mb-4">
-              <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </div>
-
-            <h3 className="text-lg font-bold text-gray-800 text-center mb-1">
-              Recalculate Hold Invoices?
-            </h3>
-            <p className="text-sm text-gray-500 text-center mb-6">
-              This will delete today's saved snapshot and recount all unpicked
-              invoices from previous days. The new value will be locked for the
-              rest of the day.
-            </p>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6 text-sm text-amber-800">
-              <strong>Current hold count:</strong> {todayStats.holdInvoices} invoices
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowRecalcModal(false)}
-                disabled={recalcLoading}
-                className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRecalculateHold}
-                disabled={recalcLoading}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-semibold shadow transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {recalcLoading ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    Recalculating...
-                  </>
-                ) : (
-                  'Yes, Recalculate'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )} */}
-
       {/* Header */}
       <div className="bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 text-white py-6 sm:py-8 px-4 sm:px-6 shadow-lg">
         <div className="max-w-7xl mx-auto">
@@ -406,7 +377,7 @@ export default function SuperAdminDashboard() {
             </div>
             <div className="mt-4 sm:mt-0">
               <button
-                onClick={fetchAllStats}
+                onClick={() => { fetchAllStats(); fetchTodayStats(); fetchBreakdown(); }}
                 disabled={loading}
                 className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all disabled:opacity-50"
               >
@@ -432,50 +403,13 @@ export default function SuperAdminDashboard() {
               <div
                 key={index}
                 onClick={stat.onClick}
-                className={`
-                  bg-gradient-to-br ${stat.gradient}
-                  rounded-2xl shadow-lg p-5
-                  flex flex-col gap-3
-                  relative overflow-hidden
-                  transition-all duration-200
-                  hover:shadow-2xl hover:scale-[1.03]
-                  ${stat.onClick ? 'cursor-pointer' : ''}
-                `}
+                className={`bg-gradient-to-br ${stat.gradient} rounded-2xl shadow-lg p-5 flex flex-col gap-3 relative overflow-hidden transition-all duration-200 hover:shadow-2xl hover:scale-[1.03] ${stat.onClick ? 'cursor-pointer' : ''}`}
               >
-                {/* Top row: label + icon */}
                 <div className="flex items-start justify-between">
-                  <p className="text-white/90 text-xs font-bold tracking-widest uppercase leading-tight">
-                    {stat.title}
-                  </p>
-                  <div className="bg-white/20 rounded-xl p-2 text-white flex-shrink-0">
-                    {stat.icon}
-                  </div>
+                  <p className="text-white/90 text-xs font-bold tracking-widest uppercase leading-tight">{stat.title}</p>
+                  <div className="bg-white/20 rounded-xl p-2 text-white flex-shrink-0">{stat.icon}</div>
                 </div>
-
-                {/* Large number */}
-                <p className="text-white text-5xl leading-none tracking-tight">
-                  {stat.value}
-                </p>
-
-                {/* Recalculate button — only on HOLD card for superadmins */}
-                {/* {stat.showRecalc && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // don't trigger card navigate
-                      setShowRecalcModal(true);
-                    }}
-                    title="Recalculate hold count from live data"
-                    className="flex items-center gap-1.5 self-start bg-white/25 hover:bg-white/40 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Recalculate
-                  </button>
-                )} */}
-
-                {/* Decorative elements */}
+                <p className="text-white text-5xl leading-none tracking-tight">{stat.value}</p>
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 rounded-b-2xl" />
                 <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full pointer-events-none" />
               </div>
@@ -487,72 +421,49 @@ export default function SuperAdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
           <div className="lg:col-span-2 space-y-6 sm:space-y-8">
 
-            {/* User & System Stats */}
+            {/* ── Status Breakdown ── */}
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="text-2xl">👥</span> User & System
+                <span className="text-2xl">📈</span> Status Breakdown
+                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse inline-block" />
+                  Live
+                </span>
               </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {userSystemCards.map((stat, index) => (
-                  <div
-                    key={index}
-                    onClick={stat.onClick}
-                    className={`bg-white rounded-xl shadow-md p-4 hover:shadow-xl transition-all ${stat.onClick ? 'cursor-pointer transform hover:-translate-y-1' : ''} relative overflow-hidden`}
-                  >
-                    <div className="flex flex-col items-center text-center relative z-10">
-                      <div className={`${stat.color} w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-3 shadow-lg`}>
-                        {stat.icon}
-                      </div>
-                      <p className="text-gray-600 text-xs mb-1">{stat.title}</p>
-                      <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-                      {!loading && stats.totalUsers > 0 && index < 3 && (
-                        <div className="w-full mt-2">
-                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full ${stat.color} rounded-full transition-all duration-1000`}
-                              style={{ width: `${index === 0 ? 100 : index === 1 ? (stats.totalAdmins / stats.totalUsers) * 100 : (stats.activeUsers / stats.totalUsers) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-gray-50 rounded-full opacity-50" />
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <DonutChart
+                  title="Picking Status"
+                  data={breakdown.picking}
+                />
+                <DonutChart
+                  title="Packing Status"
+                  data={breakdown.packing}
+                />
+                <DonutChart
+                  title="Delivery Status"
+                  data={breakdown.delivery}
+                />
               </div>
             </div>
 
-            {/* Master Data Stats */}
+            {/* Quick Actions */}
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="text-2xl">📁</span> Master Data
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
+                <span className="text-2xl">⚡</span> Quick Actions
               </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {masterDataCards.map((stat, index) => (
-                  <div
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                {quickActions.map((action, index) => (
+                  <button
                     key={index}
-                    onClick={stat.onClick}
-                    className={`bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-md p-4 hover:shadow-xl transition-all ${stat.onClick ? 'cursor-pointer transform hover:-translate-y-1' : ''} border border-gray-100`}
+                    onClick={action.action}
+                    className="bg-white rounded-xl shadow-md p-4 sm:p-5 hover:shadow-xl transition-all transform hover:-translate-y-1 text-left group"
                   >
-                    <div className="flex flex-col items-center text-center">
-                      <div className={`${stat.color} w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-3 shadow-md`}>
-                        {stat.icon}
-                      </div>
-                      <p className="text-gray-600 text-xs mb-1">{stat.title}</p>
-                      <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-                      {index < 3 && !loading && (
-                        <div className="w-full mt-2 flex gap-1 justify-center">
-                          {[...Array(5)].map((_, i) => (
-                            <div
-                              key={i}
-                              className={`w-1 rounded-full transition-all duration-300 ${i < 3 ? stat.color : 'bg-gray-200'}`}
-                              style={{ height: `${8 + i * 2}px` }}
-                            />
-                          ))}
-                        </div>
-                      )}
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center text-white mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
+                      {action.icon}
                     </div>
-                  </div>
+                    <h3 className="text-sm sm:text-base font-bold text-gray-800 mb-1">{action.title}</h3>
+                    <p className="text-gray-600 text-xs sm:text-sm">{action.description}</p>
+                  </button>
                 ))}
               </div>
             </div>
@@ -586,9 +497,9 @@ export default function SuperAdminDashboard() {
                           <p className="text-xs text-gray-600 mt-1">{activity.action}</p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                              ['COMPLETED','PICKED','PACKED','DELIVERED'].includes(activity.status)
+                              ['COMPLETED', 'PICKED', 'PACKED', 'DELIVERED'].includes(activity.status)
                                 ? 'bg-green-100 text-green-700 border border-green-200'
-                                : ['IN_PROGRESS','PREPARING','IN_TRANSIT'].includes(activity.status)
+                                : ['IN_PROGRESS', 'PREPARING', 'IN_TRANSIT'].includes(activity.status)
                                 ? 'bg-blue-100 text-blue-700 border border-blue-200'
                                 : 'bg-gray-100 text-gray-700 border border-gray-200'
                             }`}>
@@ -617,27 +528,6 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
-            <span className="text-2xl">⚡</span> Quick Actions
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {quickActions.map((action, index) => (
-              <button
-                key={index}
-                onClick={action.action}
-                className="bg-white rounded-xl shadow-md p-4 sm:p-6 hover:shadow-xl transition-all transform hover:-translate-y-1 text-left group"
-              >
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center text-white mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
-                  {action.icon}
-                </div>
-                <h3 className="text-sm sm:text-base font-bold text-gray-800 mb-1">{action.title}</h3>
-                <p className="text-gray-600 text-xs sm:text-sm">{action.description}</p>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

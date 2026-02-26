@@ -103,13 +103,19 @@ export default function PendingInvoicesPage() {
   };
 
   // Filter and search logic
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const filteredInvoices = invoices.filter(invoice => {
     const matchSearch = searchTerm === '' || 
       invoice.invoice_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       invoice.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       invoice.customer?.customer_code?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchSearch;
+
+    const invoiceDate = new Date(invoice.created_at);
+    const isBeforeToday = invoiceDate < todayStart;
+
+    return matchSearch && isBeforeToday;
   });
 
   // Pagination
