@@ -15,20 +15,14 @@ function debounce(fn, delay) {
   };
 }
 
-// Translate/transliterate English text to Malayalam using Google Translate API
 const transliterateToMalayalam = async (text) => {
   try {
     const res = await fetch(
       `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ml&dt=t&q=${encodeURIComponent(text)}`
     );
     const data = await res.json();
-    // Response format: [[[translated, original, ...],...], ...]
-    // Collect all translated segments and join them
     if (data?.[0]) {
-      return data[0]
-        .map(segment => segment?.[0] || "")
-        .join("")
-        .trim();
+      return data[0].map(segment => segment?.[0] || "").join("").trim();
     }
     return "";
   } catch {
@@ -49,105 +43,62 @@ export default function BoxAssignmentPage() {
   const [errors, setErrors] = useState([]);
   const [printedBoxes, setPrintedBoxes] = useState(new Set());
 
-  // DERIVED: Set of completed (sealed) box IDs
   const completedBoxes = useMemo(() => {
     return new Set(boxes.filter(b => b.is_sealed).map(b => b.id));
   }, [boxes]);
-  
+
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [selectedBox, setSelectedBox] = useState(null);
   const [assignQuantity, setAssignQuantity] = useState("");
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragOverBox, setDragOverBox] = useState(null);
-  
-  // Review feature states
+
   const [reviewPopup, setReviewPopup] = useState({ open: false, item: null });
   const [reviewChecks, setReviewChecks] = useState({});
   const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
-  
+
   const isReInvoiced = bill?.billing_status === "RE_INVOICED";
   const isReviewInvoice = bill?.billing_status === "REVIEW" && Boolean(bill?.return_info);
   const hasIssues = savedIssues.length > 0;
 
-  useEffect(() => {
-    loadBillDetails();
-  }, [invoiceNo]);
-  
-  // SSE live updates for RE_INVOICED bills
+  useEffect(() => { loadBillDetails(); }, [invoiceNo]);
+
   useEffect(() => {
     if (!user) return;
-
-    let es = null;
-    let reconnectTimeout = null;
-    let reconnectAttempts = 0;
-    let isUnmounted = false;
-    const MAX_ATTEMPTS = 10;
-    const BASE_DELAY = 2000;
-    const MAX_DELAY = 30000;
-
+    let es = null, reconnectTimeout = null, reconnectAttempts = 0, isUnmounted = false;
+    const MAX_ATTEMPTS = 10, BASE_DELAY = 2000, MAX_DELAY = 30000;
     const connect = () => {
       if (isUnmounted) return;
-
       try {
         es = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
-
-        es.onopen = () => {
-          reconnectAttempts = 0;
-        };
-
+        es.onopen = () => { reconnectAttempts = 0; };
         es.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
             if (!data.invoice_no) return;
-
-            if (
-              data.billing_status === "RE_INVOICED" &&
-              data.return_info?.returned_from_section === "PACKING" &&
-              data.return_info?.returned_by_email === user?.email &&
-              data.invoice_no === invoiceNo
-            ) {
-              toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, {
-                duration: 4000,
-                icon: '✓'
-              });
+            if (data.billing_status === "RE_INVOICED" && data.return_info?.returned_from_section === "PACKING" && data.return_info?.returned_by_email === user?.email && data.invoice_no === invoiceNo) {
+              toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, { duration: 4000, icon: '✓' });
               loadBillDetails();
             }
-          } catch (e) {
-            console.error("SSE: Bad data", e);
-          }
+          } catch (e) { console.error("SSE: Bad data", e); }
         };
-
         es.onerror = () => {
-          es.close();
-          es = null;
-
+          es.close(); es = null;
           if (isUnmounted) return;
-          if (reconnectAttempts >= MAX_ATTEMPTS) {
-            console.warn("SSE: Max reconnect attempts reached, stopping.");
-            return;
-          }
-
+          if (reconnectAttempts >= MAX_ATTEMPTS) { console.warn("SSE: Max reconnect attempts reached, stopping."); return; }
           const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttempts), MAX_DELAY);
           reconnectAttempts++;
           reconnectTimeout = setTimeout(connect, delay);
         };
-
-      } catch (err) {
-        console.error("SSE: Failed to create EventSource", err);
-      }
+      } catch (err) { console.error("SSE: Failed to create EventSource", err); }
     };
-
     connect();
-
     return () => {
       isUnmounted = true;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (es) {
-        es.close();
-        es = null;
-      }
+      if (es) { es.close(); es = null; }
     };
   }, [user, invoiceNo]);
 
@@ -159,20 +110,13 @@ export default function BoxAssignmentPage() {
         boxes: currentBoxes.map(box => ({
           box_id: box.boxId,
           is_sealed: box.is_sealed,
-          items: box.items.map(item => ({
-            item_id: item.itemId,
-            quantity: item.quantity,
-          }))
+          items: box.items.map(item => ({ item_id: item.itemId, quantity: item.quantity }))
         }))
       });
-    } catch (err) {
-      console.warn("Draft save failed", err);
-    }
+    } catch (err) { console.warn("Draft save failed", err); }
   }, 1500), [invoiceNo]);
 
-  useEffect(() => {
-    if (!loading) saveDraft(boxes);
-  }, [boxes]);
+  useEffect(() => { if (!loading) saveDraft(boxes); }, [boxes]);
 
   const loadBillDetails = async () => {
     try {
@@ -200,41 +144,27 @@ export default function BoxAssignmentPage() {
       setLoading(false);
     }
   };
-  
-  // Review feature functions
+
   const openReviewPopup = (item) => {
     if (isReviewInvoice) return;
     const existing = savedIssues.find((i) => i.item === item.name);
-
     if (existing) {
-      const checks = {
+      setReviewChecks({
         batchMatch: existing.issues.some((i) => i.includes("Batch")),
         expiryCheck: existing.issues.some((i) => i.includes("Expiry")),
         quantityCorrect: existing.issues.some((i) => i.includes("Quantity")),
         packagingGood: existing.issues.some((i) => i.includes("Damaged")),
         other: existing.issues.some((i) => i.startsWith("Other:")),
-      };
-      const otherNote = existing.issues.find((i) => i.startsWith("Other:"))?.replace("Other: ", "") || "";
-      setReviewChecks(checks);
-      setOtherIssueNotes(otherNote);
-    } else {
-      setReviewChecks({
-        batchMatch: false,
-        expiryCheck: false,
-        quantityCorrect: false,
-        packagingGood: false,
-        other: false,
       });
+      setOtherIssueNotes(existing.issues.find((i) => i.startsWith("Other:"))?.replace("Other: ", "") || "");
+    } else {
+      setReviewChecks({ batchMatch: false, expiryCheck: false, quantityCorrect: false, packagingGood: false, other: false });
       setOtherIssueNotes("");
     }
     setReviewPopup({ open: true, item });
   };
 
-  const closeReviewPopup = () => {
-    setReviewPopup({ open: false, item: null });
-    setReviewChecks({});
-    setOtherIssueNotes("");
-  };
+  const closeReviewPopup = () => { setReviewPopup({ open: false, item: null }); setReviewChecks({}); setOtherIssueNotes(""); };
 
   const handleSaveIssue = () => {
     if (!reviewPopup.item) return;
@@ -243,52 +173,29 @@ export default function BoxAssignmentPage() {
     if (reviewChecks.expiryCheck) issues.push("Expiry issue");
     if (reviewChecks.quantityCorrect) issues.push("Quantity incorrect");
     if (reviewChecks.packagingGood) issues.push("Damaged packaging");
-    if (reviewChecks.other && otherIssueNotes.trim()) {
-      issues.push(`Other: ${otherIssueNotes.trim()}`);
-    }
-    if (!issues.length) {
-      toast.error("Select at least one issue");
-      return;
-    }
+    if (reviewChecks.other && otherIssueNotes.trim()) issues.push(`Other: ${otherIssueNotes.trim()}`);
+    if (!issues.length) { toast.error("Select at least one issue"); return; }
     setSavedIssues((prev) => {
       const idx = prev.findIndex((i) => i.item === reviewPopup.item.name);
-      if (idx !== -1) {
-        const copy = [...prev];
-        copy[idx] = { item: reviewPopup.item.name, issues };
-        return copy;
-      }
+      if (idx !== -1) { const copy = [...prev]; copy[idx] = { item: reviewPopup.item.name, issues }; return copy; }
       return [...prev, { item: reviewPopup.item.name, issues }];
     });
     closeReviewPopup();
   };
 
   const handleSendInvoiceToReview = async () => {
-    if (!bill || isReviewInvoice || !savedIssues.length) {
-      toast.error(isReviewInvoice ? "Invoice already sent for review" : "No saved issues to send");
-      return;
-    }
+    if (!bill || isReviewInvoice || !savedIssues.length) { toast.error(isReviewInvoice ? "Invoice already sent for review" : "No saved issues to send"); return; }
     try {
       setLoading(true);
       const notes = savedIssues.map((i) => `${i.item}: ${i.issues.join(", ")}`).join(" | ");
-      await api.post("/sales/billing/return/", {
-        invoice_no: bill.invoice_no,
-        return_reason: notes,
-        user_email: user.email,
-      });
+      await api.post("/sales/billing/return/", { invoice_no: bill.invoice_no, return_reason: notes, user_email: user.email });
       toast.success("Invoice sent to billing review");
       setSavedIssues([]);
-      
       await loadBillDetails();
-      
-      toast.info("This invoice is now under review. You'll be notified when it's corrected.", {
-        duration: 5000,
-        icon: '🔍'
-      });
+      toast.info("This invoice is now under review. You'll be notified when it's corrected.", { duration: 5000, icon: '🔍' });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to send invoice to review");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const generateBoxId = () => {
@@ -302,65 +209,37 @@ export default function BoxAssignmentPage() {
   };
 
   const addNewBox = () => {
-    if (boxes.length > 0) {
-      const lastBox = boxes[boxes.length - 1];
-      if (lastBox.is_sealed) {
-        // allow
-      } else {
-        toast.error("Please complete the current box before adding a new one");
-        return;
-      }
-    }
-    const newBox = {
-      id: Date.now(),
-      boxId: generateBoxId(),
-      items: [],
-      is_sealed: false,
-    };
-    setBoxes(prev => [...prev, newBox]);
+    if (boxes.length > 0 && !boxes[boxes.length - 1].is_sealed) { toast.error("Please complete the current box before adding a new one"); return; }
+    setBoxes(prev => [...prev, { id: Date.now(), boxId: generateBoxId(), items: [], is_sealed: false }]);
     setNextBoxId(prev => prev + 1);
   };
 
   const removeBox = (boxId) => {
-    if (boxes.length === 1) {
-      toast.error("You must have at least one box");
-      return;
-    }
+    if (boxes.length === 1) { toast.error("You must have at least one box"); return; }
     const box = boxes.find(b => b.id === boxId);
-    if (box.is_sealed) {
-      toast.error("Cannot remove a completed box");
-      return;
-    }
-    if (box.items.length > 0) {
-      if (!window.confirm("This box contains items. Are you sure you want to remove it? Items will become unassigned.")) {
-        return;
-      }
-    }
+    if (box.is_sealed) { toast.error("Cannot remove a completed box"); return; }
+    if (box.items.length > 0 && !window.confirm("This box contains items. Are you sure you want to remove it? Items will become unassigned.")) return;
     setBoxes(prev => prev.filter(b => b.id !== boxId));
   };
 
   const handleCompleteBox = (boxId) => {
     const box = boxes.find(b => b.id === boxId);
-    if (!box || box.items.length === 0) {
-      toast.error("Cannot complete an empty box. Please assign items first.");
-      return;
-    }
+    if (!box || box.items.length === 0) { toast.error("Cannot complete an empty box. Please assign items first."); return; }
     setBoxes(prev => prev.map(b => b.id === boxId ? { ...b, is_sealed: true } : b));
     toast.success("Box completed! You can now print the label.");
   };
 
-  // ── Updated: async to support Malayalam transliteration ──
+  // ── UPDATED: label layout matches reference image ──
+  // Layout: [Customer info (top) + QR bottom-right] | [Icons column far right]
+  // Footer: Alfa Agencies logo + address
   const handlePrintBoxLabel = async (boxId) => {
     const box = boxes.find(b => b.id === boxId);
     if (!box) return;
-    
+
     setPrintedBoxes(prev => new Set([...prev, boxId]));
-    
-    const boxIndex   = boxes.findIndex(b => b.id === boxId) + 1;
-    const totalBoxes = boxes.length;
-    
+
     const customerAddr1   = bill?.customer?.address1 || bill?.delivery_address || '';
-    const hasAddress = !!(customerAddr1 || bill?.customer?.address2);
+    const hasAddress      = !!(customerAddr1 || bill?.customer?.address2);
     const customerName    = hasAddress
       ? (bill?.customer?.name || bill?.customer_name || '')
       : (bill?.temp_name || bill?.customer?.name || bill?.customer_name || '');
@@ -371,15 +250,12 @@ export default function BoxAssignmentPage() {
     const customerPhone2  = bill?.customer?.phone2   || '';
     const customerEmail   = bill?.customer?.email    || '';
 
-    // ── Fetch Malayalam transliteration of customer name ──
     let customerNameML = '';
     if (customerName) {
-      try {
-        customerNameML = await transliterateToMalayalam(customerName);
-      } catch {
-        customerNameML = '';
-      }
+      try { customerNameML = await transliterateToMalayalam(customerName); } catch { customerNameML = ''; }
     }
+
+    const boxUrl = `${window.location.origin}/box/${box.boxId}`;
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -388,7 +264,7 @@ export default function BoxAssignmentPage() {
     iframe.style.border = 'none';
     iframe.style.visibility = 'hidden';
     document.body.appendChild(iframe);
-    
+
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
     iframeDoc.write(`
       <!DOCTYPE html>
@@ -396,17 +272,9 @@ export default function BoxAssignmentPage() {
         <head>
           <title>Box Label - ${box.boxId}</title>
           <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam:wght@400;600&display=swap" rel="stylesheet">
-          <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
           <style>
-            @page { 
-              margin: 0;
-              size: 15cm 10cm;
-            }
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
+            @page { margin: 0; size: 15cm 10cm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
             html, body {
               width: 15cm;
               height: 10cm;
@@ -415,6 +283,7 @@ export default function BoxAssignmentPage() {
               color: black;
               overflow: hidden;
             }
+
             .label-container {
               width: 15cm;
               height: 10cm;
@@ -426,8 +295,168 @@ export default function BoxAssignmentPage() {
               background: white;
             }
 
-            /* ── Company Header ── */
-            .company-header {
+            /* ── Main content: [customer+QR] | [icons] ── */
+            .main-content {
+              display: flex;
+              flex: 1;
+              overflow: hidden;
+            }
+
+            /* Customer info fills top; QR anchored bottom-right of this section */
+            .customer-qr-section {
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              border-right: 1.5px solid #000;
+              overflow: hidden;
+            }
+
+            .customer-info {
+              flex: 1;
+              padding: 10px 14px 4px 14px;
+              display: flex;
+              flex-direction: column;
+              justify-content: flex-start;
+              gap: 1px;
+            }
+            .to-label {
+              font-size: 8px;
+              font-weight: bold;
+              text-transform: uppercase;
+              color: #000;
+              letter-spacing: 1px;
+              margin-bottom: 4px;
+            }
+            .customer-name {
+              font-weight: bold;
+              font-size: 20px;
+              text-transform: uppercase;
+              color: #000;
+              line-height: 1.2;
+              word-wrap: break-word;
+            }
+            .customer-name-ml {
+              font-family: 'Noto Sans Malayalam', Arial, sans-serif;
+              font-size: 18px;
+              font-weight: bold;
+              color: #000;
+              line-height: 1.4;
+              margin-top: 2px;
+              word-wrap: break-word;
+            }
+            .customer-area {
+              font-size: 13px;
+              color: #000;
+              text-transform: uppercase;
+              letter-spacing: 0.3px;
+              margin-top: 4px;
+              word-wrap: break-word;
+            }
+            .customer-addr {
+              font-size: 13px;
+              color: #000;
+              line-height: 1.5;
+              word-wrap: break-word;
+            }
+            .customer-contact {
+              font-size: 13px;
+              font-weight: bold;
+              color: #000;
+              margin-top: 4px;
+              word-wrap: break-word;
+            }
+            .customer-email {
+              font-size: 12px;
+              font-weight: bold;
+              color: #000;
+              margin-top: 1px;
+              word-wrap: break-word;
+            }
+
+            /* QR: bottom-right of customer section */
+            .qr-bottom-row {
+              display: flex;
+              justify-content: flex-end;
+              padding: 0 10px 8px 10px;
+              flex-shrink: 0;
+            }
+            .qr-block {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 3px;
+            }
+            .inv-no-label {
+              font-size: 10px;
+              font-weight: bold;
+              color: #000;
+              text-transform: uppercase;
+              letter-spacing: 0.4px;
+              align-self: flex-start;
+            }
+            .qr-container {
+              border: 1.5px solid #000;
+              padding: 3px;
+              background: white;
+            }
+            #qrcode { width: 95px; height: 95px; }
+            #qrcode img, #qrcode canvas {
+              width: 95px !important;
+              height: 95px !important;
+            }
+            .box-id-label {
+              font-size: 7px;
+              font-weight: bold;
+              color: #000;
+              text-align: center;
+              word-break: break-all;
+              max-width: 105px;
+            }
+
+            /* Icons: far right narrow column */
+            .icons-column {
+              width: 1.2cm;
+              flex-shrink: 0;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: space-evenly;
+              padding: 8px 3px;
+              background: white;
+            }
+            .icon-item {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 2px;
+              width: 100%;
+            }
+            .icon-emoji {
+              font-size: 14px;
+              filter: grayscale(100%) brightness(0);
+              line-height: 1;
+            }
+            .icon-label {
+              font-size: 5px;
+              font-weight: bold;
+              text-transform: uppercase;
+              color: #000;
+              letter-spacing: 0.2px;
+              text-align: center;
+              white-space: nowrap;
+            }
+            .this-way-up-box {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 2px;
+              width: 100%;
+            }
+            .this-way-up-arrows { display: flex; gap: 2px; }
+            .arrow-svg { width: 8px; height: 11px; }
+
+            /* ── Footer ── */
+            .company-footer {
               display: flex;
               align-items: center;
               gap: 10px;
@@ -442,245 +471,47 @@ export default function BoxAssignmentPage() {
               image-rendering: -webkit-optimize-contrast;
               image-rendering: crisp-edges;
             }
-
-            .company-info {
-              display: flex;
-              flex-direction: column;
-              gap: 2px;
-            }
-            .company-address {
-              font-size: 12px;
-              color: #000;
-              font-weight: 500;
-            }
-
-            /* ── Main Content ── */
-            .main-content {
-              display: grid;
-              grid-template-columns: 4cm 1fr 1.2cm;
-              flex: 1;
-              overflow: visible;
-            }
-
-            /* Left: QR Code */
-            .qr-section {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              padding: 8px 12px;
-              background: white;
-              align-self: center;
-              gap: 3px;
-            }
-
-            .invoice-label {
-              font-size: 12px;
-              font-weight: bold;
-              color: #000;
-              text-align: center;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              white-space: nowrap;
-            }
-
-            .qr-container {
-              border: 1.5px solid #000;
-              padding: 4px;
-              background: white;
-            }
-            #qrcode {
-              width: 100px;
-              height: 100px;
-            }
-            #qrcode img,
-            #qrcode canvas {
-              width: 100px !important;
-              height: 100px !important;
-            }
-            .box-id-label {
-              font-size: 10px;
-              font-weight: bold;
-              color: #000;
-              text-align: center;
-              word-break: break-all;
-              max-width: 3.6cm;
-            }
-
-            /* Right: Customer Details */
-            .customer-section {
-              padding: 10px 14px;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              gap: 2px;
-              background: white;
-              overflow: visible;
-              word-wrap: break-word;
-              overflow-wrap: break-word;
-              word-break: break-word;
-            }
-            .to-label {
-              font-size: 8px;
-              font-weight: bold;
-              text-transform: uppercase;
-              color: #000;
-              letter-spacing: 1px;
-              margin-bottom: 3px;
-            }
-            .customer-name {
-              font-weight: bold;
-              font-size: 20px;
-              text-transform: uppercase;
-              color: #000;
-              line-height: 1.2;
-              white-space: normal;
-              word-wrap: break-word;
-            }
-            /* ── Malayalam name ── */
-            .customer-name-ml {
-              font-family: 'Noto Sans Malayalam', Arial, sans-serif;
-              font-size: 18px;
-              font-weight: bold;
-              color: #000000;
-              line-height: 1.4;
-              margin-top: 1px;
-              white-space: normal;
-              word-wrap: break-word;
-            }
-            .customer-area {
-              font-size: 15px;
-              color: #000;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              margin-top: 1px;
-              white-space: normal;
-              word-wrap: break-word;
-            }
-            .customer-addr {
-              font-size: 15px;
-              color: #000;
-              line-height: 1.5;
-              margin-top: 2px;
-              white-space: normal;
-              word-wrap: break-word;
-              overflow-wrap: break-word;
-            }
-            .customer-contact {
-              font-size: 12px;
-              font-weight: bold;
-              color: #000;
-              margin-top: 3px;
-              line-height: 1.5;
-              white-space: normal;
-              word-wrap: break-word;
-            }
-            .customer-email {
-              font-size: 12px;
-              font-weight: bold;
-              color: #000;
-              margin-top: 2px;
-              white-space: normal;
-              word-wrap: break-word;
-              overflow-wrap: break-word;
-            }
-            .icons-column {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: space-evenly;
-              padding: 6px 4px;
-              border-left: 1.5px solid #000;
-              background: white;
-            }
-            .icon-item {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 1px;
-              padding: 3px 3px;
-              width: 100%;
-            }
-            .icon-emoji {
-              font-size: 14px;
-              filter: grayscale(100%) brightness(0);
-              line-height: 1;
-            }
-            .icon-label {
-              font-size: 5px;
-              font-weight: bold;
-              text-transform: uppercase;
-              color: #000;
-              letter-spacing: 0.2px;
-              line-height: 1.2;
-              text-align: center;
-              white-space: nowrap;
-            }
-            .this-way-up-box {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 1px;
-              padding: 3px 3px;
-              width: 100%;
-            }
-            .this-way-up-arrows {
-              display: flex;
-              gap: 2px;
-            }
-            .arrow-svg {
-              width: 8px;
-              height: 11px;
-            }
+            .company-info { display: flex; flex-direction: column; gap: 2px; }
+            .company-address { font-size: 12px; color: #000; font-weight: 500; }
 
             @media print {
-              body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                color-adjust: exact;
-              }
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
             }
           </style>
         </head>
         <body>
           <div class="label-container">
-            <!-- Main Content -->
+
             <div class="main-content">
-              <!-- QR Code + labels -->
-              <div class="qr-section">
-                <p class="invoice-label">Inv No:${invoiceNo}</p>
-                <div class="qr-container">
-                  <div id="qrcode"></div>
+
+              <!-- Customer info + QR bottom-right -->
+              <div class="customer-qr-section">
+                <div class="customer-info">
+                  <p class="to-label">Ship To</p>
+                  ${customerName   ? `<p class="customer-name">${customerName}</p>` : ''}
+                  ${customerNameML ? `<p class="customer-name-ml">${customerNameML}</p>` : ''}
+                  ${(customerArea || customerAddr1) ? `<p class="customer-area">${[customerArea, customerAddr1].filter(Boolean).join(', ')}</p>` : ''}
+                  ${(customerAddr2 || customerPincode) ? `<p class="customer-addr">${[customerAddr2, customerPincode].filter(Boolean).join(', ')}</p>` : ''}
+                  ${(customerPhone1 || customerPhone2) ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>` : ''}
+                  ${customerEmail  ? `<p class="customer-email">${customerEmail}</p>` : ''}
                 </div>
-                <p class="box-id-label">${box.boxId}</p>
+                <div class="qr-bottom-row">
+                  <div class="qr-block">
+                    <p class="inv-no-label">INV: ${invoiceNo}</p>
+                    <div class="qr-container">
+                      <div id="qrcode"></div>
+                    </div>
+                    <p class="box-id-label">${box.boxId}</p>
+                  </div>
+                </div>
               </div>
 
-              <!-- Customer Details -->
-              <div class="customer-section">
-                <p class="to-label">Ship To</p>
-                ${customerName    ? `<p class="customer-name">${customerName}</p>` : ''}
-                ${customerNameML  ? `<p class="customer-name-ml">${customerNameML}</p>` : ''}
-                ${(customerArea || customerAddr1)
-                  ? `<p class="customer-area">${[customerArea, customerAddr1].filter(Boolean).join(', ')}</p>`
-                  : ''}
-                ${(customerAddr2 || customerPincode)
-                  ? `<p class="customer-addr">${[customerAddr2, customerPincode].filter(Boolean).join(', ')}</p>`
-                  : ''}
-                ${(customerPhone1 || customerPhone2)
-                  ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>`
-                  : ''}
-                ${customerEmail   ? `<p class="customer-email">${customerEmail}</p>` : ''}
-              </div>
-              <!-- Icons Column (right side) -->
+              <!-- Icons far right -->
               <div class="icons-column">
                 <div class="this-way-up-box">
                   <div class="this-way-up-arrows">
-                    <svg class="arrow-svg" viewBox="0 0 8 11" fill="black">
-                      <polygon points="4,0 8,5 5.5,5 5.5,11 2.5,11 2.5,5 0,5"/>
-                    </svg>
-                    <svg class="arrow-svg" viewBox="0 0 8 11" fill="black">
-                      <polygon points="4,0 8,5 5.5,5 5.5,11 2.5,11 2.5,5 0,5"/>
-                    </svg>
+                    <svg class="arrow-svg" viewBox="0 0 8 11" fill="black"><polygon points="4,0 8,5 5.5,5 5.5,11 2.5,11 2.5,5 0,5"/></svg>
+                    <svg class="arrow-svg" viewBox="0 0 8 11" fill="black"><polygon points="4,0 8,5 5.5,5 5.5,11 2.5,11 2.5,5 0,5"/></svg>
                   </div>
                   <span class="icon-label">This Way Up</span>
                 </div>
@@ -697,364 +528,178 @@ export default function BoxAssignmentPage() {
                   <span class="icon-label">Keep Dry</span>
                 </div>
               </div>
+
             </div>
-            <!-- Company Header -->
-            <div class="company-header">
+
+            <!-- Footer -->
+            <div class="company-footer">
               <img src="/black.png" alt="Alfa Agencies" class="company-logo" />
-              <div class="company-divider"></div>
               <div class="company-info">
                 <span class="company-address">18/1143 A7, Ground Floor, Meyon Building, Jail Road, Calicut - 673 004</span>
                 <span class="company-address">Ph: (Off) 0495 2300644, 2701899, 2306728</span>
                 <span class="company-address">Ph: (Mob) 9387724365, 7909220300, 7909220400</span>
               </div>
             </div>
+
           </div>
-          
+
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
           <script>
             window.onload = function() {
-              var boxUrl = window.location.origin + '/box/${box.boxId}';
               new QRCode(document.getElementById('qrcode'), {
-                text: boxUrl,
-                width: 100,
-                height: 100,
+                text: '${boxUrl}',
+                width: 95,
+                height: 95,
                 colorDark: '#000000',
                 colorLight: '#ffffff',
                 correctLevel: QRCode.CorrectLevel.H
               });
-              
               setTimeout(function() {
                 window.print();
                 setTimeout(function() {
                   var iframes = window.parent.document.querySelectorAll('iframe');
                   iframes.forEach(function(f) { f.remove(); });
                 }, 1000);
-              }, 500);
-            }
-          </script>
+              }, 700);
+            };
+          <\/script>
         </body>
       </html>
     `);
     iframeDoc.close();
-    
     toast.success("Label sent to printer!");
   };
 
   const getTotalAssignedForItem = (itemId) => {
     let total = 0;
-    boxes.forEach(box => {
-      box.items.forEach(assignment => {
-        if (assignment.itemId === itemId) {
-          total += assignment.quantity;
-        }
-      });
-    });
+    boxes.forEach(box => { box.items.forEach(a => { if (a.itemId === itemId) total += a.quantity; }); });
     return total;
   };
 
   const getRemainingQuantityForItem = (itemId) => {
     const item = bill?.items?.find(i => i.id === itemId);
     if (!item) return 0;
-    const totalRequired = item.quantity || item.qty || 0;
-    const totalAssigned = getTotalAssignedForItem(itemId);
-    return totalRequired - totalAssigned;
+    return (item.quantity || item.qty || 0) - getTotalAssignedForItem(itemId);
   };
 
   const handleAssignItem = () => {
-    if (!selectedItem || !selectedBox || !assignQuantity) {
-      toast.error("Please select an item, box, and enter quantity");
-      return;
-    }
-
+    if (!selectedItem || !selectedBox || !assignQuantity) { toast.error("Please select an item, box, and enter quantity"); return; }
     const quantity = parseFloat(assignQuantity);
-    if (isNaN(quantity) || quantity <= 0) {
-      toast.error("Please enter a valid quantity");
-      return;
-    }
-
+    if (isNaN(quantity) || quantity <= 0) { toast.error("Please enter a valid quantity"); return; }
     const remaining = getRemainingQuantityForItem(selectedItem.id);
-    if (quantity > remaining) {
-      toast.error(`Cannot assign ${quantity}. Only ${remaining} remaining.`);
-      return;
-    }
-
+    if (quantity > remaining) { toast.error(`Cannot assign ${quantity}. Only ${remaining} remaining.`); return; }
     setBoxes(prev => prev.map(box => {
-      if (box.id === selectedBox.id) {
-        const existingIdx = box.items.findIndex(i => i.itemId === selectedItem.id);
-        if (existingIdx >= 0) {
-          const updatedItems = [...box.items];
-          updatedItems[existingIdx].quantity += quantity;
-          return { ...box, items: updatedItems };
-        } else {
-          return {
-            ...box,
-            items: [...box.items, {
-              itemId: selectedItem.id,
-              itemName: selectedItem.name || selectedItem.item_name,
-              itemCode: selectedItem.code,
-              quantity: quantity,
-            }]
-          };
-        }
+      if (box.id !== selectedBox.id) return box;
+      const existingIdx = box.items.findIndex(i => i.itemId === selectedItem.id);
+      if (existingIdx >= 0) {
+        const updatedItems = [...box.items];
+        updatedItems[existingIdx].quantity += quantity;
+        return { ...box, items: updatedItems };
       }
-      return box;
+      return { ...box, items: [...box.items, { itemId: selectedItem.id, itemName: selectedItem.name || selectedItem.item_name, itemCode: selectedItem.code, quantity }] };
     }));
-
     toast.success(`Assigned ${quantity} to ${selectedBox.boxId}`);
     setAssignQuantity("");
     setSelectedItem(null);
   };
 
   const handleRemoveItemFromBox = (boxId, itemId) => {
-    setBoxes(prev => prev.map(box => {
-      if (box.id === boxId) {
-        return {
-          ...box,
-          items: box.items.filter(i => i.itemId !== itemId)
-        };
-      }
-      return box;
-    }));
+    setBoxes(prev => prev.map(box => box.id === boxId ? { ...box, items: box.items.filter(i => i.itemId !== itemId) } : box));
     toast.success("Item removed from box");
   };
 
-  const toggleItemSelection = (itemId) => {
-    setSelectedItems(prev => {
-      if (prev.includes(itemId)) {
-        return prev.filter(id => id !== itemId);
-      } else {
-        return [...prev, itemId];
-      }
-    });
-  };
+  const toggleItemSelection = (itemId) => setSelectedItems(prev => prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]);
 
   const toggleSelectAll = () => {
-    const selectableItems = bill?.items?.filter(item => {
-      const remaining = getRemainingQuantityForItem(item.id);
-      return remaining > 0;
-    }) || [];
-
-    if (selectedItems.length === selectableItems.length) {
-      setSelectedItems([]);
-    } else {
-      setSelectedItems(selectableItems.map(item => item.id));
-    }
+    const selectableItems = bill?.items?.filter(item => getRemainingQuantityForItem(item.id) > 0) || [];
+    if (selectedItems.length === selectableItems.length) setSelectedItems([]);
+    else setSelectedItems(selectableItems.map(item => item.id));
   };
 
   const handleAssignSelectedItems = () => {
-    if (selectedItems.length === 0) {
-      toast.error("Please select at least one item");
-      return;
-    }
-
-    if (!selectedBox) {
-      toast.error("Please select a box");
-      return;
-    }
-
+    if (selectedItems.length === 0) { toast.error("Please select at least one item"); return; }
+    if (!selectedBox) { toast.error("Please select a box"); return; }
     let assignedCount = 0;
-
     setBoxes(prev => prev.map(box => {
-      if (box.id === selectedBox.id) {
-        const newItems = [...box.items];
-        
-        selectedItems.forEach(itemId => {
-          const item = bill?.items?.find(i => i.id === itemId);
-          if (!item) return;
-
-          const remaining = getRemainingQuantityForItem(itemId);
-          if (remaining <= 0) return;
-
-          const existingIdx = newItems.findIndex(i => i.itemId === itemId);
-          if (existingIdx >= 0) {
-            newItems[existingIdx].quantity += remaining;
-          } else {
-            newItems.push({
-              itemId: item.id,
-              itemName: item.name || item.item_name,
-              itemCode: item.code || item.item_code,
-              quantity: remaining,
-            });
-          }
-          assignedCount++;
-        });
-
-        return { ...box, items: newItems };
-      }
-      return box;
+      if (box.id !== selectedBox.id) return box;
+      const newItems = [...box.items];
+      selectedItems.forEach(itemId => {
+        const item = bill?.items?.find(i => i.id === itemId);
+        if (!item) return;
+        const remaining = getRemainingQuantityForItem(itemId);
+        if (remaining <= 0) return;
+        const existingIdx = newItems.findIndex(i => i.itemId === itemId);
+        if (existingIdx >= 0) newItems[existingIdx].quantity += remaining;
+        else newItems.push({ itemId: item.id, itemName: item.name || item.item_name, itemCode: item.code || item.item_code, quantity: remaining });
+        assignedCount++;
+      });
+      return { ...box, items: newItems };
     }));
-
     toast.success(`Assigned ${assignedCount} item(s) to ${selectedBox.boxId}`);
     setSelectedItems([]);
     setSelectedBox(null);
   };
 
-  const handleDragStart = (e, item) => {
-    setDraggedItem(item);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', e.currentTarget);
-    e.currentTarget.style.opacity = '0.5';
-  };
-
-  const handleDragEnd = (e) => {
-    e.currentTarget.style.opacity = '1';
-    setDraggedItem(null);
-    setDragOverBox(null);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDragEnter = (e, boxId) => {
-    e.preventDefault();
-    setDragOverBox(boxId);
-  };
-
-  const handleDragLeave = (e, boxId) => {
-    e.preventDefault();
-    if (e.currentTarget === e.target) {
-      setDragOverBox(null);
-    }
-  };
+  const handleDragStart = (e, item) => { setDraggedItem(item); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', e.currentTarget); e.currentTarget.style.opacity = '0.5'; };
+  const handleDragEnd = (e) => { e.currentTarget.style.opacity = '1'; setDraggedItem(null); setDragOverBox(null); };
+  const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+  const handleDragEnter = (e, boxId) => { e.preventDefault(); setDragOverBox(boxId); };
+  const handleDragLeave = (e, boxId) => { e.preventDefault(); if (e.currentTarget === e.target) setDragOverBox(null); };
 
   const handleDrop = (e, box) => {
-    e.preventDefault();
-    setDragOverBox(null);
-
+    e.preventDefault(); setDragOverBox(null);
     if (!draggedItem) return;
-    
-    if (completedBoxes.has(box.id)) {
-      toast.error("Cannot modify a completed box");
-      setDraggedItem(null);
-      return;
-    }
-
+    if (completedBoxes.has(box.id)) { toast.error("Cannot modify a completed box"); setDraggedItem(null); return; }
     const remaining = getRemainingQuantityForItem(draggedItem.id);
-    
-    if (remaining <= 0) {
-      toast.error("All items already assigned");
-      setDraggedItem(null);
-      return;
-    }
-
-    const quantityToAssign = remaining;
-
+    if (remaining <= 0) { toast.error("All items already assigned"); setDraggedItem(null); return; }
     setBoxes(prev => prev.map(b => {
-      if (b.id === box.id) {
-        const existingIdx = b.items.findIndex(i => i.itemId === draggedItem.id);
-        if (existingIdx >= 0) {
-          const updatedItems = [...b.items];
-          updatedItems[existingIdx].quantity += quantityToAssign;
-          return { ...b, items: updatedItems };
-        } else {
-          return {
-            ...b,
-            items: [...b.items, {
-              itemId: draggedItem.id,
-              itemName: draggedItem.name || draggedItem.item_name,
-              itemCode: draggedItem.code || draggedItem.item_code,
-              quantity: quantityToAssign,
-            }]
-          };
-        }
-      }
-      return b;
+      if (b.id !== box.id) return b;
+      const existingIdx = b.items.findIndex(i => i.itemId === draggedItem.id);
+      if (existingIdx >= 0) { const u = [...b.items]; u[existingIdx].quantity += remaining; return { ...b, items: u }; }
+      return { ...b, items: [...b.items, { itemId: draggedItem.id, itemName: draggedItem.name || draggedItem.item_name, itemCode: draggedItem.code || draggedItem.item_code, quantity: remaining }] };
     }));
-
-    toast.success(`Assigned ${quantityToAssign} ${draggedItem.name || draggedItem.item_name} to ${box.boxId}`);
+    toast.success(`Assigned ${remaining} ${draggedItem.name || draggedItem.item_name} to ${box.boxId}`);
     setDraggedItem(null);
   };
 
   const validateBoxes = () => {
     const validationErrors = [];
-
-    if (boxes.length === 0) {
-      validationErrors.push("You must create at least one box");
-      return validationErrors;
-    }
-
+    if (boxes.length === 0) { validationErrors.push("You must create at least one box"); return validationErrors; }
     const incompletBoxes = boxes.filter(box => !completedBoxes.has(box.id));
-    if (incompletBoxes.length > 0) {
-      validationErrors.push(`${incompletBoxes.length} box(es) not completed. Complete all boxes before finishing.`);
-    }
-
+    if (incompletBoxes.length > 0) validationErrors.push(`${incompletBoxes.length} box(es) not completed. Complete all boxes before finishing.`);
     const emptyBoxes = boxes.filter(box => box.items.length === 0);
-    if (emptyBoxes.length > 0) {
-      validationErrors.push(`${emptyBoxes.length} box(es) are empty. Please remove empty boxes or assign items to them.`);
-    }
-
+    if (emptyBoxes.length > 0) validationErrors.push(`${emptyBoxes.length} box(es) are empty. Please remove empty boxes or assign items to them.`);
     bill?.items?.forEach(item => {
       const remaining = getRemainingQuantityForItem(item.id);
-      if (remaining > 0) {
-        validationErrors.push(`Item "${item.name || item.item_name}" has ${remaining} units unassigned`);
-      } else if (remaining < 0) {
-        validationErrors.push(`Item "${item.name || item.item_name}" is over-assigned by ${Math.abs(remaining)} units`);
-      }
+      if (remaining > 0) validationErrors.push(`Item "${item.name || item.item_name}" has ${remaining} units unassigned`);
+      else if (remaining < 0) validationErrors.push(`Item "${item.name || item.item_name}" is over-assigned by ${Math.abs(remaining)} units`);
     });
-
     return validationErrors;
   };
 
   const handleCompletePacking = async () => {
     const validationErrors = validateBoxes();
-    if (validationErrors.length > 0) {
-      setErrors(validationErrors);
-      toast.error("Please fix validation errors before completing");
-      return;
-    }
-
+    if (validationErrors.length > 0) { setErrors(validationErrors); toast.error("Please fix validation errors before completing"); return; }
     setErrors([]);
-
     try {
       setCompleting(true);
-
-      const boxData = boxes.map(box => ({
-        box_id: box.boxId,
-        items: box.items.map(item => ({
-          item_id: item.itemId,
-          item_name: item.itemName,
-          item_code: item.itemCode,
-          quantity: item.quantity,
-        }))
-      }));
-
       await api.post("/sales/packing/complete-packing/", {
         invoice_no: invoiceNo,
-        boxes: boxData,
+        boxes: boxes.map(box => ({ box_id: box.boxId, items: box.items.map(item => ({ item_id: item.itemId, item_name: item.itemName, item_code: item.itemCode, quantity: item.quantity })) }))
       });
-
       toast.success("Packing completed successfully!");
       navigate("/packing/my");
-      
     } catch (err) {
       console.error("Complete packing error:", err);
-      console.error("Error response:", err.response?.data);
-      
       const errorData = err.response?.data;
       if (errorData?.errors) {
-        const errorMessages = Object.entries(errorData.errors)
-          .map(([field, messages]) => {
-            if (Array.isArray(messages)) {
-              return `${field}: ${messages.join(', ')}`;
-            }
-            return `${field}: ${messages}`;
-          })
-          .join(' | ');
-        toast.error(`Validation failed: ${errorMessages}`);
+        toast.error(`Validation failed: ${Object.entries(errorData.errors).map(([f, m]) => `${f}: ${Array.isArray(m) ? m.join(', ') : m}`).join(' | ')}`);
       } else if (errorData?.message) {
-        const message = errorData.message;
-        if (message.includes('duplicate key')) {
-          toast.error("Box ID already exists. Please refresh the page and try again.");
-        } else {
-          toast.error(message);
-        }
+        toast.error(errorData.message.includes('duplicate key') ? "Box ID already exists. Please refresh the page and try again." : errorData.message);
       } else {
         toast.error("Failed to complete packing");
       }
-    } finally {
-      setCompleting(false);
-    }
+    } finally { setCompleting(false); }
   };
 
   if (loading) {
@@ -1073,12 +718,7 @@ export default function BoxAssignmentPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600">Bill not found</p>
-          <button 
-            onClick={() => navigate(-1)}
-            className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg"
-          >
-            Go Back
-          </button>
+          <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg">Go Back</button>
         </div>
       </div>
     );
@@ -1087,7 +727,6 @@ export default function BoxAssignmentPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto px-3 py-3">
-        {/* Header */}
         <div className="bg-white rounded-lg shadow p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex-1">
@@ -1101,12 +740,9 @@ export default function BoxAssignmentPage() {
           </div>
         </div>
 
-        {/* RE_INVOICED Status Banner */}
         {isReInvoiced && bill.return_info && (
           <div className="bg-teal-50 border border-teal-300 rounded-lg p-3 mb-4 flex items-start gap-3">
-            <svg className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <svg className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <div className="flex-1">
               <h3 className="font-bold text-teal-900 text-base mb-1">Invoice Corrected & Ready</h3>
               <p className="text-sm text-teal-800">This invoice has been corrected. Continue packing!</p>
@@ -1114,36 +750,24 @@ export default function BoxAssignmentPage() {
           </div>
         )}
 
-        {/* REVIEW Status Banner */}
         {isReviewInvoice && bill.return_info && (
           <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 mb-4 flex items-start gap-3">
-            <svg className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <svg className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
             <div className="flex-1">
               <h3 className="font-bold text-orange-900 text-base mb-2">Invoice Sent to Billing Review</h3>
               <div className="bg-white rounded-lg p-2 border border-orange-200">
-                <p className="text-sm text-orange-800 mb-1">
-                  <strong>Reason:</strong> {bill.return_info.return_reason}
-                </p>
-                <p className="text-xs text-orange-700">
-                  You'll be notified when the billing team corrects this invoice.
-                </p>
+                <p className="text-sm text-orange-800 mb-1"><strong>Reason:</strong> {bill.return_info.return_reason}</p>
+                <p className="text-xs text-orange-700">You'll be notified when the billing team corrects this invoice.</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Saved Issues Section */}
         {hasIssues && !isReviewInvoice && (
           <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 mb-4">
             <div className="flex items-center gap-2 mb-2">
-              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <h3 className="font-semibold text-orange-900 text-base">
-                Issues Reported ({savedIssues.length})
-              </h3>
+              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <h3 className="font-semibold text-orange-900 text-base">Issues Reported ({savedIssues.length})</h3>
             </div>
             <div className="space-y-2">
               {savedIssues.map((issue, idx) => (
@@ -1156,54 +780,32 @@ export default function BoxAssignmentPage() {
           </div>
         )}
 
-        {/* Validation Errors */}
         {errors.length > 0 && (
           <div className="bg-red-50 border border-red-300 rounded-lg p-3 mb-4">
             <p className="font-semibold text-red-800 text-base mb-2 flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               Validation Errors
             </p>
             <ul className="list-disc list-inside space-y-1 text-sm text-red-700 ml-4">
-              {errors.map((error, idx) => (
-                <li key={idx}>{error}</li>
-              ))}
+              {errors.map((error, idx) => <li key={idx}>{error}</li>)}
             </ul>
           </div>
         )}
 
-        {/* Main Content Grid */}
-        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 transition-opacity duration-300 ${
-          isReviewInvoice ? 'opacity-50 pointer-events-none' : 'opacity-100'
-        }`}>
-          {/* Items List */}
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 transition-opacity duration-300 ${isReviewInvoice ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-800">
-                Items ({bill.items?.length || 0})
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-800">Items ({bill.items?.length || 0})</h2>
               <label className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 text-sm">
-                <input
-                  type="checkbox"
-                  checked={selectedItems.length > 0 && selectedItems.length === bill.items?.filter(item => getRemainingQuantityForItem(item.id) > 0).length}
-                  onChange={toggleSelectAll}
-                  className="w-4 h-4 text-teal-600 rounded"
-                />
-                <span className="font-medium text-gray-700">
-                  {selectedItems.length > 0 
-                    ? `${selectedItems.length} selected`
-                    : "Select All"}
-                </span>
+                <input type="checkbox" checked={selectedItems.length > 0 && selectedItems.length === bill.items?.filter(item => getRemainingQuantityForItem(item.id) > 0).length} onChange={toggleSelectAll} className="w-4 h-4 text-teal-600 rounded" />
+                <span className="font-medium text-gray-700">{selectedItems.length > 0 ? `${selectedItems.length} selected` : "Select All"}</span>
               </label>
             </div>
-            
             <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
               {[...(bill.items || [])].sort((a, b) => {
-                const aRemaining = getRemainingQuantityForItem(a.id);
-                const bRemaining = getRemainingQuantityForItem(b.id);
-                if (aRemaining === 0 && bRemaining > 0) return 1;
-                if (aRemaining > 0 && bRemaining === 0) return -1;
+                const aR = getRemainingQuantityForItem(a.id), bR = getRemainingQuantityForItem(b.id);
+                if (aR === 0 && bR > 0) return 1;
+                if (aR > 0 && bR === 0) return -1;
                 return 0;
               }).map((item) => {
                 const isDisabled = isReviewInvoice;
@@ -1213,118 +815,37 @@ export default function BoxAssignmentPage() {
                 const isFullyAssigned = remaining === 0;
                 const isOverAssigned = remaining < 0;
                 const isSelected = selectedItems.includes(item.id);
-
                 return (
-                  <div
-                    key={item.id}
-                    draggable={!isFullyAssigned}
-                    onDragStart={(e) => !isFullyAssigned && handleDragStart(e, item)}
-                    onDragEnd={handleDragEnd}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      isFullyAssigned ? "cursor-not-allowed" : "cursor-move"
-                    } ${
-                      isSelected
-                        ? "border-teal-500 bg-teal-50"
-                        : selectedItem?.id === item.id
-                        ? "border-teal-500 bg-teal-50"
-                        : isFullyAssigned
-                        ? "border-green-500 bg-green-50"
-                        : isOverAssigned
-                        ? "border-red-500 bg-red-50"
-                        : "border-gray-300 bg-white hover:border-teal-300"
-                    }`}
-                  >
+                  <div key={item.id} draggable={!isFullyAssigned} onDragStart={(e) => !isFullyAssigned && handleDragStart(e, item)} onDragEnd={handleDragEnd}
+                    className={`p-3 rounded-lg border-2 transition-all ${isFullyAssigned ? "cursor-not-allowed" : "cursor-move"} ${
+                      isSelected ? "border-teal-500 bg-teal-50" : selectedItem?.id === item.id ? "border-teal-500 bg-teal-50"
+                      : isFullyAssigned ? "border-green-500 bg-green-50" : isOverAssigned ? "border-red-500 bg-red-50"
+                      : "border-gray-300 bg-white hover:border-teal-300"}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      {!isFullyAssigned && (
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleItemSelection(item.id);
-                          }}
-                          className="w-4 h-4 text-teal-600 rounded flex-shrink-0"
-                        />
-                      )}
-                      <div 
-                        className="flex items-center justify-between flex-1 min-w-0"
-                        onClick={() => !isFullyAssigned && !isDisabled && setSelectedItem(item)}
-                        style={{ cursor: isDisabled ? 'not-allowed' : (!isFullyAssigned ? 'pointer' : 'default') }}
-                      >
+                      {!isFullyAssigned && <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); toggleItemSelection(item.id); }} className="w-4 h-4 text-teal-600 rounded flex-shrink-0" />}
+                      <div className="flex items-center justify-between flex-1 min-w-0" onClick={() => !isFullyAssigned && !isDisabled && setSelectedItem(item)} style={{ cursor: isDisabled ? 'not-allowed' : (!isFullyAssigned ? 'pointer' : 'default') }}>
                         <div className="flex-1 min-w-0">
-                          <p className="text-base font-semibold text-gray-800 truncate">
-                            {item.name || item.item_name}
-                          </p>
-                          
+                          <p className="text-base font-semibold text-gray-800 truncate">{item.name || item.item_name}</p>
                           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
-                            {(item.code || item.item_code || item.itemCode) && (
-                              <span className="flex items-center gap-1">
-                                <span className="font-semibold">Code:</span>
-                                <span>{item.code || item.item_code || item.itemCode}</span>
-                              </span>
-                            )}
-                            {item.mrp && (
-                              <span className="flex items-center gap-1">
-                                <span className="font-semibold">MRP:</span>
-                                <span className="text-green-700 font-bold">₹{parseFloat(item.mrp).toFixed(2)}</span>
-                              </span>
-                            )}
-                            {(item.batch_number || item.batchNumber || item.batch) && (
-                              <span className="flex items-center gap-1">
-                                <span className="font-semibold">Batch:</span>
-                                <span>{item.batch_number || item.batchNumber || item.batch}</span>
-                              </span>
-                            )}
-                            {item.expiry_date && (
-                              <span className="flex items-center gap-1">
-                                <span className="font-semibold">Exp:</span>
-                                <span className="text-orange-700">{new Date(item.expiry_date).toLocaleDateString('en-GB')}</span>
-                              </span>
-                            )}
-                            {(item.package || item.packaging || item.pkg || item.packing) && (
-                              <span className="flex items-center gap-1">
-                                <span className="font-semibold">Pkg:</span>
-                                <span>{item.package || item.packaging || item.pkg || item.packing}</span>
-                              </span>
-                            )}
+                            {(item.code || item.item_code || item.itemCode) && <span className="flex items-center gap-1"><span className="font-semibold">Code:</span><span>{item.code || item.item_code || item.itemCode}</span></span>}
+                            {item.mrp && <span className="flex items-center gap-1"><span className="font-semibold">MRP:</span><span className="text-green-700 font-bold">₹{parseFloat(item.mrp).toFixed(2)}</span></span>}
+                            {(item.batch_number || item.batchNumber || item.batch) && <span className="flex items-center gap-1"><span className="font-semibold">Batch:</span><span>{item.batch_number || item.batchNumber || item.batch}</span></span>}
+                            {item.expiry_date && <span className="flex items-center gap-1"><span className="font-semibold">Exp:</span><span className="text-orange-700">{new Date(item.expiry_date).toLocaleDateString('en-GB')}</span></span>}
+                            {(item.package || item.packaging || item.pkg || item.packing) && <span className="flex items-center gap-1"><span className="font-semibold">Pkg:</span><span>{item.package || item.packaging || item.pkg || item.packing}</span></span>}
                           </div>
                         </div>
-                        {isFullyAssigned && (
-                          <svg className="w-6 h-6 text-green-600 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
+                        {isFullyAssigned && <svg className="w-6 h-6 text-green-600 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                       </div>
                     </div>
-                    
                     <div className="flex items-center justify-between text-sm border-t pt-2 border-gray-200">
                       <span className="text-gray-600">Qty: <span className="font-bold text-gray-800">{formatQuantity(totalRequired, 'pcs')}</span></span>
-                      {(totalAssigned > 0 || isOverAssigned) && (
-                        <span className={`text-sm font-semibold ${
-                          isFullyAssigned ? "text-green-600" : isOverAssigned ? "text-red-600" : "text-amber-600"
-                        }`}>
-                          Assigned: {formatQuantity(totalAssigned, 'pcs')}
-                        </span>
-                      )}
+                      {(totalAssigned > 0 || isOverAssigned) && <span className={`text-sm font-semibold ${isFullyAssigned ? "text-green-600" : isOverAssigned ? "text-red-600" : "text-amber-600"}`}>Assigned: {formatQuantity(totalAssigned, 'pcs')}</span>}
                     </div>
-                    
-                    {/* Report Issue Button */}
                     {!isReviewInvoice && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isDisabled) openReviewPopup(item);
-                        }}
-                        disabled={isDisabled}
+                      <button onClick={(e) => { e.stopPropagation(); if (!isDisabled) openReviewPopup(item); }} disabled={isDisabled}
                         className={`w-full mt-3 py-2.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 border disabled:opacity-50 disabled:cursor-not-allowed ${
-                          savedIssues.find(i => i.item === item.name)
-                            ? "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100"
-                            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
+                          savedIssues.find(i => i.item === item.name) ? "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                         Report Issue
                       </button>
                     )}
@@ -1334,48 +855,18 @@ export default function BoxAssignmentPage() {
             </div>
           </div>
 
-          {/* Boxes Management */}
           <div className="space-y-4">
-            {/* Bulk Assignment Control */}
             {selectedItems.length > 0 ? (
               <div className="bg-teal-50 border-2 border-teal-500 rounded-lg p-4">
-                <h3 className="font-semibold text-teal-900 mb-3">
-                  Assign {selectedItems.length} Selected Item{selectedItems.length > 1 ? 's' : ''} to Box
-                </h3>
+                <h3 className="font-semibold text-teal-900 mb-3">Assign {selectedItems.length} Selected Item{selectedItems.length > 1 ? 's' : ''} to Box</h3>
                 <div className="space-y-3">
-                  <select
-                    value={selectedBox?.id || ""}
-                    onChange={(e) => {
-                      const box = boxes.find(b => b.id === parseInt(e.target.value));
-                      setSelectedBox(box);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                  >
+                  <select value={selectedBox?.id || ""} onChange={(e) => setSelectedBox(boxes.find(b => b.id === parseInt(e.target.value)))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500">
                     <option value="">-- Select a box --</option>
-                    {boxes.filter(box => !completedBoxes.has(box.id)).map(box => (
-                      <option key={box.id} value={box.id}>
-                        {box.boxId} ({box.items.length} items)
-                      </option>
-                    ))}
+                    {boxes.filter(box => !completedBoxes.has(box.id)).map(box => <option key={box.id} value={box.id}>{box.boxId} ({box.items.length} items)</option>)}
                   </select>
-
                   <div className="flex gap-2">
-                    <button
-                      onClick={handleAssignSelectedItems}
-                      disabled={!selectedBox}
-                      className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Assign to Box
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedItems([]);
-                        setSelectedBox(null);
-                      }}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                    >
-                      Cancel
-                    </button>
+                    <button onClick={handleAssignSelectedItems} disabled={!selectedBox} className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed">Assign to Box</button>
+                    <button onClick={() => { setSelectedItems([]); setSelectedBox(null); }} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Cancel</button>
                   </div>
                 </div>
               </div>
@@ -1384,138 +875,53 @@ export default function BoxAssignmentPage() {
                 <h3 className="font-semibold text-teal-900 text-base mb-3">Assign Item</h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm font-semibold text-gray-800">
-                      {selectedItem.name || selectedItem.item_name}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      Left: {formatQuantity(getRemainingQuantityForItem(selectedItem.id), 'pcs')}
-                    </p>
+                    <p className="text-sm font-semibold text-gray-800">{selectedItem.name || selectedItem.item_name}</p>
+                    <p className="text-xs text-gray-600">Left: {formatQuantity(getRemainingQuantityForItem(selectedItem.id), 'pcs')}</p>
                   </div>
-
-                  <select
-                    value={selectedBox?.id || ""}
-                    onChange={(e) => {
-                      const box = boxes.find(b => b.id === parseInt(e.target.value));
-                      setSelectedBox(box);
-                    }}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                  >
+                  <select value={selectedBox?.id || ""} onChange={(e) => setSelectedBox(boxes.find(b => b.id === parseInt(e.target.value)))} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500">
                     <option value="">Select box</option>
-                    {boxes.filter(box => !completedBoxes.has(box.id)).map(box => (
-                      <option key={box.id} value={box.id}>
-                        {box.boxId} ({box.items.length})
-                      </option>
-                    ))}
+                    {boxes.filter(box => !completedBoxes.has(box.id)).map(box => <option key={box.id} value={box.id}>{box.boxId} ({box.items.length})</option>)}
                   </select>
-
-                  <input
-                    type="number"
-                    value={assignQuantity}
-                    onChange={(e) => setAssignQuantity(e.target.value)}
-                    placeholder="Quantity"
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                  />
-
+                  <input type="number" value={assignQuantity} onChange={(e) => setAssignQuantity(e.target.value)} placeholder="Quantity" min="0" step="0.01" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" />
                   <div className="flex gap-2">
-                    <button
-                      onClick={handleAssignItem}
-                      className="flex-1 px-4 py-2 text-sm bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700"
-                    >
-                      Assign
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedItem(null);
-                        setSelectedBox(null);
-                        setAssignQuantity("");
-                      }}
-                      className="px-4 py-2 text-sm bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                    >
-                      Cancel
-                    </button>
+                    <button onClick={handleAssignItem} className="flex-1 px-4 py-2 text-sm bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700">Assign</button>
+                    <button onClick={() => { setSelectedItem(null); setSelectedBox(null); setAssignQuantity(""); }} className="px-4 py-2 text-sm bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Cancel</button>
                   </div>
                 </div>
               </div>
             ) : null}
 
-            {/* Boxes List */}
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  Boxes ({boxes.length})
-                </h2>
+                <h2 className="text-lg font-semibold text-gray-800">Boxes ({boxes.length})</h2>
                 {boxes.length === 0 || (boxes.length > 0 && completedBoxes.has(boxes[boxes.length - 1].id)) ? (
-                  <button
-                    onClick={addNewBox}
-                    disabled={isReviewInvoice}
-                    className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    + Add Box
-                  </button>
+                  <button onClick={addNewBox} disabled={isReviewInvoice} className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed">+ Add Box</button>
                 ) : (
-                  <span className="text-sm text-gray-500 italic">
-                    Complete box first
-                  </span>
+                  <span className="text-sm text-gray-500 italic">Complete box first</span>
                 )}
               </div>
-
               <div className="space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
                 {boxes.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
-                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                    </svg>
+                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
                     <p className="text-lg font-medium mb-2">No boxes yet</p>
                     <p className="text-sm mb-4">Click "+ Add Box" above to create your first box</p>
                   </div>
                 ) : (
-                  [...boxes].sort((a, b) => {
-                    if (a.is_sealed === b.is_sealed) return 0;
-                    return a.is_sealed ? 1 : -1;
-                  }).map(box => (
-                    <div 
-                      key={box.id} 
-                      onDragOver={handleDragOver}
-                      onDragEnter={(e) => handleDragEnter(e, box.id)}
-                      onDragLeave={(e) => handleDragLeave(e, box.id)}
-                      onDrop={(e) => handleDrop(e, box)}
-                      className={`border-2 rounded-lg p-3 transition-all ${
-                        completedBoxes.has(box.id)
-                          ? "border-green-500 bg-green-50"
-                          : dragOverBox === box.id 
-                          ? "border-teal-500 bg-teal-50 border-dashed" 
-                          : "border-gray-300"
-                      }`}
-                    >
+                  [...boxes].sort((a, b) => { if (a.is_sealed === b.is_sealed) return 0; return a.is_sealed ? 1 : -1; }).map(box => (
+                    <div key={box.id} onDragOver={handleDragOver} onDragEnter={(e) => handleDragEnter(e, box.id)} onDragLeave={(e) => handleDragLeave(e, box.id)} onDrop={(e) => handleDrop(e, box)}
+                      className={`border-2 rounded-lg p-3 transition-all ${completedBoxes.has(box.id) ? "border-green-500 bg-green-50" : dragOverBox === box.id ? "border-teal-500 bg-teal-50 border-dashed" : "border-gray-300"}`}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-base text-gray-800">{box.boxId}</h3>
-                          {completedBoxes.has(box.id) && (
-                            <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-semibold">
-                              ✓
-                            </span>
-                          )}
+                          {completedBoxes.has(box.id) && <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-semibold">✓</span>}
                         </div>
-                        {!completedBoxes.has(box.id) && (
-                          <button
-                            onClick={() => removeBox(box.id)}
-                            className="text-red-600 hover:text-red-800 text-sm font-semibold"
-                          >
-                            Remove
-                          </button>
-                        )}
+                        {!completedBoxes.has(box.id) && <button onClick={() => removeBox(box.id)} className="text-red-600 hover:text-red-800 text-sm font-semibold">Remove</button>}
                       </div>
-
                       {box.items.length === 0 ? (
                         <div className="text-center py-4">
-                          <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                          </svg>
-                          <p className="text-sm text-gray-500 italic">
-                            {completedBoxes.has(box.id) ? "Empty" : "Drop here"}
-                          </p>
+                          <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                          <p className="text-sm text-gray-500 italic">{completedBoxes.has(box.id) ? "Empty" : "Drop here"}</p>
                         </div>
                       ) : (
                         <div className="space-y-1.5">
@@ -1523,22 +929,13 @@ export default function BoxAssignmentPage() {
                             <div key={idx} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-gray-800 truncate">{item.itemName}</p>
-                                {item.itemCode && (
-                                  <p className="text-xs text-gray-600">Code: {item.itemCode}</p>
-                                )}
+                                {item.itemCode && <p className="text-xs text-gray-600">Code: {item.itemCode}</p>}
                               </div>
                               <div className="flex items-center gap-2 ml-2">
-                                <span className="font-bold text-teal-700">
-                                  {formatQuantity(item.quantity, 'pcs')}
-                                </span>
+                                <span className="font-bold text-teal-700">{formatQuantity(item.quantity, 'pcs')}</span>
                                 {!box.is_sealed && (
-                                  <button
-                                    onClick={() => handleRemoveItemFromBox(box.id, item.itemId)}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                                  <button onClick={() => handleRemoveItemFromBox(box.id, item.itemId)} className="text-red-600 hover:text-red-800">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                   </button>
                                 )}
                               </div>
@@ -1546,24 +943,11 @@ export default function BoxAssignmentPage() {
                           ))}
                         </div>
                       )}
-                      
-                      {/* Box Actions */}
                       {!box.is_sealed ? (
-                        <button
-                          onClick={() => handleCompleteBox(box.id)}
-                          disabled={box.items.length === 0}
-                          className="w-full mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          Complete Box
-                        </button>
+                        <button onClick={() => handleCompleteBox(box.id)} disabled={box.items.length === 0} className="w-full mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50">Complete Box</button>
                       ) : (
-                        <button
-                          onClick={() => handlePrintBoxLabel(box.id)}
-                          className="w-full mt-3 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 flex items-center justify-center gap-2"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                          </svg>
+                        <button onClick={() => handlePrintBoxLabel(box.id)} className="w-full mt-3 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 flex items-center justify-center gap-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                           {printedBoxes.has(box.id) ? "Reprint" : "Print Label"}
                         </button>
                       )}
@@ -1575,50 +959,26 @@ export default function BoxAssignmentPage() {
           </div>
         </div>
 
-        {/* Complete Button - Fixed at bottom */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
           <div className="max-w-7xl mx-auto">
             <div className="flex gap-3">
-              {/* Send to Review Button */}
               {hasIssues && !isReviewInvoice && (
-                <button
-                  onClick={handleSendInvoiceToReview}
-                  disabled={loading}
-                  className="flex-1 py-3.5 bg-orange-600 text-white rounded-lg text-lg font-bold hover:bg-orange-700 transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
+                <button onClick={handleSendInvoiceToReview} disabled={loading} className="flex-1 py-3.5 bg-orange-600 text-white rounded-lg text-lg font-bold hover:bg-orange-700 transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                   Send to Review ({savedIssues.length})
                 </button>
               )}
-              
-              {/* Complete Packing Button */}
-              <button
-                onClick={handleCompletePacking}
-                disabled={completing || (hasIssues && !isReInvoiced) || isReviewInvoice}
-                className={`py-3.5 rounded-lg text-lg font-bold transition-all shadow-lg disabled:opacity-50 ${
-                  hasIssues ? 'flex-1' : 'w-full'
-                } ${
-                  hasIssues && !isReInvoiced
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-teal-600 text-white hover:bg-teal-700'
-                }`}
-                title={hasIssues && !isReInvoiced ? "Resolve issues first or send to review" : ""}
-              >
+              <button onClick={handleCompletePacking} disabled={completing || (hasIssues && !isReInvoiced) || isReviewInvoice}
+                className={`py-3.5 rounded-lg text-lg font-bold transition-all shadow-lg disabled:opacity-50 ${hasIssues ? 'flex-1' : 'w-full'} ${hasIssues && !isReInvoiced ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
+                title={hasIssues && !isReInvoiced ? "Resolve issues first or send to review" : ""}>
                 {completing ? (
                   <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     Marking as PACKED...
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     {hasIssues ? "Resolve Issues First" : isReviewInvoice ? "Under Review" : "Mark as PACKED & Ready"}
                   </span>
                 )}
@@ -1626,22 +986,17 @@ export default function BoxAssignmentPage() {
             </div>
           </div>
         </div>
-        
-        {/* Review Modal */}
+
         {reviewPopup.open && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
               <div className="p-3 border-b flex items-center justify-between sticky top-0 bg-white">
                 <div className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
+                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                   <h3 className="font-bold text-sm text-gray-900">Report Issue</h3>
                 </div>
                 <button onClick={closeReviewPopup} className="text-gray-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
               <div className="p-3 space-y-2">
@@ -1654,14 +1009,10 @@ export default function BoxAssignmentPage() {
                   {['batchMatch', 'expiryCheck', 'quantityCorrect', 'packagingGood', 'other'].map((key) => (
                     <label key={key} className="flex items-start gap-2 cursor-pointer">
                       <input type="checkbox" checked={reviewChecks[key]} onChange={(e) => setReviewChecks({ ...reviewChecks, [key]: e.target.checked })} className="mt-0.5 w-3.5 h-3.5 text-orange-600 rounded" />
-                      <span className="text-xs text-gray-700">
-                        {key === 'batchMatch' ? 'Batch mismatch' : key === 'expiryCheck' ? 'Expiry issue' : key === 'quantityCorrect' ? 'Quantity incorrect' : key === 'packagingGood' ? 'Damaged packaging' : 'Other'}
-                      </span>
+                      <span className="text-xs text-gray-700">{key === 'batchMatch' ? 'Batch mismatch' : key === 'expiryCheck' ? 'Expiry issue' : key === 'quantityCorrect' ? 'Quantity incorrect' : key === 'packagingGood' ? 'Damaged packaging' : 'Other'}</span>
                     </label>
                   ))}
-                  {reviewChecks.other && (
-                    <textarea value={otherIssueNotes} onChange={(e) => setOtherIssueNotes(e.target.value)} placeholder="Describe..." className="w-full px-2 py-1.5 border rounded-lg text-xs resize-none" rows={2} />
-                  )}
+                  {reviewChecks.other && <textarea value={otherIssueNotes} onChange={(e) => setOtherIssueNotes(e.target.value)} placeholder="Describe..." className="w-full px-2 py-1.5 border rounded-lg text-xs resize-none" rows={2} />}
                 </div>
               </div>
               <div className="p-3 border-t flex gap-2 sticky bottom-0 bg-white">
