@@ -425,10 +425,6 @@ export default function SuperAdminDashboard() {
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <span className="text-2xl">📈</span> Status Breakdown
-                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse inline-block" />
-                  Live
-                </span>
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <DonutChart
