@@ -48,7 +48,7 @@ export default function InvoiceReportPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [itemsPerPage] = useState(10000);
+  const [itemsPerPage] = useState(100);
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,48 +68,44 @@ export default function InvoiceReportPage() {
     setLoading(true);
     try {
       const params = { page: currentPage, page_size: itemsPerPage };
-      if (statusFilter) params.status     = statusFilter;
+      if (statusFilter) params.status = statusFilter;
       if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
       if (timeFilter) {
         const cutoff = new Date(Date.now() - parseInt(timeFilter) * 60 * 60 * 1000);
         params.start_time = cutoff.toISOString();
       }
 
-      // Strategy:
-      // 1. Always fetch ALL records for current filters (no search param yet)
-      // 2. Check if query matches any salesman name → client-side filter
-      // 3. If no salesman match → send search to API for invoice/customer filtering
       const q = debouncedSearch.trim().toLowerCase();
 
       if (!q) {
-        // No search — just fetch normally
         const res = await getInvoiceReport(params);
         const results = res.data.results || [];
         setRawInvoices(results);
         setInvoices(results);
         setTotalCount(res.data.count || 0);
       } else {
-        // Step 1: Fetch all records without search to check for salesman matches
-        const allRes = await getInvoiceReport(params);
-        const allResults = allRes.data.results || [];
+        // First try API search for invoice/customer
+        const searchRes = await getInvoiceReport({ ...params, search: debouncedSearch });
+        const searchResults = searchRes.data.results || [];
 
-        // Step 2: Check if query matches any salesman name
-        const salesmanFiltered = allResults.filter(inv =>
-          (inv.salesman?.name || '').toLowerCase().includes(q)
-        );
-
-        if (salesmanFiltered.length > 0) {
-          // Query is a salesman/Created By search — show client-side filtered results
-          setRawInvoices(allResults);
-          setInvoices(salesmanFiltered);
-          setTotalCount(allRes.data.count || 0);
-        } else {
-          // No salesman match — send to API for invoice no / customer search
-          const searchRes = await getInvoiceReport({ ...params, search: debouncedSearch });
-          const searchResults = searchRes.data.results || [];
+        if (searchResults.length > 0) {
           setRawInvoices(searchResults);
           setInvoices(searchResults);
           setTotalCount(searchRes.data.count || 0);
+        } else {
+          // Fallback: fetch all (no pagination) to check salesman name client-side
+          const allParams = { page_size: 10000 };
+          if (statusFilter) allParams.status = statusFilter;
+          if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
+
+          const allRes = await getInvoiceReport(allParams);
+          const allResults = allRes.data.results || [];
+          const salesmanFiltered = allResults.filter(inv =>
+            (inv.salesman?.name || '').toLowerCase().includes(q)
+          );
+          setRawInvoices(allResults);
+          setInvoices(salesmanFiltered);
+          setTotalCount(salesmanFiltered.length);
         }
       }
     } catch (err) {
@@ -326,7 +322,7 @@ export default function InvoiceReportPage() {
               </div>
               <Pagination
                 currentPage={currentPage}
-                totalItems={invoices.length}
+                totalItems={totalCount}
                 itemsPerPage={itemsPerPage}
                 onPageChange={(p) => setCurrentPage(p)}
                 label="invoices"

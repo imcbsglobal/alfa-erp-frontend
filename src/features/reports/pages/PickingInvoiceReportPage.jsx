@@ -33,7 +33,7 @@ export default function PickingInvoiceReportPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [itemsPerPage] = useState(10000);
+  const [itemsPerPage] = useState(100);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
@@ -67,28 +67,30 @@ export default function PickingInvoiceReportPage() {
         setSessions(results);
         setTotalCount(res.data.count || 0);
       } else {
-        // Fetch all to check for picker name match (client-side)
-        const allRes = await api.get("/sales/picking/history/", { params });
-        const allResults = allRes.data.results || [];
-        allResults.sort((a, b) => new Date(a.invoice_created_at) - new Date(b.invoice_created_at));
+        // Try API search first
+        const searchRes = await api.get("/sales/picking/history/", { params: { ...params, search: debouncedSearch } });
+        const searchResults = searchRes.data.results || [];
 
-        const pickerMatches = allResults.filter(s =>
-          (s.picker_name || '').toLowerCase().includes(q)
-        );
-
-        if (pickerMatches.length > 0) {
-          // Picker name search — filter client-side
-          setRawSessions(allResults);
-          setSessions(pickerMatches);
-          setTotalCount(allRes.data.count || 0);
-        } else {
-          // Invoice / customer search — send to API
-          const searchRes = await api.get("/sales/picking/history/", { params: { ...params, search: debouncedSearch } });
-          const searchResults = searchRes.data.results || [];
+        if (searchResults.length > 0) {
           searchResults.sort((a, b) => new Date(a.invoice_created_at) - new Date(b.invoice_created_at));
           setRawSessions(searchResults);
           setSessions(searchResults);
           setTotalCount(searchRes.data.count || 0);
+        } else {
+          // Fallback: client-side picker name filter
+          const allParams = { page_size: 10000 };
+          if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
+
+          const allRes = await api.get("/sales/picking/history/", { params: allParams });
+          const allResults = allRes.data.results || [];
+          allResults.sort((a, b) => new Date(a.invoice_created_at) - new Date(b.invoice_created_at));
+
+          const pickerMatches = allResults.filter(s =>
+            (s.picker_name || '').toLowerCase().includes(q)
+          );
+          setRawSessions(allResults);
+          setSessions(pickerMatches);
+          setTotalCount(pickerMatches.length);
         }
       }
     } catch (err) {
@@ -273,7 +275,7 @@ export default function PickingInvoiceReportPage() {
               </div>
               <Pagination
                 currentPage={currentPage}
-                totalItems={sessions.length}
+                totalItems={totalCount}
                 itemsPerPage={itemsPerPage}
                 onPageChange={(p) => setCurrentPage(p)}
                 label="records"

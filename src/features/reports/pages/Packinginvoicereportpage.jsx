@@ -33,7 +33,7 @@ export default function PackingInvoiceReportPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [itemsPerPage] = useState(10000);
+  const [itemsPerPage] = useState(100);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
@@ -66,26 +66,28 @@ export default function PackingInvoiceReportPage() {
         setSessions(results);
         setTotalCount(res.data.count || 0);
       } else {
-        // Fetch all to check for packer name match (client-side)
-        const allRes = await api.get("/sales/packing/history/", { params });
-        const allResults = allRes.data.results || [];
+        // Try API search first
+        const searchRes = await api.get("/sales/packing/history/", { params: { ...params, search: debouncedSearch } });
+        const searchResults = searchRes.data.results || [];
 
-        const packerMatches = allResults.filter(s =>
-          (s.packer_name || '').toLowerCase().includes(q)
-        );
-
-        if (packerMatches.length > 0) {
-          // Packer name search — filter client-side
-          setRawSessions(allResults);
-          setSessions(packerMatches);
-          setTotalCount(allRes.data.count || 0);
-        } else {
-          // Invoice / customer search — send to API
-          const searchRes = await api.get("/sales/packing/history/", { params: { ...params, search: debouncedSearch } });
-          const searchResults = searchRes.data.results || [];
+        if (searchResults.length > 0) {
           setRawSessions(searchResults);
           setSessions(searchResults);
           setTotalCount(searchRes.data.count || 0);
+        } else {
+          // Fallback: client-side packer name filter
+          const allParams = { page_size: 10000 };
+          if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
+
+          const allRes = await api.get("/sales/packing/history/", { params: allParams });
+          const allResults = allRes.data.results || [];
+
+          const packerMatches = allResults.filter(s =>
+            (s.packer_name || '').toLowerCase().includes(q)
+          );
+          setRawSessions(allResults);
+          setSessions(packerMatches);
+          setTotalCount(packerMatches.length);
         }
       }
     } catch (err) {
@@ -267,7 +269,7 @@ export default function PackingInvoiceReportPage() {
               </div>
               <Pagination
                 currentPage={currentPage}
-                totalItems={sessions.length}
+                totalItems={totalCount}
                 itemsPerPage={itemsPerPage}
                 onPageChange={(p) => setCurrentPage(p)}
                 label="records"
