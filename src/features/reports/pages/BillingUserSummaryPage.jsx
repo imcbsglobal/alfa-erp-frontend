@@ -28,7 +28,8 @@ export default function BillingUserSummaryPage() {
 
       if (res.data.success) {
         const data = res.data.data || [];
-        setSummary(data);
+        const sorted = [...data].sort((a, b) => a.salesman_name.localeCompare(b.salesman_name));
+        setSummary(sorted);
         const bills = data.reduce((sum, item) => sum + item.bill_count, 0);
         setTotalBills(bills);
       } else {

@@ -57,7 +57,7 @@ export default function PickingUserSummaryPage() {
       }
 
       // Sort by pick count descending
-      const aggregated = Object.values(pickerMap).sort((a, b) => b.pick_count - a.pick_count);
+      const aggregated = Object.values(pickerMap).sort((a, b) => a.picker_name.localeCompare(b.picker_name));
 
       setSummary(aggregated);
       setTotalPicks(allSessions.length);

@@ -57,7 +57,7 @@ export default function PackingUserSummaryPage() {
       }
 
       // Sort by pack count descending
-      const aggregated = Object.values(packerMap).sort((a, b) => b.pack_count - a.pack_count);
+      const aggregated = Object.values(packerMap).sort((a, b) => a.packer_name.localeCompare(b.packer_name));
 
       setSummary(aggregated);
       setTotalPacks(allSessions.length);
