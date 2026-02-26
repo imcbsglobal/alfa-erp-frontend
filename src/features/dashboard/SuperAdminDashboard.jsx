@@ -211,26 +211,25 @@ export default function SuperAdminDashboard() {
   const DonutChart = ({ title, data }) => {
     const total = data.completed + data.preparing + data.pending;
     const COLORS = {
-      completed: '#10b981', // emerald
-      preparing: '#f59e0b', // amber
-      pending: '#8b5cf6',   // violet
+      completed: '#10b981',
+      preparing: '#f59e0b',
+      pending: '#8b5cf6',
     };
     const LABELS = { completed: 'Completed', preparing: 'Preparing', pending: 'Pending' };
 
-    // SVG donut math
     const cx = 60, cy = 60, r = 44, strokeWidth = 14;
     const circumference = 2 * Math.PI * r;
 
     const segments = [
       { key: 'completed', value: data.completed, color: COLORS.completed },
       { key: 'preparing', value: data.preparing, color: COLORS.preparing },
-      { key: 'pending', value: data.pending, color: COLORS.pending },
+      { key: 'pending',   value: data.pending,   color: COLORS.pending },
     ].filter(s => s.value > 0);
 
     let offset = 0;
     const arcs = segments.map(seg => {
       const fraction = total > 0 ? seg.value / total : 0;
-      const dashArray = circumference * fraction;
+      const dashArray  = circumference * fraction;
       const dashOffset = -(offset * circumference);
       offset += fraction;
       return { ...seg, dashArray, dashOffset };
@@ -239,57 +238,57 @@ export default function SuperAdminDashboard() {
     const isEmpty = total === 0;
 
     return (
-      <div
-        className="bg-white rounded-2xl shadow-md p-5 border border-gray-100"
-      >
-        <h3 className="text-sm font-bold text-gray-700 mb-4 tracking-wide uppercase">{title}</h3>
+      <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100 flex flex-col gap-4">
+        <h3 className="text-sm font-bold text-gray-700 tracking-wide uppercase">{title}</h3>
 
-        <div className="flex items-center gap-4">
-          {/* SVG Donut */}
-          <div className="relative flex-shrink-0">
-            <svg width="120" height="120" viewBox="0 0 120 120">
-              {isEmpty ? (
+        {/* Chart + Legend stacked vertically so nothing overlaps */}
+        <div className="flex flex-col items-center gap-4">
+
+          {/* SVG Donut — centred */}
+          <svg width="120" height="120" viewBox="0 0 120 120" className="flex-shrink-0">
+            {isEmpty ? (
+              <circle
+                cx={cx} cy={cy} r={r}
+                fill="none"
+                stroke="#e5e7eb"
+                strokeWidth={strokeWidth}
+              />
+            ) : (
+              arcs.map(arc => (
                 <circle
+                  key={arc.key}
                   cx={cx} cy={cy} r={r}
                   fill="none"
-                  stroke="#e5e7eb"
+                  stroke={arc.color}
                   strokeWidth={strokeWidth}
+                  strokeDasharray={`${arc.dashArray} ${circumference}`}
+                  strokeDashoffset={arc.dashOffset}
+                  strokeLinecap="butt"
+                  style={{
+                    transform: 'rotate(-90deg)',
+                    transformOrigin: `${cx}px ${cy}px`,
+                    transition: 'stroke-dasharray 0.6s ease, stroke-dashoffset 0.6s ease',
+                  }}
                 />
-              ) : (
-                arcs.map(arc => (
-                  <circle
-                    key={arc.key}
-                    cx={cx} cy={cy} r={r}
-                    fill="none"
-                    stroke={arc.color}
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={`${arc.dashArray} ${circumference}`}
-                    strokeDashoffset={arc.dashOffset}
-                    strokeLinecap="butt"
-                    style={{
-                      transform: 'rotate(-90deg)',
-                      transformOrigin: `${cx}px ${cy}px`,
-                      transition: 'stroke-dasharray 0.6s ease, stroke-dashoffset 0.6s ease',
-                    }}
-                  />
-                ))
-              )}
-            </svg>
-          </div>
+              ))
+            )}
+          </svg>
 
-          {/* Legend + Values */}
-          <div className="flex flex-col gap-2 flex-1">
+          {/* Legend — full width, label left / value right, no overflow */}
+          <div className="w-full flex flex-col gap-2">
             {Object.entries(COLORS).map(([key, color]) => (
-              <div key={key} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="text-xs text-gray-600 font-medium">{LABELS[key]}</span>
-                </div>
+              <div key={key} className="flex items-center w-full">
+                {/* dot + label — grows to fill available space */}
                 <span
-                  className="text-sm font-bold tabular-nums"
+                  className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 mr-2"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-xs text-gray-600 font-medium flex-1 min-w-0 truncate">
+                  {LABELS[key]}
+                </span>
+                {/* value pinned to the right */}
+                <span
+                  className="text-xs font-bold tabular-nums ml-2 flex-shrink-0"
                   style={{ color }}
                 >
                   {formatCount(data[key])}
@@ -297,6 +296,7 @@ export default function SuperAdminDashboard() {
               </div>
             ))}
           </div>
+
         </div>
       </div>
     );
