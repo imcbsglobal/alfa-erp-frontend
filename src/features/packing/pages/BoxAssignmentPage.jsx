@@ -366,6 +366,7 @@ export default function BoxAssignmentPage() {
       : (bill?.temp_name || bill?.customer?.name || bill?.customer_name || '');
     const customerArea    = bill?.customer?.area     || '';
     const customerAddr2   = bill?.customer?.address2 || '';
+    const customerPincode = bill?.customer?.pincode  || '';
     const customerPhone1  = bill?.customer?.phone1   || bill?.customer_phone || '';
     const customerPhone2  = bill?.customer?.phone2   || '';
     const customerEmail   = bill?.customer?.email    || '';
@@ -659,9 +660,12 @@ export default function BoxAssignmentPage() {
                 <p class="to-label">Ship To</p>
                 ${customerName    ? `<p class="customer-name">${customerName}</p>` : ''}
                 ${customerNameML  ? `<p class="customer-name-ml">${customerNameML}</p>` : ''}
-                ${customerArea    ? `<p class="customer-area">${customerArea}</p>` : ''}
-                ${customerAddr1   ? `<p class="customer-addr">${customerAddr1}</p>` : ''}
-                ${customerAddr2   ? `<p class="customer-addr">${customerAddr2}</p>` : ''}
+                ${(customerArea || customerAddr1)
+                  ? `<p class="customer-area">${[customerArea, customerAddr1].filter(Boolean).join(', ')}</p>`
+                  : ''}
+                ${(customerAddr2 || customerPincode)
+                  ? `<p class="customer-addr">${[customerAddr2, customerPincode].filter(Boolean).join(', ')}</p>`
+                  : ''}
                 ${(customerPhone1 || customerPhone2)
                   ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>`
                   : ''}
