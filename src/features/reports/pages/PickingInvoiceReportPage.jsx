@@ -161,7 +161,7 @@ export default function PickingInvoiceReportPage() {
             </div>
 
             {/* Time */}
-            <div className="flex items-center gap-1.5">
+            {/* <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Time:</label>
               <select
                 value={timeFilter}
@@ -176,7 +176,7 @@ export default function PickingInvoiceReportPage() {
                 <option value="6">6 hr</option>
                 <option value="12">12 hr</option>
               </select>
-            </div>
+            </div> */}
 
             <div className="h-6 w-px bg-gray-200" />
 
