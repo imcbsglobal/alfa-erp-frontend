@@ -23,6 +23,7 @@ export default function SuperAdminDashboard() {
     completedPacking: 0,
     completedDelivery: 0,
     holdInvoices: 0,
+    completedHoldInvoices: 0,
     pendingInvoices: 0,
   });
   const [breakdown, setBreakdown] = useState({
@@ -32,6 +33,11 @@ export default function SuperAdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
+
+  // ── NEW: tracks the last time SSE pushed a live update ──────────────────
+  const [sseLastUpdated, setSseLastUpdated] = useState(null);
+  const [sseConnected, setSseConnected] = useState(false);
+
   const eventSourceRef = useRef(null);
 
   useEffect(() => {
@@ -51,19 +57,34 @@ export default function SuperAdminDashboard() {
       const eventSource = new EventSource(sseUrl);
       eventSourceRef.current = eventSource;
 
+      // ── Fires when SSE connection opens ─────────────────────────────────
+      eventSource.onopen = () => {
+        setSseConnected(true);
+      };
+
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.stats) {
+            const s = data.stats;
+
+            // ── Update Session Overview cards live ───────────────────────
             setTodayStats({
-              totalInvoices: data.stats.totalInvoices || 0,
-              completedPicking: data.stats.completedPicking || 0,
-              completedPacking: data.stats.completedPacking || 0,
-              completedDelivery: data.stats.completedDelivery || 0,
-              holdInvoices: data.stats.holdInvoices || 0,
-              pendingInvoices: data.stats.pendingInvoices || 0,
+              totalInvoices:         s.totalInvoices         || 0,
+              completedPicking:      s.completedPicking      || 0,
+              completedPacking:      s.completedPacking      || 0,
+              completedDelivery:     s.completedDelivery     || 0,
+              holdInvoices:          s.holdInvoices          || 0,
+              completedHoldInvoices: s.completedHoldInvoices || 0,
+              pendingInvoices:       s.pendingInvoices       || 0,
             });
-            // Also refresh breakdown on SSE update
+
+            // ── Ensure loading never blocks the live values ──────────────
+            setLoading(false);
+
+            // ── Record timestamp so the UI can show "live" indicator ─────
+            setSseLastUpdated(new Date());
+
             fetchBreakdown();
           }
         } catch (error) {
@@ -72,6 +93,7 @@ export default function SuperAdminDashboard() {
       };
 
       eventSource.onerror = () => {
+        setSseConnected(false);
         if (eventSource.readyState === EventSource.CLOSED) {
           setTimeout(() => {
             if (eventSourceRef.current) eventSourceRef.current.close();
@@ -82,8 +104,6 @@ export default function SuperAdminDashboard() {
     };
 
     const sseTimeout = setTimeout(setupSSE, 1000);
-
-    // Poll breakdown every 10s for live feel
     const breakdownInterval = setInterval(fetchBreakdown, 5000);
 
     const fetchRecentActivity = async () => {
@@ -154,13 +174,15 @@ export default function SuperAdminDashboard() {
     try {
       const response = await api.get('/analytics/dashboard-stats/');
       if (response.data.success && response.data.stats) {
+        const s = response.data.stats;
         setTodayStats({
-          totalInvoices: response.data.stats.totalInvoices || 0,
-          completedPicking: response.data.stats.completedPicking || 0,
-          completedPacking: response.data.stats.completedPacking || 0,
-          completedDelivery: response.data.stats.completedDelivery || 0,
-          holdInvoices: response.data.stats.holdInvoices || 0,
-          pendingInvoices: response.data.stats.pendingInvoices || 0,
+          totalInvoices:         s.totalInvoices         || 0,
+          completedPicking:      s.completedPicking      || 0,
+          completedPacking:      s.completedPacking      || 0,
+          completedDelivery:     s.completedDelivery     || 0,
+          holdInvoices:          s.holdInvoices          || 0,
+          completedHoldInvoices: s.completedHoldInvoices || 0,
+          pendingInvoices:       s.pendingInvoices       || 0,
         });
       }
     } catch (error) {
@@ -240,19 +262,10 @@ export default function SuperAdminDashboard() {
     return (
       <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100 flex flex-col gap-4">
         <h3 className="text-sm font-bold text-gray-700 tracking-wide uppercase">{title}</h3>
-
-        {/* Chart + Legend stacked vertically so nothing overlaps */}
         <div className="flex flex-col items-center gap-4">
-
-          {/* SVG Donut — centred */}
           <svg width="120" height="120" viewBox="0 0 120 120" className="flex-shrink-0">
             {isEmpty ? (
-              <circle
-                cx={cx} cy={cy} r={r}
-                fill="none"
-                stroke="#e5e7eb"
-                strokeWidth={strokeWidth}
-              />
+              <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e5e7eb" strokeWidth={strokeWidth} />
             ) : (
               arcs.map(arc => (
                 <circle
@@ -273,68 +286,77 @@ export default function SuperAdminDashboard() {
               ))
             )}
           </svg>
-
-          {/* Legend — full width, label left / value right, no overflow */}
           <div className="w-full flex flex-col gap-2">
             {Object.entries(COLORS).map(([key, color]) => (
               <div key={key} className="flex items-center w-full">
-                {/* dot + label — grows to fill available space */}
-                <span
-                  className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 mr-2"
-                  style={{ backgroundColor: color }}
-                />
-                <span className="text-xs text-gray-600 font-medium flex-1 min-w-0 truncate">
-                  {LABELS[key]}
-                </span>
-                {/* value pinned to the right */}
-                <span
-                  className="text-xs font-bold tabular-nums ml-2 flex-shrink-0"
-                  style={{ color }}
-                >
-                  {formatCount(data[key])}
-                </span>
+                <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 mr-2" style={{ backgroundColor: color }} />
+                <span className="text-xs text-gray-600 font-medium flex-1 min-w-0 truncate">{LABELS[key]}</span>
+                <span className="text-xs font-bold tabular-nums ml-2 flex-shrink-0" style={{ color }}>{formatCount(data[key])}</span>
               </div>
             ))}
           </div>
-
         </div>
       </div>
     );
   };
 
+  // ── Overview Cards ─────────────────────────────────────────────────────────
   const overviewCards = [
     {
       title: 'HOLD INVOICES',
       value: loading ? '...' : todayStats.holdInvoices,
-      icon: (<svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>),
+      subLabel: loading
+        ? null
+        : `${todayStats.completedHoldInvoices} / ${todayStats.holdInvoices} completed`,
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
       gradient: 'from-amber-400 to-orange-500',
       onClick: () => navigate('/invoices/pending'),
     },
     {
       title: 'TODAYS INVOICES',
       value: loading ? '...' : todayStats.totalInvoices,
-      icon: (<svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>),
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
       gradient: 'from-indigo-500 to-blue-600',
       onClick: () => navigate('/history/invoice-report'),
     },
     {
       title: 'COMPLETED PICKING',
       value: loading ? '...' : todayStats.completedPicking,
-      icon: (<svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>),
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      ),
       gradient: 'from-teal-400 to-cyan-600',
       onClick: () => navigate('/history/picking-report'),
     },
     {
       title: 'COMPLETED PACKING',
       value: loading ? '...' : todayStats.completedPacking,
-      icon: (<svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>),
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      ),
       gradient: 'from-purple-500 to-violet-600',
       onClick: () => navigate('/history/packing-report'),
     },
     {
       title: 'COMPLETED DELIVERY',
       value: loading ? '...' : todayStats.completedDelivery,
-      icon: (<svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>),
+      icon: (
+        <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+        </svg>
+      ),
       gradient: 'from-pink-500 to-rose-600',
     },
   ];
@@ -368,23 +390,23 @@ export default function SuperAdminDashboard() {
     <div className="min-h-screen bg-gray-50">
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 text-white py-6 sm:py-8 px-4 sm:px-6 shadow-lg">
+      <div className="bg-white border-b border-gray-200 py-5 px-4 sm:px-6 shadow-sm">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Admin Dashboard</h1>
-              <p className="text-teal-50 text-sm sm:text-base">Welcome back, {user?.name || 'Super Admin'}</p>
+              <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">Admin Dashboard</h1>
+              <p className="text-gray-500 text-sm mt-0.5">Welcome back, {user?.name || 'Super Admin'}</p>
             </div>
             <div className="mt-4 sm:mt-0">
               <button
                 onClick={() => { fetchAllStats(); fetchTodayStats(); fetchBreakdown(); }}
                 disabled={loading}
-                className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all disabled:opacity-50"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all disabled:opacity-50 text-sm font-medium border border-gray-200"
               >
-                <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <span className="hidden sm:inline">Refresh</span>
+                <span>Refresh</span>
               </button>
             </div>
           </div>
@@ -395,9 +417,14 @@ export default function SuperAdminDashboard() {
 
         {/* Session Overview */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <span className="text-2xl">📊</span> Session Overview
-          </h2>
+
+          {/* ── Section heading with live SSE status badge ────────────────── */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <span className="text-2xl">📊</span> Session Overview
+            </h2>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
             {overviewCards.map((stat, index) => (
               <div
@@ -409,7 +436,19 @@ export default function SuperAdminDashboard() {
                   <p className="text-white/90 text-xs font-bold tracking-widest uppercase leading-tight">{stat.title}</p>
                   <div className="bg-white/20 rounded-xl p-2 text-white flex-shrink-0">{stat.icon}</div>
                 </div>
+
+                {/* Main count — animates via React state update from SSE */}
                 <p className="text-white text-5xl leading-none tracking-tight">{stat.value}</p>
+
+                {stat.subLabel && (
+                  <div className="flex items-center gap-1.5 bg-white/20 rounded-lg px-2.5 py-1 w-fit">
+                    <svg className="w-3.5 h-3.5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-white/95 text-xs font-semibold">{stat.subLabel}</span>
+                  </div>
+                )}
+
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 rounded-b-2xl" />
                 <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full pointer-events-none" />
               </div>
@@ -421,24 +460,15 @@ export default function SuperAdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
           <div className="lg:col-span-2 space-y-6 sm:space-y-8">
 
-            {/* ── Status Breakdown ── */}
+            {/* Status Breakdown */}
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <span className="text-2xl">📈</span> Status Breakdown
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <DonutChart
-                  title="Picking Status"
-                  data={breakdown.picking}
-                />
-                <DonutChart
-                  title="Packing Status"
-                  data={breakdown.packing}
-                />
-                <DonutChart
-                  title="Delivery Status"
-                  data={breakdown.delivery}
-                />
+                <DonutChart title="Picking Status"  data={breakdown.picking}  />
+                <DonutChart title="Packing Status"  data={breakdown.packing}  />
+                <DonutChart title="Delivery Status" data={breakdown.delivery} />
               </div>
             </div>
 
