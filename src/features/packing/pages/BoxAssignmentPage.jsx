@@ -323,7 +323,7 @@ export default function BoxAssignmentPage() {
               font-size: 8px;
               font-weight: bold;
               text-transform: uppercase;
-              color: #000;
+              color: #000000;
               letter-spacing: 1px;
               margin-bottom: 4px;
             }
@@ -331,7 +331,7 @@ export default function BoxAssignmentPage() {
               font-weight: bold;
               font-size: 20px;
               text-transform: uppercase;
-              color: #000;
+              color: #000000;
               line-height: 1.2;
               word-wrap: break-word;
             }
@@ -339,14 +339,14 @@ export default function BoxAssignmentPage() {
               font-family: 'Noto Sans Malayalam', Arial, sans-serif;
               font-size: 18px;
               font-weight: bold;
-              color: #000;
+              color: #000000;
               line-height: 1.4;
               margin-top: 2px;
               word-wrap: break-word;
             }
             .customer-area {
               font-size: 13px;
-              color: #000;
+              color: #000000;
               text-transform: uppercase;
               letter-spacing: 0.3px;
               margin-top: 4px;
@@ -354,21 +354,21 @@ export default function BoxAssignmentPage() {
             }
             .customer-addr {
               font-size: 13px;
-              color: #000;
+              color: #000000;
               line-height: 1.5;
               word-wrap: break-word;
             }
             .customer-contact {
               font-size: 13px;
               font-weight: bold;
-              color: #000;
+              color: #000000;
               margin-top: 4px;
               word-wrap: break-word;
             }
             .customer-email {
               font-size: 12px;
               font-weight: bold;
-              color: #000;
+              color: #000000;
               margin-top: 1px;
               word-wrap: break-word;
             }
@@ -387,15 +387,16 @@ export default function BoxAssignmentPage() {
               gap: 3px;
             }
             .inv-no-label {
-              font-size: 10px;
+              font-size: 12px;
               font-weight: bold;
-              color: #000;
+              color: #000000;
+              text-align: center;
               text-transform: uppercase;
               letter-spacing: 0.4px;
-              align-self: flex-start;
+              
             }
             .qr-container {
-              border: 1.5px solid #000;
+              border: 1.5px solid #000000;
               padding: 3px;
               background: white;
             }
@@ -405,9 +406,9 @@ export default function BoxAssignmentPage() {
               height: 95px !important;
             }
             .box-id-label {
-              font-size: 7px;
+              font-size: 8px;
               font-weight: bold;
-              color: #000;
+              color: #000000;
               text-align: center;
               word-break: break-all;
               max-width: 105px;
@@ -415,7 +416,7 @@ export default function BoxAssignmentPage() {
 
             /* Icons: far right narrow column */
             .icons-column {
-              width: 1.2cm;
+              width: 1.5cm;
               flex-shrink: 0;
               display: flex;
               flex-direction: column;
@@ -428,19 +429,19 @@ export default function BoxAssignmentPage() {
               display: flex;
               flex-direction: column;
               align-items: center;
-              gap: 2px;
+              gap: 4px;
               width: 100%;
             }
             .icon-emoji {
-              font-size: 14px;
+              font-size: 22px;
               filter: grayscale(100%) brightness(0);
               line-height: 1;
             }
             .icon-label {
-              font-size: 5px;
+              font-size: 7px;
               font-weight: bold;
               text-transform: uppercase;
-              color: #000;
+              color: #000000;
               letter-spacing: 0.2px;
               text-align: center;
               white-space: nowrap;
@@ -452,8 +453,8 @@ export default function BoxAssignmentPage() {
               gap: 2px;
               width: 100%;
             }
-            .this-way-up-arrows { display: flex; gap: 2px; }
-            .arrow-svg { width: 8px; height: 11px; }
+            .this-way-up-arrows { display: flex; gap: 4px; }
+            .arrow-svg { width: 12px; height: 16px; }
 
             /* ── Footer ── */
             .company-footer {

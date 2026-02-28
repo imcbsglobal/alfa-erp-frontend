@@ -174,34 +174,6 @@ export default function BoxDetailsPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-800 mb-2 text-lg">{item.item_name}</h3>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        {item.item_code && (
-                          <div>
-                            <span className="text-gray-500">Code:</span>
-                            <span className="ml-2 font-medium text-gray-700">{item.item_code}</span>
-                          </div>
-                        )}
-                        {item.batch_number && (
-                          <div>
-                            <span className="text-gray-500">Batch:</span>
-                            <span className="ml-2 font-medium text-gray-700">{item.batch_number}</span>
-                          </div>
-                        )}
-                        {item.expiry_date && (
-                          <div>
-                            <span className="text-gray-500">Expiry:</span>
-                            <span className="ml-2 font-medium text-orange-600">
-                              {new Date(item.expiry_date).toLocaleDateString('en-GB')}
-                            </span>
-                          </div>
-                        )}
-                        {item.mrp && (
-                          <div>
-                            <span className="text-gray-500">MRP:</span>
-                            <span className="ml-2 font-semibold text-green-700">₹{parseFloat(item.mrp).toFixed(2)}</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
                     <div className="flex-shrink-0 text-right">
                       <div className="bg-teal-100 px-4 py-2 rounded-lg">
