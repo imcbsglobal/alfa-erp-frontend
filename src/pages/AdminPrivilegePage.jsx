@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, AlertCircle, Search, CheckCircle, X, Clock, User, RefreshCw, Settings, FileSearch, Calendar, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, AlertCircle, Search, CheckCircle, X, Clock, User, RefreshCw, Settings, FileSearch, Calendar, AlertTriangle, ArrowRight, ChevronDown, ChevronUp, Play, Eye } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../features/auth/AuthContext';
@@ -30,6 +30,18 @@ const AdminPrivilegePage = () => {
   const [invoiceData, setInvoiceData] = useState([]);
   const [missingInvoices, setMissingInvoices] = useState([]);
   const [loadingMissing, setLoadingMissing] = useState(false);
+
+  // Bulk Status Progression States
+  const [showBulkStatusSection, setShowBulkStatusSection] = useState(false);
+  const [bsFromDate, setBsFromDate] = useState('');
+  const [bsToDate, setBsToDate] = useState('');
+  const [bsActiveStep, setBsActiveStep] = useState('INVOICED');
+  const [bsPreviewData, setBsPreviewData] = useState(null);
+  const [bsPreviewLoading, setBsPreviewLoading] = useState(false);
+  const [bsExecuting, setBsExecuting] = useState(false);
+  const [bsTransitionLog, setBsTransitionLog] = useState([]);
+  const [bsHistoryLoading, setBsHistoryLoading] = useState(false);
+  const [bsConfirmOpen, setBsConfirmOpen] = useState(false);
 
   useEffect(() => {
     loadIncompleteBills();
@@ -451,7 +463,80 @@ const AdminPrivilegePage = () => {
     }
   };
 
+  const loadBsHistory = async () => {
+    setBsHistoryLoading(true);
+    try {
+      const res = await api.get('/sales/admin/bulk-status-history/');
+      if (res.data.success) setBsTransitionLog(res.data.results);
+    } catch (err) {
+      console.error('Failed to load bulk status history:', err);
+    } finally {
+      setBsHistoryLoading(false);
+    }
+  };
 
+  const handleBsClearHistory = () => {
+    setBsTransitionLog([]);
+    localStorage.removeItem('bsTransitionLog');
+    toast.success('Bulk status history cleared');
+  };
+
+  // ── Bulk Status Progression handlers ──────────────────────────────────────
+  const BS_STEP_LABELS = {
+    INVOICED: { label: 'INVOICED → PICKED', from: 'INVOICED', to: 'PICKED', color: 'blue' },
+    PICKED:   { label: 'PICKED → PACKED',   from: 'PICKED',   to: 'PACKED',   color: 'purple' },
+    PACKED:   { label: 'PACKED → DELIVERED', from: 'PACKED',  to: 'DELIVERED', color: 'green' },
+  };
+
+  const handleBsPreview = async () => {
+    if (!bsFromDate || !bsToDate) {
+      toast.error('Please select both From Date and To Date');
+      return;
+    }
+    setBsPreviewLoading(true);
+    setBsPreviewData(null);
+    try {
+      const step = BS_STEP_LABELS[bsActiveStep];
+      const response = await api.get('/sales/admin/bulk-status-update/', {
+        params: { from_status: step.from, from_date: bsFromDate, to_date: bsToDate }
+      });
+      if (response.data.success) {
+        setBsPreviewData(response.data);
+      } else {
+        toast.error(response.data.message || 'Preview failed');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to load preview');
+    } finally {
+      setBsPreviewLoading(false);
+    }
+  };
+
+  const handleBsExecute = async () => {
+    setBsConfirmOpen(false);
+    setBsExecuting(true);
+    try {
+      const step = BS_STEP_LABELS[bsActiveStep];
+      const response = await api.post('/sales/admin/bulk-status-update/', {
+        from_status: step.from,
+        to_status: step.to,
+        from_date: bsFromDate,
+        to_date: bsToDate,
+      });
+      if (response.data.success) {
+        setBsPreviewData(null);
+        toast.success(`✅ Moved ${response.data.count} invoice(s) from ${step.from} → ${step.to}`);
+        await loadBsHistory();
+      } else {
+        toast.error(response.data.message || 'Update failed');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to execute update');
+    } finally {
+      setBsExecuting(false);
+    }
+  };
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -730,6 +815,298 @@ const AdminPrivilegePage = () => {
           )}
         </div>
 
+        {/* ── Bulk Status Progression ──────────────────────────────────── */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-6">
+          {/* Section header */}
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <ArrowRight className="w-5 h-5 text-teal-600" />
+              <h2 className="text-xl font-bold text-gray-900">Bulk Status Progression</h2>
+            </div>
+            <button
+              onClick={() => {
+                const next = !showBulkStatusSection;
+                setShowBulkStatusSection(next);
+                setBsPreviewData(null);
+                if (next) loadBsHistory();
+              }}
+              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition flex items-center gap-2"
+            >
+              {showBulkStatusSection ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showBulkStatusSection ? 'Hide' : 'Open'}
+            </button>
+          </div>
+
+          {showBulkStatusSection && (
+            <div className="p-6 space-y-6">
+
+              {/* ── Pipeline visual ── */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                {['INVOICED', 'PICKED', 'PACKED', 'DELIVERED'].map((stage, idx, arr) => {
+                  const done = bsTransitionLog.find(l => l.to_status === stage);
+                  return (
+                    <React.Fragment key={stage}>
+                      <div className={`flex flex-col items-center min-w-[100px] rounded-xl p-3 border-2 ${
+                        done
+                          ? 'bg-green-50 border-green-400'
+                          : stage === 'INVOICED'
+                          ? 'bg-blue-50 border-blue-300'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <span className={`text-xs font-bold ${done ? 'text-green-700' : stage === 'INVOICED' ? 'text-blue-700' : 'text-gray-500'}`}>
+                          {stage}
+                        </span>
+                        {done && (
+                          <span className="text-[10px] text-green-600 mt-1 text-center leading-tight">
+                            {new Date(done.updated_at).toLocaleString('en-IN', {
+                              day: '2-digit', month: 'short', year: '2-digit',
+                              hour: '2-digit', minute: '2-digit', hour12: true
+                            })}
+                          </span>
+                        )}
+                      </div>
+                      {idx < arr.length - 1 && (
+                        <ArrowRight className={`w-5 h-5 flex-shrink-0 ${
+                          bsTransitionLog.find(l => l.from_status === stage) ? 'text-green-500' : 'text-gray-300'
+                        }`} />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+
+              {/* ── Controls ── */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                {/* From Date */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">From Date</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="date"
+                      value={bsFromDate}
+                      onChange={e => { setBsFromDate(e.target.value); setBsPreviewData(null); }}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                  </div>
+                </div>
+
+                {/* To Date */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">To Date</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="date"
+                      value={bsToDate}
+                      onChange={e => { setBsToDate(e.target.value); setBsPreviewData(null); }}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Step selector */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Step (Transition)</label>
+                  <select
+                    value={bsActiveStep}
+                    onChange={e => { setBsActiveStep(e.target.value); setBsPreviewData(null); }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                  >
+                    <option value="INVOICED">INVOICED → PICKED</option>
+                    <option value="PICKED">PICKED → PACKED</option>
+                    <option value="PACKED">PACKED → DELIVERED</option>
+                  </select>
+                </div>
+
+                {/* Preview button */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">&nbsp;</label>
+                  <button
+                    onClick={handleBsPreview}
+                    disabled={bsPreviewLoading || !bsFromDate || !bsToDate}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                  >
+                    {bsPreviewLoading
+                      ? <><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"/>&nbsp;Loading...</>
+                      : <><Eye className="w-4 h-4" />Preview</>}
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Preview results ── */}
+              {bsPreviewData && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+                    <div>
+                      <p className="font-bold text-blue-900 text-lg">
+                        {bsPreviewData.count} invoice(s) will move{' '}
+                        <span className="text-blue-700">{bsPreviewData.from_status}</span>
+                        <ArrowRight className="inline w-4 h-4 mx-1" />
+                        <span className="text-blue-700">{bsPreviewData.to_status}</span>
+                      </p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Date range: {bsFromDate} to {bsToDate}
+                      </p>
+                    </div>
+                    {bsPreviewData.count > 0 && (
+                      <button
+                        onClick={() => setBsConfirmOpen(true)}
+                        disabled={bsExecuting}
+                        className="px-5 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 font-semibold flex items-center gap-2"
+                      >
+                        <Play className="w-4 h-4" />
+                        Execute ({bsPreviewData.count})
+                      </button>
+                    )}
+                  </div>
+
+                  {bsPreviewData.invoices.length > 0 && (
+                    <div className="overflow-x-auto rounded-lg border border-blue-200">
+                      <table className="min-w-full text-sm divide-y divide-blue-200">
+                        <thead className="bg-blue-100">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase">#</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase">Invoice No</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase">Date</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase">Customer</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase">Total</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-blue-100">
+                          {bsPreviewData.invoices.map((inv, i) => (
+                            <tr key={inv.invoice_no} className="hover:bg-blue-50">
+                              <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+                              <td className="px-3 py-2 font-medium text-gray-900">{inv.invoice_no}</td>
+                              <td className="px-3 py-2 text-gray-600">{inv.invoice_date}</td>
+                              <td className="px-3 py-2 text-gray-600">{inv.customer_name}</td>
+                              <td className="px-3 py-2 text-gray-600">₹{inv.total?.toFixed(2)}</td>
+                              <td className="px-3 py-2">
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
+                                  {inv.current_status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {bsPreviewData.count === 0 && (
+                    <div className="text-center py-6 text-blue-600">
+                      <CheckCircle className="w-10 h-10 mx-auto mb-2 text-blue-400" />
+                      No invoices found with status <strong>{bsPreviewData.from_status}</strong> in this date range.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Transition log ── */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                    Execution History ({bsTransitionLog.length} run{bsTransitionLog.length !== 1 ? 's' : ''})
+                  </h3>
+                  <button
+                    onClick={loadBsHistory}
+                    disabled={bsHistoryLoading}
+                    className="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1 px-2 py-1 rounded hover:bg-teal-50 transition"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${bsHistoryLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+
+                {bsHistoryLoading && (
+                  <div className="flex items-center justify-center py-8 text-teal-600 gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-teal-500 border-t-transparent" />
+                    Loading history...
+                  </div>
+                )}
+
+                {!bsHistoryLoading && bsTransitionLog.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    No bulk status updates have been executed yet.
+                  </div>
+                )}
+
+                {!bsHistoryLoading && bsTransitionLog.length > 0 && (
+                  <div className="space-y-4">
+                    {bsTransitionLog.map(entry => (
+                      <div key={entry.id} className="rounded-xl border border-green-200 bg-green-50 p-4">
+                        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                          <div className="flex items-center gap-2 font-bold text-green-900">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            <span>{entry.from_status}</span>
+                            <ArrowRight className="w-4 h-4 text-green-600" />
+                            <span>{entry.to_status}</span>
+                            <span className="text-green-600 font-normal text-sm ml-1">({entry.count} invoices)</span>
+                          </div>
+                          <div className="text-xs text-green-700 bg-green-100 rounded px-2 py-1 font-mono">
+                            🕐 {new Date(entry.executed_at || entry.updated_at).toLocaleString('en-IN', {
+                              day: '2-digit', month: 'short', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+                            })}
+                          </div>
+                        </div>
+                        <p className="text-xs text-green-700 mb-3">
+                          Invoice date range: {entry.from_date} → {entry.to_date}
+                          {entry.performed_by && (
+                            <span className="ml-3 text-green-600">• by <strong>{entry.performed_by}</strong></span>
+                          )}
+                        </p>
+                        {entry.invoices.length > 0 && (
+                          <div className="overflow-x-auto rounded-lg border border-green-200 max-h-64">
+                            <table className="min-w-full text-xs divide-y divide-green-200">
+                              <thead className="bg-green-100 sticky top-0">
+                                <tr>
+                                  <th className="px-3 py-2 text-left font-semibold text-green-700 uppercase">#</th>
+                                  <th className="px-3 py-2 text-left font-semibold text-green-700 uppercase">Invoice No</th>
+                                  <th className="px-3 py-2 text-left font-semibold text-green-700 uppercase">Invoice Date</th>
+                                  <th className="px-3 py-2 text-left font-semibold text-green-700 uppercase">Customer</th>
+                                  <th className="px-3 py-2 text-left font-semibold text-green-700 uppercase">Total</th>
+                                  <th className="px-3 py-2 text-left font-semibold text-green-700 uppercase">New Status</th>
+                                  <th className="px-3 py-2 text-left font-semibold text-green-700 uppercase">Updated At</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-green-100">
+                                {entry.invoices.map((inv, i) => (
+                                  <tr key={inv.invoice_no} className="hover:bg-green-50">
+                                    <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+                                    <td className="px-3 py-2 font-medium text-gray-900">{inv.invoice_no}</td>
+                                    <td className="px-3 py-2 text-gray-600">{inv.invoice_date}</td>
+                                    <td className="px-3 py-2 text-gray-600">{inv.customer_name}</td>
+                                    <td className="px-3 py-2 text-gray-600">₹{inv.total?.toFixed(2)}</td>
+                                    <td className="px-3 py-2">
+                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded font-semibold">
+                                        {inv.new_status}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-gray-500 font-mono">
+                                      {new Date(entry.executed_at || entry.updated_at).toLocaleString('en-IN', {
+                                        day: '2-digit', month: 'short',
+                                        hour: '2-digit', minute: '2-digit', hour12: true
+                                      })}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* ── End Bulk Status Progression ──────────────────────────────── */}
+
         {/* Incomplete Bills List */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-wrap gap-4">
@@ -909,6 +1286,51 @@ const AdminPrivilegePage = () => {
           )}
         </div>
       </div>
+
+      {/* ── Bulk Status Progression – Confirm Execute Modal ── */}
+      {bsConfirmOpen && bsPreviewData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-5 rounded-t-xl flex items-center gap-3">
+              <Play className="w-6 h-6" />
+              <div>
+                <h3 className="text-lg font-bold">Confirm Bulk Status Update</h3>
+                <p className="text-white/80 text-sm">This action cannot be undone</p>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-5">
+                <div className="flex items-center gap-2 text-teal-900 font-bold text-lg mb-1">
+                  <span>{bsPreviewData.from_status}</span>
+                  <ArrowRight className="w-5 h-5 text-teal-600" />
+                  <span>{bsPreviewData.to_status}</span>
+                </div>
+                <p className="text-teal-700 text-sm">
+                  <strong>{bsPreviewData.count}</strong> invoice(s) •&nbsp;
+                  {bsFromDate} to {bsToDate}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setBsConfirmOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBsExecute}
+                  disabled={bsExecuting}
+                  className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 font-semibold flex items-center justify-center gap-2"
+                >
+                  {bsExecuting
+                    ? <><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />Processing...</>
+                    : <><Play className="w-4 h-4" />Execute</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bulk Reason Modal */}
       {showBulkReasonModal && (

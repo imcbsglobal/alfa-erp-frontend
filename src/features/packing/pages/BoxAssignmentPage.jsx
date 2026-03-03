@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+﻿import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
@@ -79,7 +79,7 @@ export default function BoxAssignmentPage() {
             const data = JSON.parse(event.data);
             if (!data.invoice_no) return;
             if (data.billing_status === "RE_INVOICED" && data.return_info?.returned_from_section === "PACKING" && data.return_info?.returned_by_email === user?.email && data.invoice_no === invoiceNo) {
-              toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, { duration: 4000, icon: '✓' });
+              toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, { duration: 4000, icon: 'Ã¢Å“â€œ' });
               loadBillDetails();
             }
           } catch (e) { console.error("SSE: Bad data", e); }
@@ -192,7 +192,7 @@ export default function BoxAssignmentPage() {
       toast.success("Invoice sent to billing review");
       setSavedIssues([]);
       await loadBillDetails();
-      toast.info("This invoice is now under review. You'll be notified when it's corrected.", { duration: 5000, icon: '🔍' });
+      toast.info("This invoice is now under review. You'll be notified when it's corrected.", { duration: 5000, icon: 'Ã°Å¸â€Â' });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to send invoice to review");
     } finally { setLoading(false); }
@@ -229,7 +229,7 @@ export default function BoxAssignmentPage() {
     toast.success("Box completed! You can now print the label.");
   };
 
-  // ── UPDATED: label layout matches reference image ──
+  // Ã¢â€â‚¬Ã¢â€â‚¬ UPDATED: label layout matches reference image Ã¢â€â‚¬Ã¢â€â‚¬
   // Layout: [Customer info (top) + QR bottom-right] | [Icons column far right]
   // Footer: Alfa Agencies logo + address
   const handlePrintBoxLabel = async (boxId) => {
@@ -295,7 +295,7 @@ export default function BoxAssignmentPage() {
               background: white;
             }
 
-            /* ── Main content: [customer+QR] | [icons] ── */
+            /* Ã¢â€â‚¬Ã¢â€â‚¬ Main content: [customer+QR] | [icons] Ã¢â€â‚¬Ã¢â€â‚¬ */
             .main-content {
               display: flex;
               flex: 1;
@@ -456,7 +456,7 @@ export default function BoxAssignmentPage() {
             .this-way-up-arrows { display: flex; gap: 4px; }
             .arrow-svg { width: 12px; height: 16px; }
 
-            /* ── Footer ── */
+            /* Ã¢â€â‚¬Ã¢â€â‚¬ Footer Ã¢â€â‚¬Ã¢â€â‚¬ */
             .company-footer {
               display: flex;
               align-items: center;
@@ -517,15 +517,15 @@ export default function BoxAssignmentPage() {
                   <span class="icon-label">This Way Up</span>
                 </div>
                 <div class="icon-item">
-                  <span class="icon-emoji">❄️</span>
+                  <span class="icon-emoji">Ã¢Ââ€žÃ¯Â¸Â</span>
                   <span class="icon-label">Keep Cold</span>
                 </div>
                 <div class="icon-item">
-                  <span class="icon-emoji">🍷</span>
+                  <span class="icon-emoji">Ã°Å¸ÂÂ·</span>
                   <span class="icon-label">Fragile</span>
                 </div>
                 <div class="icon-item">
-                  <span class="icon-emoji">☂️</span>
+                  <span class="icon-emoji">Ã¢Ëœâ€šÃ¯Â¸Â</span>
                   <span class="icon-label">Keep Dry</span>
                 </div>
               </div>
@@ -707,8 +707,8 @@ export default function BoxAssignmentPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading bill details...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600 mx-auto"></div>
+          <p className="mt-3 text-gray-600 text-sm">Loading bill details...</p>
         </div>
       </div>
     );
@@ -718,312 +718,345 @@ export default function BoxAssignmentPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600">Bill not found</p>
-          <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg">Go Back</button>
+          <p className="text-red-600 text-sm">Bill not found</p>
+          <button onClick={() => navigate(-1)} className="mt-3 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm">Go Back</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto px-3 py-3">
-        <div className="bg-white rounded-lg shadow p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-800">Box Assignment</h1>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                <span><strong>Invoice:</strong> #{bill.invoice_no}</span>
-                <span className="text-gray-400">•</span>
-                <span><strong>Customer:</strong> {bill.customer?.name || bill.customer_name}</span>
-              </div>
+    <div className="h-full flex flex-col bg-gray-100 overflow-hidden">
+      <div className="bg-white border-b px-4 py-2 flex items-center gap-4 flex-shrink-0">
+        <div>
+          <h1 className="text-base font-bold text-gray-800 leading-tight">Box Assignment</h1>
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold text-gray-700">#{bill.invoice_no}  </span>
+            {bill.customer?.name || bill.customer_name}
+          </p>
+        </div>
+
+        {/* Banners inline */}
+        {isReInvoiced && bill.return_info && (
+          <div className="flex items-center gap-1.5 bg-teal-50 border border-teal-300 rounded px-2 py-1 text-xs text-teal-800 font-medium">
+            <svg className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Invoice Corrected Continue packing
+          </div>
+        )}
+        {isReviewInvoice && bill.return_info && (
+          <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-300 rounded px-2 py-1 text-xs text-orange-800 font-medium">
+            <svg className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            Under Billing Review - {bill.return_info.return_reason}
+          </div>
+        )}
+        {hasIssues && !isReviewInvoice && (
+          <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-300 rounded px-2 py-1 text-xs text-orange-800 font-medium">
+            <svg className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            {savedIssues.length} Issue{savedIssues.length > 1 ? 's' : ''} Reported
+          </div>
+        )}
+
+        {/* Validation errors pill */}
+        {errors.length > 0 && (
+          <div className="ml-auto flex items-center gap-1.5 bg-red-50 border border-red-300 rounded px-2 py-1 text-xs text-red-700 font-medium">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            {errors[0]}{errors.length > 1 ? ` (+${errors.length - 1} more)` : ''}
+          </div>
+        )}
+
+        {/* Complete packing button - always visible */}
+        <div className="ml-auto flex gap-2">
+          {hasIssues && !isReviewInvoice && (
+            <button onClick={handleSendInvoiceToReview} disabled={loading}
+              className="px-3 py-1.5 bg-orange-500 text-white text-xs font-semibold rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              Send to Review ({savedIssues.length})
+            </button>
+          )}
+          <button onClick={handleCompletePacking} disabled={completing || (hasIssues && !isReInvoiced) || isReviewInvoice}
+            className="px-4 py-1.5 bg-teal-600 text-white text-sm font-bold rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
+            {completing
+              ? <><div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />Completing...</>
+              : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                {hasIssues && !isReInvoiced ? 'Resolve Issues First' : isReviewInvoice ? 'Under Review' : 'Mark as PACKED'}</>}
+          </button>
+        </div>
+      </div>
+
+      {/* Main 2-col body */}
+      <div className={`flex flex-1 gap-2 p-2 overflow-hidden ${isReviewInvoice ? 'opacity-50 pointer-events-none' : ''}`}>
+
+        {/*LEFT: Items */}
+        <div className="flex flex-col w-[42%] bg-white rounded-lg shadow overflow-hidden">
+          {/* Items header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50 flex-shrink-0">
+            <span className="text-sm font-bold text-gray-700">
+              Items
+              <span className="ml-1.5 text-xs font-normal text-gray-400">
+                ({bill.items?.filter(i => getRemainingQuantityForItem(i.id) > 0).length}/{bill.items?.length} remaining)
+              </span>
+            </span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox"
+                checked={selectedItems.length > 0 && selectedItems.length === bill.items?.filter(i => getRemainingQuantityForItem(i.id) > 0).length}
+                onChange={toggleSelectAll}
+                className="w-3.5 h-3.5 text-teal-600 rounded" />
+              <span className="text-xs text-gray-600">
+                {selectedItems.length > 0 ? `${selectedItems.length} selected` : 'Select all'}
+              </span>
+            </label>
+          </div>
+
+          {/* Assign bar for selected items */}
+          {selectedItems.length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 border-b border-teal-200 flex-shrink-0">
+              <span className="text-xs font-semibold text-teal-800">{selectedItems.length} item{selectedItems.length > 1 ? 's' : ''}</span>
+              <select value={selectedBox?.id || ""} onChange={e => setSelectedBox(boxes.find(b => b.id === parseInt(e.target.value)))}
+                className="flex-1 text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-teal-500 bg-white">
+                <option value="">Select box</option>
+                {boxes.filter(b => !completedBoxes.has(b.id)).map(b => <option key={b.id} value={b.id}>{b.boxId}</option>)}
+              </select>
+              <button onClick={handleAssignSelectedItems} disabled={!selectedBox}
+                className="px-2 py-1 bg-teal-600 text-white text-xs font-semibold rounded hover:bg-teal-700 disabled:opacity-50">Assign</button>
+              <button onClick={() => { setSelectedItems([]); setSelectedBox(null); }}
+                className="px-2 py-1 bg-gray-200 text-gray-600 text-xs rounded hover:bg-gray-300">Cancel</button>
             </div>
+          )}
+
+          {/* Single-item assign bar */}
+          {selectedItem && selectedItems.length === 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 border-b border-teal-200 flex-shrink-0">
+              <span className="text-xs font-semibold text-teal-800 truncate max-w-[120px]">{selectedItem.name || selectedItem.item_name}</span>
+              <span className="text-xs text-gray-500">({formatQuantity(getRemainingQuantityForItem(selectedItem.id), 'pcs')} left)</span>
+              <select value={selectedBox?.id || ""} onChange={e => setSelectedBox(boxes.find(b => b.id === parseInt(e.target.value)))}
+                className="flex-1 text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-teal-500 bg-white">
+                <option value="">BOX</option>
+                {boxes.filter(b => !completedBoxes.has(b.id)).map(b => <option key={b.id} value={b.id}>{b.boxId}</option>)}
+              </select>
+              <input type="number" value={assignQuantity} onChange={e => { const v = parseInt(e.target.value, 10); setAssignQuantity(isNaN(v) || v < 1 ? '' : String(v)); }}
+                placeholder="Qty" min="1" step="1"
+                className="w-16 text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-teal-500" />
+              <button onClick={handleAssignItem}
+                className="px-2 py-1 bg-teal-600 text-white text-xs font-semibold rounded hover:bg-teal-700">Assign</button>
+              <button onClick={() => { setSelectedItem(null); setSelectedBox(null); setAssignQuantity(""); }}
+                className="px-2 py-1 bg-gray-200 text-gray-600 text-xs rounded hover:bg-gray-300">Cancel</button>
+            </div>
+          )}
+
+          {/* Items list compact rows */}
+          <div className="overflow-y-auto flex-1 hide-scrollbar">
+            {[...(bill.items || [])].sort((a, b) => {
+              const aR = getRemainingQuantityForItem(a.id), bR = getRemainingQuantityForItem(b.id);
+              if (aR === 0 && bR > 0) return 1;
+              if (aR > 0 && bR === 0) return -1;
+              return 0;
+            }).map((item, idx) => {
+              const totalRequired = item.quantity || item.qty || 0;
+              const totalAssigned = getTotalAssignedForItem(item.id);
+              const remaining = totalRequired - totalAssigned;
+              const isFullyAssigned = remaining === 0;
+              const isOverAssigned = remaining < 0;
+              const isSelected = selectedItems.includes(item.id);
+              const hasIssue = savedIssues.find(i => i.item === item.name);
+
+              return (
+                <div key={item.id}
+                  draggable={!isFullyAssigned}
+                  onDragStart={e => !isFullyAssigned && handleDragStart(e, item)}
+                  onDragEnd={handleDragEnd}
+                  onClick={() => !isFullyAssigned && !isReviewInvoice && setSelectedItem(prev => prev?.id === item.id ? null : item)}
+                  className={`flex items-center gap-2 px-3 py-1.5 border-b border-gray-100 cursor-pointer transition-colors select-none
+                    ${isSelected ? 'bg-teal-50' : selectedItem?.id === item.id ? 'bg-teal-50' : isFullyAssigned ? 'bg-green-50' : isOverAssigned ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    ${!isFullyAssigned ? 'hover:bg-teal-50' : ''}`}>
+
+                  {/* Checkbox */}
+                  {!isFullyAssigned
+                    ? <input type="checkbox" checked={isSelected}
+                        onChange={e => { e.stopPropagation(); toggleItemSelection(item.id); }}
+                        className="w-3.5 h-3.5 text-teal-600 rounded flex-shrink-0" onClick={e => e.stopPropagation()} />
+                    : <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+
+                  {/* Main info */}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold truncate leading-tight ${isFullyAssigned ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                      {item.name || item.item_name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {item.mrp && <span className="text-[10px] text-green-600 font-semibold">MRP: {parseFloat(item.mrp).toFixed(2)}</span>}
+                      {item.expiry_date && <span className="text-[10px] text-orange-500">Exp: {new Date(item.expiry_date).toLocaleDateString('en-GB')}</span>}
+                      {(item.package || item.packaging || item.pkg || item.packing) && <span className="text-[10px] text-gray-500">Pkg: {item.package || item.packaging || item.pkg || item.packing}</span>}
+                    </div>
+                  </div>
+
+                  {/* Qty + progress */}
+                  <div className="flex flex-col items-end flex-shrink-0 gap-0.5 min-w-[64px]">
+                    <span className={`text-xs font-bold ${isFullyAssigned ? 'text-green-600' : isOverAssigned ? 'text-red-600' : 'text-gray-700'}`}>
+                      {formatQuantity(totalAssigned, 'pcs')}/{formatQuantity(totalRequired, 'pcs')}
+                    </span>
+                    <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${isOverAssigned ? 'bg-red-500' : isFullyAssigned ? 'bg-green-500' : 'bg-teal-500'}`}
+                        style={{ width: `${Math.min((totalAssigned / totalRequired) * 100, 100)}%` }} />
+                    </div>
+                    {!isFullyAssigned && <span className="text-[10px] text-gray-400">{formatQuantity(remaining, 'pcs')} left</span>}
+                  </div>
+
+                  {/* Report issue mini-btn */}
+                  {!isReviewInvoice && (
+                    <button onClick={e => { e.stopPropagation(); openReviewPopup(item); }}
+                      title="Report Issue"
+                      className={`p-1 rounded flex-shrink-0 transition-colors ${hasIssue ? 'text-red-600 bg-red-50' : 'text-red-300 hover:text-red-600 hover:bg-red-50'}`}>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {isReInvoiced && bill.return_info && (
-          <div className="bg-teal-50 border border-teal-300 rounded-lg p-3 mb-4 flex items-start gap-3">
-            <svg className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <div className="flex-1">
-              <h3 className="font-bold text-teal-900 text-base mb-1">Invoice Corrected & Ready</h3>
-              <p className="text-sm text-teal-800">This invoice has been corrected. Continue packing!</p>
-            </div>
+        {/*RIGHT: Boxes*/}
+        <div className="flex flex-col flex-1 bg-white rounded-lg shadow overflow-hidden">
+          {/* Boxes header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50 flex-shrink-0">
+            <span className="text-sm font-bold text-gray-700">
+              Boxes
+              <span className="ml-1.5 text-xs font-normal text-gray-400">
+                ({completedBoxes.size}/{boxes.length} done)
+              </span>
+            </span>
+            {(boxes.length === 0 || (boxes.length > 0 && completedBoxes.has(boxes[boxes.length - 1]?.id))) ? (
+              <button onClick={addNewBox} disabled={isReviewInvoice}
+                className="px-3 py-1 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-50">
+                + Add Box
+              </button>
+            ) : (
+              <span className="text-xs text-gray-400 italic">Complete current box first</span>
+            )}
           </div>
-        )}
 
-        {isReviewInvoice && bill.return_info && (
-          <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 mb-4 flex items-start gap-3">
-            <svg className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            <div className="flex-1">
-              <h3 className="font-bold text-orange-900 text-base mb-2">Invoice Sent to Billing Review</h3>
-              <div className="bg-white rounded-lg p-2 border border-orange-200">
-                <p className="text-sm text-orange-800 mb-1"><strong>Reason:</strong> {bill.return_info.return_reason}</p>
-                <p className="text-xs text-orange-700">You'll be notified when the billing team corrects this invoice.</p>
+          {/* Boxes list */}
+          <div className="overflow-y-auto flex-1 p-2 space-y-2 hide-scrollbar">
+            {boxes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+                <svg className="w-12 h-12 mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                <p className="text-sm font-medium">No boxes yet</p>
+                <p className="text-xs mt-1">Click "+ Add Box" to begin</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {hasIssues && !isReviewInvoice && (
-          <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-              <h3 className="font-semibold text-orange-900 text-base">Issues Reported ({savedIssues.length})</h3>
-            </div>
-            <div className="space-y-2">
-              {savedIssues.map((issue, idx) => (
-                <div key={idx} className="bg-white border border-orange-200 rounded p-2">
-                  <p className="font-medium text-orange-900 text-sm">{issue.item}</p>
-                  <p className="text-orange-700 text-xs">{issue.issues.join(", ")}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {errors.length > 0 && (
-          <div className="bg-red-50 border border-red-300 rounded-lg p-3 mb-4">
-            <p className="font-semibold text-red-800 text-base mb-2 flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Validation Errors
-            </p>
-            <ul className="list-disc list-inside space-y-1 text-sm text-red-700 ml-4">
-              {errors.map((error, idx) => <li key={idx}>{error}</li>)}
-            </ul>
-          </div>
-        )}
-
-        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 transition-opacity duration-300 ${isReviewInvoice ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-800">Items ({bill.items?.length || 0})</h2>
-              <label className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 text-sm">
-                <input type="checkbox" checked={selectedItems.length > 0 && selectedItems.length === bill.items?.filter(item => getRemainingQuantityForItem(item.id) > 0).length} onChange={toggleSelectAll} className="w-4 h-4 text-teal-600 rounded" />
-                <span className="font-medium text-gray-700">{selectedItems.length > 0 ? `${selectedItems.length} selected` : "Select All"}</span>
-              </label>
-            </div>
-            <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
-              {[...(bill.items || [])].sort((a, b) => {
-                const aR = getRemainingQuantityForItem(a.id), bR = getRemainingQuantityForItem(b.id);
-                if (aR === 0 && bR > 0) return 1;
-                if (aR > 0 && bR === 0) return -1;
-                return 0;
-              }).map((item) => {
-                const isDisabled = isReviewInvoice;
-                const totalRequired = item.quantity || item.qty || 0;
-                const totalAssigned = getTotalAssignedForItem(item.id);
-                const remaining = totalRequired - totalAssigned;
-                const isFullyAssigned = remaining === 0;
-                const isOverAssigned = remaining < 0;
-                const isSelected = selectedItems.includes(item.id);
+            ) : (
+              [...boxes].sort((a, b) => {
+                if (a.is_sealed === b.is_sealed) return 0;
+                return a.is_sealed ? 1 : -1;
+              }).map(box => {
+                const isDone = completedBoxes.has(box.id);
                 return (
-                  <div key={item.id} draggable={!isFullyAssigned} onDragStart={(e) => !isFullyAssigned && handleDragStart(e, item)} onDragEnd={handleDragEnd}
-                    className={`p-3 rounded-lg border-2 transition-all ${isFullyAssigned ? "cursor-not-allowed" : "cursor-move"} ${
-                      isSelected ? "border-teal-500 bg-teal-50" : selectedItem?.id === item.id ? "border-teal-500 bg-teal-50"
-                      : isFullyAssigned ? "border-green-500 bg-green-50" : isOverAssigned ? "border-red-500 bg-red-50"
-                      : "border-gray-300 bg-white hover:border-teal-300"}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      {!isFullyAssigned && <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); toggleItemSelection(item.id); }} className="w-4 h-4 text-teal-600 rounded flex-shrink-0" />}
-                      <div className="flex items-center justify-between flex-1 min-w-0" onClick={() => !isFullyAssigned && !isDisabled && setSelectedItem(item)} style={{ cursor: isDisabled ? 'not-allowed' : (!isFullyAssigned ? 'pointer' : 'default') }}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-base font-semibold text-gray-800 truncate">{item.name || item.item_name}</p>
-                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
-                            {(item.code || item.item_code || item.itemCode) && <span className="flex items-center gap-1"><span className="font-semibold">Code:</span><span>{item.code || item.item_code || item.itemCode}</span></span>}
-                            {item.mrp && <span className="flex items-center gap-1"><span className="font-semibold">MRP:</span><span className="text-green-700 font-bold">₹{parseFloat(item.mrp).toFixed(2)}</span></span>}
-                            {(item.batch_number || item.batchNumber || item.batch) && <span className="flex items-center gap-1"><span className="font-semibold">Batch:</span><span>{item.batch_number || item.batchNumber || item.batch}</span></span>}
-                            {item.expiry_date && <span className="flex items-center gap-1"><span className="font-semibold">Exp:</span><span className="text-orange-700">{new Date(item.expiry_date).toLocaleDateString('en-GB')}</span></span>}
-                            {(item.package || item.packaging || item.pkg || item.packing) && <span className="flex items-center gap-1"><span className="font-semibold">Pkg:</span><span>{item.package || item.packaging || item.pkg || item.packing}</span></span>}
-                          </div>
-                        </div>
-                        {isFullyAssigned && <svg className="w-6 h-6 text-green-600 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                  <div key={box.id}
+                    onDragOver={handleDragOver}
+                    onDragEnter={e => handleDragEnter(e, box.id)}
+                    onDragLeave={e => handleDragLeave(e, box.id)}
+                    onDrop={e => handleDrop(e, box)}
+                    className={`rounded-lg border-2 transition-all ${isDone ? 'border-green-400 bg-green-50' : dragOverBox === box.id ? 'border-teal-400 bg-teal-50 border-dashed' : 'border-gray-200 bg-white'}`}>
+
+                    {/* Box header row */}
+                    <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-700 font-mono">{box.boxId}</span>
+                        <span className="text-[10px] text-gray-400">({box.items.length} item{box.items.length !== 1 ? 's' : ''})</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {!isDone && (
+                          <button onClick={() => removeBox(box.id)} className="text-[10px] text-red-400 hover:text-red-600 font-medium px-1">Remove</button>
+                        )}
+                        {!isDone ? (
+                          <button onClick={() => handleCompleteBox(box.id)} disabled={box.items.length === 0}
+                            className="px-2 py-0.5 bg-blue-600 text-white text-[11px] font-semibold rounded hover:bg-blue-700 disabled:opacity-40">
+                            Complete
+                          </button>
+                        ) : (
+                          <button onClick={() => handlePrintBoxLabel(box.id)}
+                            className="px-2 py-0.5 bg-purple-600 text-white text-[11px] font-semibold rounded hover:bg-purple-700 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                            {printedBoxes.has(box.id) ? 'Reprint' : 'Print'}
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center justify-between text-sm border-t pt-2 border-gray-200">
-                      <span className="text-gray-600">Qty: <span className="font-bold text-gray-800">{formatQuantity(totalRequired, 'pcs')}</span></span>
-                      {(totalAssigned > 0 || isOverAssigned) && <span className={`text-sm font-semibold ${isFullyAssigned ? "text-green-600" : isOverAssigned ? "text-red-600" : "text-amber-600"}`}>Assigned: {formatQuantity(totalAssigned, 'pcs')}</span>}
-                    </div>
-                    {!isReviewInvoice && (
-                      <button onClick={(e) => { e.stopPropagation(); if (!isDisabled) openReviewPopup(item); }} disabled={isDisabled}
-                        className={`w-full mt-3 py-2.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 border disabled:opacity-50 disabled:cursor-not-allowed ${
-                          savedIssues.find(i => i.item === item.name) ? "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                        Report Issue
-                      </button>
+
+                    {/* Items in box */}
+                    {box.items.length === 0 ? (
+                      <div className="flex items-center justify-center py-3 text-xs text-gray-400 italic">
+                        {isDone ? 'Empty box' : 'Drop items here or assign from left panel'}
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {box.items.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 px-3 py-1">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-800 truncate leading-tight">{item.itemName}</p>
+                            </div>
+                            <span className="text-xs font-bold text-teal-700 flex-shrink-0">{formatQuantity(item.quantity, 'pcs')}</span>
+                            {!isDone && (
+                              <button onClick={() => handleRemoveItemFromBox(box.id, item.itemId)}
+                                className="text-gray-300 hover:text-red-500 flex-shrink-0 transition-colors">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {selectedItems.length > 0 ? (
-              <div className="bg-teal-50 border-2 border-teal-500 rounded-lg p-4">
-                <h3 className="font-semibold text-teal-900 mb-3">Assign {selectedItems.length} Selected Item{selectedItems.length > 1 ? 's' : ''} to Box</h3>
-                <div className="space-y-3">
-                  <select value={selectedBox?.id || ""} onChange={(e) => setSelectedBox(boxes.find(b => b.id === parseInt(e.target.value)))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500">
-                    <option value="">-- Select a box --</option>
-                    {boxes.filter(box => !completedBoxes.has(box.id)).map(box => <option key={box.id} value={box.id}>{box.boxId} ({box.items.length} items)</option>)}
-                  </select>
-                  <div className="flex gap-2">
-                    <button onClick={handleAssignSelectedItems} disabled={!selectedBox} className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed">Assign to Box</button>
-                    <button onClick={() => { setSelectedItems([]); setSelectedBox(null); }} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Cancel</button>
-                  </div>
-                </div>
-              </div>
-            ) : selectedItem ? (
-              <div className="bg-teal-50 border-2 border-teal-500 rounded-lg p-4">
-                <h3 className="font-semibold text-teal-900 text-base mb-3">Assign Item</h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">{selectedItem.name || selectedItem.item_name}</p>
-                    <p className="text-xs text-gray-600">Left: {formatQuantity(getRemainingQuantityForItem(selectedItem.id), 'pcs')}</p>
-                  </div>
-                  <select value={selectedBox?.id || ""} onChange={(e) => setSelectedBox(boxes.find(b => b.id === parseInt(e.target.value)))} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500">
-                    <option value="">Select box</option>
-                    {boxes.filter(box => !completedBoxes.has(box.id)).map(box => <option key={box.id} value={box.id}>{box.boxId} ({box.items.length})</option>)}
-                  </select>
-                  <input type="number" value={assignQuantity} onChange={(e) => setAssignQuantity(e.target.value)} placeholder="Quantity" min="0" step="0.01" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" />
-                  <div className="flex gap-2">
-                    <button onClick={handleAssignItem} className="flex-1 px-4 py-2 text-sm bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700">Assign</button>
-                    <button onClick={() => { setSelectedItem(null); setSelectedBox(null); setAssignQuantity(""); }} className="px-4 py-2 text-sm bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Cancel</button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-gray-800">Boxes ({boxes.length})</h2>
-                {boxes.length === 0 || (boxes.length > 0 && completedBoxes.has(boxes[boxes.length - 1].id)) ? (
-                  <button onClick={addNewBox} disabled={isReviewInvoice} className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed">+ Add Box</button>
-                ) : (
-                  <span className="text-sm text-gray-500 italic">Complete box first</span>
-                )}
-              </div>
-              <div className="space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
-                {boxes.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                    <p className="text-lg font-medium mb-2">No boxes yet</p>
-                    <p className="text-sm mb-4">Click "+ Add Box" above to create your first box</p>
-                  </div>
-                ) : (
-                  [...boxes].sort((a, b) => { if (a.is_sealed === b.is_sealed) return 0; return a.is_sealed ? 1 : -1; }).map(box => (
-                    <div key={box.id} onDragOver={handleDragOver} onDragEnter={(e) => handleDragEnter(e, box.id)} onDragLeave={(e) => handleDragLeave(e, box.id)} onDrop={(e) => handleDrop(e, box)}
-                      className={`border-2 rounded-lg p-3 transition-all ${completedBoxes.has(box.id) ? "border-green-500 bg-green-50" : dragOverBox === box.id ? "border-teal-500 bg-teal-50 border-dashed" : "border-gray-300"}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-base text-gray-800">{box.boxId}</h3>
-                          {completedBoxes.has(box.id) && <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-semibold">✓</span>}
-                        </div>
-                        {!completedBoxes.has(box.id) && <button onClick={() => removeBox(box.id)} className="text-red-600 hover:text-red-800 text-sm font-semibold">Remove</button>}
-                      </div>
-                      {box.items.length === 0 ? (
-                        <div className="text-center py-4">
-                          <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                          <p className="text-sm text-gray-500 italic">{completedBoxes.has(box.id) ? "Empty" : "Drop here"}</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {box.items.map((item, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-800 truncate">{item.itemName}</p>
-                                {item.itemCode && <p className="text-xs text-gray-600">Code: {item.itemCode}</p>}
-                              </div>
-                              <div className="flex items-center gap-2 ml-2">
-                                <span className="font-bold text-teal-700">{formatQuantity(item.quantity, 'pcs')}</span>
-                                {!box.is_sealed && (
-                                  <button onClick={() => handleRemoveItemFromBox(box.id, item.itemId)} className="text-red-600 hover:text-red-800">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {!box.is_sealed ? (
-                        <button onClick={() => handleCompleteBox(box.id)} disabled={box.items.length === 0} className="w-full mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50">Complete Box</button>
-                      ) : (
-                        <button onClick={() => handlePrintBoxLabel(box.id)} className="w-full mt-3 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 flex items-center justify-center gap-2">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                          {printedBoxes.has(box.id) ? "Reprint" : "Print Label"}
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+              })
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex gap-3">
-              {hasIssues && !isReviewInvoice && (
-                <button onClick={handleSendInvoiceToReview} disabled={loading} className="flex-1 py-3.5 bg-orange-600 text-white rounded-lg text-lg font-bold hover:bg-orange-700 transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  Send to Review ({savedIssues.length})
-                </button>
-              )}
-              <button onClick={handleCompletePacking} disabled={completing || (hasIssues && !isReInvoiced) || isReviewInvoice}
-                className={`py-3.5 rounded-lg text-lg font-bold transition-all shadow-lg disabled:opacity-50 ${hasIssues ? 'flex-1' : 'w-full'} ${hasIssues && !isReInvoiced ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
-                title={hasIssues && !isReInvoiced ? "Resolve issues first or send to review" : ""}>
-                {completing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Marking as PACKED...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                    {hasIssues ? "Resolve Issues First" : isReviewInvoice ? "Under Review" : "Mark as PACKED & Ready"}
-                  </span>
-                )}
+      {/* Review issue popup */}
+      {reviewPopup.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-80">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <h3 className="text-sm font-bold text-gray-900">Report Issue</h3>
+              </div>
+              <button onClick={closeReviewPopup} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-          </div>
-        </div>
-
-        {reviewPopup.open && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-3 border-b flex items-center justify-between sticky top-0 bg-white">
-                <div className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  <h3 className="font-bold text-sm text-gray-900">Report Issue</h3>
-                </div>
-                <button onClick={closeReviewPopup} className="text-gray-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
+            <div className="px-4 py-3 space-y-3">
+              <div className="bg-gray-50 rounded px-3 py-1.5">
+                <p className="text-xs font-semibold text-gray-800">{reviewPopup.item?.name || reviewPopup.item?.item_name}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{reviewPopup.item?.code || reviewPopup.item?.item_code}</p>
               </div>
-              <div className="p-3 space-y-2">
-                <div className="bg-gray-50 p-2 rounded-lg">
-                  <p className="font-semibold text-xs text-gray-900">{reviewPopup.item?.name || reviewPopup.item?.item_name}</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">{reviewPopup.item?.code || reviewPopup.item?.item_code || reviewPopup.item?.sku}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-gray-700">Select Issues:</p>
-                  {['batchMatch', 'expiryCheck', 'quantityCorrect', 'packagingGood', 'other'].map((key) => (
-                    <label key={key} className="flex items-start gap-2 cursor-pointer">
-                      <input type="checkbox" checked={reviewChecks[key]} onChange={(e) => setReviewChecks({ ...reviewChecks, [key]: e.target.checked })} className="mt-0.5 w-3.5 h-3.5 text-orange-600 rounded" />
-                      <span className="text-xs text-gray-700">{key === 'batchMatch' ? 'Batch mismatch' : key === 'expiryCheck' ? 'Expiry issue' : key === 'quantityCorrect' ? 'Quantity incorrect' : key === 'packagingGood' ? 'Damaged packaging' : 'Other'}</span>
-                    </label>
-                  ))}
-                  {reviewChecks.other && <textarea value={otherIssueNotes} onChange={(e) => setOtherIssueNotes(e.target.value)} placeholder="Describe..." className="w-full px-2 py-1.5 border rounded-lg text-xs resize-none" rows={2} />}
-                </div>
-              </div>
-              <div className="p-3 border-t flex gap-2 sticky bottom-0 bg-white">
-                <button onClick={closeReviewPopup} className="flex-1 py-1.5 px-3 border text-xs text-gray-700 rounded-lg">Cancel</button>
-                <button onClick={handleSaveIssue} className="flex-1 py-1.5 px-3 bg-orange-600 text-xs text-white rounded-lg">Save</button>
+              <div className="space-y-1.5">
+                {['batchMatch', 'expiryCheck', 'quantityCorrect', 'packagingGood', 'other'].map(key => (
+                  <label key={key} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={reviewChecks[key]}
+                      onChange={e => setReviewChecks({ ...reviewChecks, [key]: e.target.checked })}
+                      className="w-3.5 h-3.5 text-orange-600 rounded" />
+                    <span className="text-xs text-gray-700">
+                      {key === 'batchMatch' ? 'Batch mismatch' : key === 'expiryCheck' ? 'Expiry issue' : key === 'quantityCorrect' ? 'Quantity incorrect' : key === 'packagingGood' ? 'Damaged packaging' : 'Other'}
+                    </span>
+                  </label>
+                ))}
+                {reviewChecks.other && (
+                  <textarea value={otherIssueNotes} onChange={e => setOtherIssueNotes(e.target.value)}
+                    placeholder="Describe the issueÃ¢â‚¬Â¦"
+                    className="w-full px-2.5 py-1.5 border rounded text-xs resize-none focus:ring-1 focus:ring-orange-400"
+                    rows={2} />
+                )}
               </div>
             </div>
+            <div className="flex gap-2 px-4 pb-3">
+              <button onClick={closeReviewPopup} className="flex-1 py-1.5 text-xs font-medium text-gray-600 border rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSaveIssue} className="flex-1 py-1.5 text-xs font-semibold text-white bg-orange-500 rounded-lg hover:bg-orange-600">Save Issue</button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
+
 }
