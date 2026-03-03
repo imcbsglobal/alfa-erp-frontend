@@ -6,6 +6,21 @@ import toast from "react-hot-toast";
 import { formatTime, formatDate, formatQuantity } from '../../../utils/formatters';
 import HoldForConsolidationModal from '../components/HoldForConsolidationModal';
 
+const transliterateToMalayalam = async (text) => {
+  try {
+    const res = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ml&dt=t&q=${encodeURIComponent(text)}`
+    );
+    const data = await res.json();
+    if (data?.[0]) {
+      return data[0].map(segment => segment?.[0] || "").join("").trim();
+    }
+    return "";
+  } catch {
+    return "";
+  }
+};
+
 export default function MyPackingListPage() {
   const [loading, setLoading] = useState(false);
   const [myCheckingBills, setMyCheckingBills] = useState([]);
@@ -17,6 +32,8 @@ export default function MyPackingListPage() {
   const [selectedHeldBills, setSelectedHeldBills] = useState({});
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [currentBillForHold, setCurrentBillForHold] = useState(null);
+  const [billBoxDetails, setBillBoxDetails] = useState({});
+  const [loadingBoxes, setLoadingBoxes] = useState(new Set());
   
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -373,8 +390,174 @@ export default function MyPackingListPage() {
     }
   };
 
-  const toggleExpand = (billId) => {
-    setExpandedBill(expandedBill === billId ? null : billId);
+  const fetchBillBoxDetails = async (invoiceNo) => {
+    if (!invoiceNo || loadingBoxes.has(invoiceNo) || billBoxDetails[invoiceNo]) return;
+    setLoadingBoxes(prev => new Set([...prev, invoiceNo]));
+    try {
+      const res = await api.get(`/sales/packing/bill/${invoiceNo}/`);
+      setBillBoxDetails(prev => ({ ...prev, [invoiceNo]: res.data?.data }));
+    } catch (err) {
+      console.error("Failed to load box details", err);
+    } finally {
+      setLoadingBoxes(prev => { const s = new Set(prev); s.delete(invoiceNo); return s; });
+    }
+  };
+
+  const handlePrintBoxLabel = async (box, fullBill) => {
+    const invoiceNo = fullBill?.invoice_no;
+    const boxId = box.boxId || box.box_id;
+
+    const customerAddr1   = fullBill?.customer?.address1 || fullBill?.delivery_address || '';
+    const hasAddress      = !!(customerAddr1 || fullBill?.customer?.address2);
+    const customerName    = hasAddress
+      ? (fullBill?.customer?.name || fullBill?.customer_name || '')
+      : (fullBill?.temp_name || fullBill?.customer?.name || fullBill?.customer_name || '');
+    const customerArea    = fullBill?.customer?.area     || '';
+    const customerAddr2   = fullBill?.customer?.address2 || '';
+    const customerPincode = fullBill?.customer?.pincode  || '';
+    const customerPhone1  = fullBill?.customer?.phone1   || fullBill?.customer_phone || '';
+    const customerPhone2  = fullBill?.customer?.phone2   || '';
+    const customerEmail   = fullBill?.customer?.email    || '';
+
+    let customerNameML = '';
+    if (customerName) {
+      try { customerNameML = await transliterateToMalayalam(customerName); } catch { customerNameML = ''; }
+    }
+
+    const boxUrl = `${window.location.origin}/box/${boxId}`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Box Label - ${boxId}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam:wght@400;600&display=swap" rel="stylesheet">
+          <style>
+            @page { margin: 0; size: 15cm 10cm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            html, body { width: 15cm; height: 10cm; font-family: Arial, sans-serif; background: white; color: black; overflow: hidden; }
+            .label-container { width: 15cm; height: 10cm; border: 2px solid #000; border-radius: 5px; display: flex; flex-direction: column; overflow: hidden; background: white; }
+            .main-content { display: flex; flex: 1; overflow: hidden; }
+            .customer-qr-section { flex: 1; display: flex; flex-direction: column; border-right: 1.5px solid #000; overflow: hidden; }
+            .customer-info { flex: 1; padding: 10px 14px 4px 14px; display: flex; flex-direction: column; justify-content: flex-start; gap: 1px; }
+            .to-label { font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; letter-spacing: 1px; margin-bottom: 4px; }
+            .customer-name { font-weight: bold; font-size: 20px; text-transform: uppercase; color: #000; line-height: 1.2; word-wrap: break-word; }
+            .customer-name-ml { font-family: 'Noto Sans Malayalam', Arial, sans-serif; font-size: 18px; font-weight: bold; color: #000; line-height: 1.4; margin-top: 2px; word-wrap: break-word; }
+            .customer-area { font-size: 13px; color: #000; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; word-wrap: break-word; }
+            .customer-addr { font-size: 13px; color: #000; line-height: 1.5; word-wrap: break-word; }
+            .customer-contact { font-size: 13px; font-weight: bold; color: #000; margin-top: 4px; word-wrap: break-word; }
+            .customer-email { font-size: 12px; font-weight: bold; color: #000; margin-top: 1px; word-wrap: break-word; }
+            .qr-bottom-row { display: flex; justify-content: flex-end; padding: 0 10px 8px 10px; flex-shrink: 0; }
+            .qr-block { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+            .inv-no-label { font-size: 12px; font-weight: bold; color: #000; text-align: center; text-transform: uppercase; letter-spacing: 0.4px; }
+            .qr-container { border: 1.5px solid #000; padding: 3px; background: white; }
+            #qrcode { width: 95px; height: 95px; }
+            #qrcode img, #qrcode canvas { width: 95px !important; height: 95px !important; }
+            .box-id-label { font-size: 8px; font-weight: bold; color: #000; text-align: center; word-break: break-all; max-width: 105px; }
+            .icons-column { width: 1.5cm; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 8px 3px; background: white; }
+            .icon-item { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
+            .icon-emoji { font-size: 22px; filter: grayscale(100%) brightness(0); line-height: 1; }
+            .icon-label { font-size: 7px; font-weight: bold; text-transform: uppercase; color: #000; letter-spacing: 0.2px; text-align: center; white-space: nowrap; }
+            .this-way-up-box { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; }
+            .this-way-up-arrows { display: flex; gap: 4px; }
+            .arrow-svg { width: 12px; height: 16px; }
+            .company-footer { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-top: 1.5px solid #000; background: white; flex-shrink: 0; }
+            .company-logo { height: 50px; width: auto; }
+            .company-info { display: flex; flex-direction: column; gap: 2px; }
+            .company-address { font-size: 12px; color: #000; font-weight: 500; }
+            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+          </style>
+        </head>
+        <body>
+          <div class="label-container">
+            <div class="main-content">
+              <div class="customer-qr-section">
+                <div class="customer-info">
+                  <p class="to-label">Ship To</p>
+                  ${customerName   ? `<p class="customer-name">${customerName}</p>` : ''}
+                  ${customerNameML ? `<p class="customer-name-ml">${customerNameML}</p>` : ''}
+                  ${(customerArea || customerAddr1) ? `<p class="customer-area">${[customerArea, customerAddr1].filter(Boolean).join(', ')}</p>` : ''}
+                  ${(customerAddr2 || customerPincode) ? `<p class="customer-addr">${[customerAddr2, customerPincode].filter(Boolean).join(', ')}</p>` : ''}
+                  ${(customerPhone1 || customerPhone2) ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>` : ''}
+                  ${customerEmail  ? `<p class="customer-email">${customerEmail}</p>` : ''}
+                </div>
+                <div class="qr-bottom-row">
+                  <div class="qr-block">
+                    <p class="inv-no-label">INV: ${invoiceNo}</p>
+                    <div class="qr-container"><div id="qrcode"></div></div>
+                    <p class="box-id-label">${boxId}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="icons-column">
+                <div class="this-way-up-box">
+                  <div class="this-way-up-arrows">
+                    <svg class="arrow-svg" viewBox="0 0 8 11" fill="black"><polygon points="4,0 8,5 5.5,5 5.5,11 2.5,11 2.5,5 0,5"/></svg>
+                    <svg class="arrow-svg" viewBox="0 0 8 11" fill="black"><polygon points="4,0 8,5 5.5,5 5.5,11 2.5,11 2.5,5 0,5"/></svg>
+                  </div>
+                  <span class="icon-label">This Way Up</span>
+                </div>
+                <div class="icon-item">
+                  <span class="icon-emoji">❄️</span>
+                  <span class="icon-label">Keep Cold</span>
+                </div>
+                <div class="icon-item">
+                  <span class="icon-emoji">🍷</span>
+                  <span class="icon-label">Fragile</span>
+                </div>
+                <div class="icon-item">
+                  <span class="icon-emoji">☂️</span>
+                  <span class="icon-label">Keep Dry</span>
+                </div>
+              </div>
+            </div>
+            <div class="company-footer">
+              <img src="/black.png" alt="Alfa Agencies" class="company-logo" />
+              <div class="company-info">
+                <span class="company-address">18/1143 A7, Ground Floor, Meyon Building, Jail Road, Calicut - 673 004</span>
+                <span class="company-address">Ph: (Off) 0495 2300644, 2701899, 2306728</span>
+                <span class="company-address">Ph: (Mob) 9387724365, 7909220300, 7909220400</span>
+              </div>
+            </div>
+          </div>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+          <script>
+            window.onload = function() {
+              new QRCode(document.getElementById('qrcode'), {
+                text: '${boxUrl}',
+                width: 95, height: 95,
+                colorDark: '#000000', colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+              });
+              setTimeout(function() {
+                window.print();
+                setTimeout(function() {
+                  var iframes = window.parent.document.querySelectorAll('iframe');
+                  iframes.forEach(function(f) { f.remove(); });
+                }, 1000);
+              }, 700);
+            };
+          <\/script>
+        </body>
+      </html>
+    `);
+    iframeDoc.close();
+    toast.success("Label sent to printer!");
+  };
+
+  const toggleExpand = (billId, invoiceNo = null) => {
+    const isOpening = expandedBill !== billId;
+    setExpandedBill(isOpening ? billId : null);
+    if (isOpening && invoiceNo) fetchBillBoxDetails(invoiceNo);
   };
 
   const toggleCustomerExpand = (customerName) => {
@@ -967,7 +1150,7 @@ export default function MyPackingListPage() {
           ) : (
             <div className="divide-y divide-gray-200">
               {completedToday.map((bill) => (
-                <div key={bill.id} onClick={() => toggleExpand(bill.id)} className="p-3 hover:bg-gray-50 cursor-pointer">
+                <div key={bill.id} onClick={() => toggleExpand(bill.id, bill.invoice_no)} className="p-3 hover:bg-gray-50 cursor-pointer">
                   <div className="flex justify-between items-start mb-1">
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-xs sm:text-sm">#{bill.invoice_no}</p>
@@ -993,16 +1176,59 @@ export default function MyPackingListPage() {
                     </span>
                   </div>
                   {expandedBill === bill.id && (
-                    <div className="mt-2 pt-2 border-t text-[10px] sm:text-xs">
-                      <p className="font-semibold mb-1">Items ({bill.items?.length || 0})</p>
-                      {bill.items?.map((item, idx) => (
-                        <div key={idx} className="flex justify-between py-0.5">
-                          <span className="truncate mr-2">{item.name || item.item_name}</span>
-                          <span className="font-medium whitespace-nowrap">
-                            {formatQuantity(item.quantity || item.qty, 'pcs')}
-                          </span>
+                    <div className="mt-2 pt-2 border-t text-[10px] sm:text-xs" onClick={e => e.stopPropagation()}>
+                      {loadingBoxes.has(bill.invoice_no) ? (
+                        <p className="text-gray-400 text-center py-2">Loading box details...</p>
+                      ) : billBoxDetails[bill.invoice_no]?.boxes?.length > 0 ? (
+                        <div className="space-y-2">
+                          <p className="font-semibold mb-1 text-gray-700">
+                            Boxes ({billBoxDetails[bill.invoice_no].boxes.length})
+                          </p>
+                          {billBoxDetails[bill.invoice_no].boxes.map((box, boxIdx) => (
+                            <div key={boxIdx} className="border border-gray-200 rounded-lg p-2 bg-gray-50">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <svg className="w-3 h-3 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                  </svg>
+                                  <span className="font-semibold text-gray-800">Box {boxIdx + 1}</span>
+                                  <span className="text-gray-400 font-mono text-[10px]">{box.box_id || box.boxId}</span>
+                                  <span className="text-gray-500">· {(box.items || []).length} item{(box.items || []).length !== 1 ? 's' : ''}</span>
+                                </div>
+                                <button
+                                  onClick={e => { e.stopPropagation(); handlePrintBoxLabel(box, billBoxDetails[bill.invoice_no]); }}
+                                  className="flex items-center gap-1 px-2 py-0.5 bg-teal-600 text-white text-[10px] font-semibold rounded hover:bg-teal-700"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                  </svg>
+                                  Print Label
+                                </button>
+                              </div>
+                              <div className="space-y-0.5 pl-4">
+                                {(box.items || []).map((item, itemIdx) => (
+                                  <div key={itemIdx} className="flex justify-between text-gray-600">
+                                    <span className="truncate mr-2">{item.item_name || item.itemName}</span>
+                                    <span className="font-medium whitespace-nowrap text-gray-700">{item.quantity} pcs</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : (
+                        <div>
+                          <p className="font-semibold mb-1">Items ({bill.items?.length || 0})</p>
+                          {bill.items?.map((item, idx) => (
+                            <div key={idx} className="flex justify-between py-0.5">
+                              <span className="truncate mr-2">{item.name || item.item_name}</span>
+                              <span className="font-medium whitespace-nowrap">
+                                {formatQuantity(item.quantity || item.qty, 'pcs')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

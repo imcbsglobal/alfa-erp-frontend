@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, AlertCircle, Search, CheckCircle, X, Clock, User, RefreshCw, Settings, FileSearch, Calendar, AlertTriangle, ArrowRight, ChevronDown, ChevronUp, Play, Eye } from 'lucide-react';
+import { ShieldCheck, AlertCircle, Search, CheckCircle, X, Clock, User, RefreshCw, Settings, FileSearch, Calendar, AlertTriangle, ArrowRight, ChevronDown, ChevronUp, ChevronRight, Play, Eye } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../features/auth/AuthContext';
@@ -42,6 +42,7 @@ const AdminPrivilegePage = () => {
   const [bsTransitionLog, setBsTransitionLog] = useState([]);
   const [bsHistoryLoading, setBsHistoryLoading] = useState(false);
   const [bsConfirmOpen, setBsConfirmOpen] = useState(false);
+  const [bsHistoryOpen, setBsHistoryOpen] = useState(false);
 
   useEffect(() => {
     loadIncompleteBills();
@@ -477,6 +478,7 @@ const AdminPrivilegePage = () => {
 
   const handleBsClearHistory = () => {
     setBsTransitionLog([]);
+    setBsHistoryOpen(false);
     localStorage.removeItem('bsTransitionLog');
     toast.success('Bulk status history cleared');
   };
@@ -527,6 +529,7 @@ const AdminPrivilegePage = () => {
         setBsPreviewData(null);
         toast.success(`✅ Moved ${response.data.count} invoice(s) from ${step.from} → ${step.to}`);
         await loadBsHistory();
+        setBsHistoryOpen(true);
       } else {
         toast.error(response.data.message || 'Update failed');
       }
@@ -1005,20 +1008,33 @@ const AdminPrivilegePage = () => {
 
               {/* ── Transition log ── */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                <div
+                  className="flex items-center justify-between mb-3 cursor-pointer select-none group"
+                  onClick={() => {
+                    if (!bsHistoryOpen) loadBsHistory();
+                    setBsHistoryOpen(prev => !prev);
+                  }}
+                >
+                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    <ChevronRight
+                      className={`w-4 h-4 text-teal-600 transition-transform duration-200 ${bsHistoryOpen ? 'rotate-90' : ''}`}
+                    />
                     Execution History ({bsTransitionLog.length} run{bsTransitionLog.length !== 1 ? 's' : ''})
                   </h3>
-                  <button
-                    onClick={loadBsHistory}
-                    disabled={bsHistoryLoading}
-                    className="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1 px-2 py-1 rounded hover:bg-teal-50 transition"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${bsHistoryLoading ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </button>
+                  {bsHistoryOpen && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); loadBsHistory(); }}
+                      disabled={bsHistoryLoading}
+                      className="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1 px-2 py-1 rounded hover:bg-teal-50 transition"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${bsHistoryLoading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </button>
+                  )}
                 </div>
 
+                {bsHistoryOpen && (
+                  <>
                 {bsHistoryLoading && (
                   <div className="flex items-center justify-center py-8 text-teal-600 gap-2">
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-teal-500 border-t-transparent" />
@@ -1100,6 +1116,8 @@ const AdminPrivilegePage = () => {
                       </div>
                     ))}
                   </div>
+                )}
+                  </>
                 )}
               </div>
             </div>

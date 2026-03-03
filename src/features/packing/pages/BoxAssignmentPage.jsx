@@ -79,7 +79,7 @@ export default function BoxAssignmentPage() {
             const data = JSON.parse(event.data);
             if (!data.invoice_no) return;
             if (data.billing_status === "RE_INVOICED" && data.return_info?.returned_from_section === "PACKING" && data.return_info?.returned_by_email === user?.email && data.invoice_no === invoiceNo) {
-              toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, { duration: 4000, icon: 'Ã¢Å“â€œ' });
+              toast.success(`Bill #${data.invoice_no} has been corrected! Continue packing.`, { duration: 4000, icon: '\u2713' });
               loadBillDetails();
             }
           } catch (e) { console.error("SSE: Bad data", e); }
@@ -192,7 +192,7 @@ export default function BoxAssignmentPage() {
       toast.success("Invoice sent to billing review");
       setSavedIssues([]);
       await loadBillDetails();
-      toast.info("This invoice is now under review. You'll be notified when it's corrected.", { duration: 5000, icon: 'Ã°Å¸â€Â' });
+      toast.info("This invoice is now under review. You'll be notified when it's corrected.", { duration: 5000, icon: 'ℹ' });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to send invoice to review");
     } finally { setLoading(false); }
@@ -229,7 +229,7 @@ export default function BoxAssignmentPage() {
     toast.success("Box completed! You can now print the label.");
   };
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ UPDATED: label layout matches reference image Ã¢â€â‚¬Ã¢â€â‚¬
+  // UPDATED: label layout matches reference image
   // Layout: [Customer info (top) + QR bottom-right] | [Icons column far right]
   // Footer: Alfa Agencies logo + address
   const handlePrintBoxLabel = async (boxId) => {
@@ -295,7 +295,7 @@ export default function BoxAssignmentPage() {
               background: white;
             }
 
-            /* Ã¢â€â‚¬Ã¢â€â‚¬ Main content: [customer+QR] | [icons] Ã¢â€â‚¬Ã¢â€â‚¬ */
+            /* Main content  */
             .main-content {
               display: flex;
               flex: 1;
@@ -432,11 +432,6 @@ export default function BoxAssignmentPage() {
               gap: 4px;
               width: 100%;
             }
-            .icon-emoji {
-              font-size: 22px;
-              filter: grayscale(100%) brightness(0);
-              line-height: 1;
-            }
             .icon-label {
               font-size: 7px;
               font-weight: bold;
@@ -456,7 +451,13 @@ export default function BoxAssignmentPage() {
             .this-way-up-arrows { display: flex; gap: 4px; }
             .arrow-svg { width: 12px; height: 16px; }
 
-            /* Ã¢â€â‚¬Ã¢â€â‚¬ Footer Ã¢â€â‚¬Ã¢â€â‚¬ */
+            .icon-emoji {
+              font-size: 22px;
+              filter: grayscale(100%) brightness(0);
+              line-height: 1;
+            }
+
+            /* Footer */
             .company-footer {
               display: flex;
               align-items: center;
@@ -517,15 +518,15 @@ export default function BoxAssignmentPage() {
                   <span class="icon-label">This Way Up</span>
                 </div>
                 <div class="icon-item">
-                  <span class="icon-emoji">Ã¢Ââ€žÃ¯Â¸Â</span>
+                  <span class="icon-emoji">❄️</span>
                   <span class="icon-label">Keep Cold</span>
                 </div>
                 <div class="icon-item">
-                  <span class="icon-emoji">Ã°Å¸ÂÂ·</span>
+                  <span class="icon-emoji">🍷</span>
                   <span class="icon-label">Fragile</span>
                 </div>
                 <div class="icon-item">
-                  <span class="icon-emoji">Ã¢Ëœâ€šÃ¯Â¸Â</span>
+                  <span class="icon-emoji">☂️</span>
                   <span class="icon-label">Keep Dry</span>
                 </div>
               </div>
@@ -790,21 +791,21 @@ export default function BoxAssignmentPage() {
         <div className="flex flex-col w-[42%] bg-white rounded-lg shadow overflow-hidden">
           {/* Items header */}
           <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50 flex-shrink-0">
-            <span className="text-sm font-bold text-gray-700">
-              Items
-              <span className="ml-1.5 text-xs font-normal text-gray-400">
-                ({bill.items?.filter(i => getRemainingQuantityForItem(i.id) > 0).length}/{bill.items?.length} remaining)
-              </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-gray-700">Items</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox"
+                  checked={selectedItems.length > 0 && selectedItems.length === bill.items?.filter(i => getRemainingQuantityForItem(i.id) > 0).length}
+                  onChange={toggleSelectAll}
+                  className="w-3.5 h-3.5 text-teal-600 rounded" />
+                <span className="text-xs text-gray-600">
+                  {selectedItems.length > 0 ? `${selectedItems.length} selected` : 'Select all'}
+                </span>
+              </label>
+            </div>
+            <span className="text-xs font-normal text-gray-400">
+              ({bill.items?.filter(i => getRemainingQuantityForItem(i.id) > 0).length}/{bill.items?.length} remaining)
             </span>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox"
-                checked={selectedItems.length > 0 && selectedItems.length === bill.items?.filter(i => getRemainingQuantityForItem(i.id) > 0).length}
-                onChange={toggleSelectAll}
-                className="w-3.5 h-3.5 text-teal-600 rounded" />
-              <span className="text-xs text-gray-600">
-                {selectedItems.length > 0 ? `${selectedItems.length} selected` : 'Select all'}
-              </span>
-            </label>
           </div>
 
           {/* Assign bar for selected items */}
@@ -856,6 +857,11 @@ export default function BoxAssignmentPage() {
               const remaining = totalRequired - totalAssigned;
               const isFullyAssigned = remaining === 0;
               const isOverAssigned = remaining < 0;
+              // Green only after ALL boxes containing this item are sealed
+              const isFullyPacked = isFullyAssigned && boxes.every(box => {
+                const hasItem = box.items.some(a => a.itemId === item.id && a.quantity > 0);
+                return !hasItem || completedBoxes.has(box.id);
+              });
               const isSelected = selectedItems.includes(item.id);
               const hasIssue = savedIssues.find(i => i.item === item.name);
 
@@ -866,7 +872,7 @@ export default function BoxAssignmentPage() {
                   onDragEnd={handleDragEnd}
                   onClick={() => !isFullyAssigned && !isReviewInvoice && setSelectedItem(prev => prev?.id === item.id ? null : item)}
                   className={`flex items-center gap-2 px-3 py-1.5 border-b border-gray-100 cursor-pointer transition-colors select-none
-                    ${isSelected ? 'bg-teal-50' : selectedItem?.id === item.id ? 'bg-teal-50' : isFullyAssigned ? 'bg-green-50' : isOverAssigned ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    ${isSelected ? 'bg-teal-50' : selectedItem?.id === item.id ? 'bg-teal-50' : isFullyPacked ? 'bg-green-50' : isOverAssigned ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                     ${!isFullyAssigned ? 'hover:bg-teal-50' : ''}`}>
 
                   {/* Checkbox */}
@@ -874,11 +880,13 @@ export default function BoxAssignmentPage() {
                     ? <input type="checkbox" checked={isSelected}
                         onChange={e => { e.stopPropagation(); toggleItemSelection(item.id); }}
                         className="w-3.5 h-3.5 text-teal-600 rounded flex-shrink-0" onClick={e => e.stopPropagation()} />
-                    : <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                    : isFullyPacked
+                      ? <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                      : <svg className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5" /></svg>}
 
                   {/* Main info */}
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-semibold truncate leading-tight ${isFullyAssigned ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                    <p className={`text-xs font-semibold truncate leading-tight ${isFullyPacked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                       {item.name || item.item_name}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -890,11 +898,11 @@ export default function BoxAssignmentPage() {
 
                   {/* Qty + progress */}
                   <div className="flex flex-col items-end flex-shrink-0 gap-0.5 min-w-[64px]">
-                    <span className={`text-xs font-bold ${isFullyAssigned ? 'text-green-600' : isOverAssigned ? 'text-red-600' : 'text-gray-700'}`}>
+                    <span className={`text-xs font-bold ${isFullyPacked ? 'text-green-600' : isOverAssigned ? 'text-red-600' : 'text-gray-700'}`}>
                       {formatQuantity(totalAssigned, 'pcs')}/{formatQuantity(totalRequired, 'pcs')}
                     </span>
                     <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${isOverAssigned ? 'bg-red-500' : isFullyAssigned ? 'bg-green-500' : 'bg-teal-500'}`}
+                      <div className={`h-full rounded-full transition-all ${isOverAssigned ? 'bg-red-500' : isFullyPacked ? 'bg-green-500' : 'bg-teal-500'}`}
                         style={{ width: `${Math.min((totalAssigned / totalRequired) * 100, 100)}%` }} />
                     </div>
                     {!isFullyAssigned && <span className="text-[10px] text-gray-400">{formatQuantity(remaining, 'pcs')} left</span>}
@@ -1043,7 +1051,7 @@ export default function BoxAssignmentPage() {
                 ))}
                 {reviewChecks.other && (
                   <textarea value={otherIssueNotes} onChange={e => setOtherIssueNotes(e.target.value)}
-                    placeholder="Describe the issueÃ¢â‚¬Â¦"
+                    placeholder="Describe the issue..."
                     className="w-full px-2.5 py-1.5 border rounded text-xs resize-none focus:ring-1 focus:ring-orange-400"
                     rows={2} />
                 )}
