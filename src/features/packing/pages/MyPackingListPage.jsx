@@ -290,10 +290,12 @@ export default function MyPackingListPage() {
         params: { 
           status: "PACKED", 
           start_date: today, 
-          end_date: today 
+          end_date: today,
+          page_size: 0   // returns all results for today
         },
       });
-      const results = res.data?.results || [];
+      // Handle both paginated and non-paginated response shapes
+      const results = res.data?.results || res.data || [];
       setCompletedToday([...results].sort((a, b) => new Date(b.end_time) - new Date(a.end_time)));
     } catch (err) {
       console.error("Failed to load completed packing", err);
