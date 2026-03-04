@@ -906,6 +906,7 @@ export default function BoxAssignmentPage() {
                       {item.mrp && <span className="text-[10px] text-green-600 font-semibold">MRP: {parseFloat(item.mrp).toFixed(2)}</span>}
                       {item.expiry_date && <span className="text-[10px] text-orange-500">Exp: {new Date(item.expiry_date).toLocaleDateString('en-GB')}</span>}
                       {(item.package || item.packaging || item.pkg || item.packing) && <span className="text-[10px] text-gray-500">Pkg: {item.package || item.packaging || item.pkg || item.packing}</span>}
+                      {(item.batch_no || item.batch || item.batch_number) && <span className="text-[10px] text-blue-600 font-semibold">Batch: {item.batch_no || item.batch || item.batch_number}</span>}
                     </div>
                   </div>
 
