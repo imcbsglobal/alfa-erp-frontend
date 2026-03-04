@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import PackInvoiceModal from "../components/PackInvoiceModal";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
@@ -18,9 +17,14 @@ export default function PackingInvoiceListPage() {
   // Only SUPERADMIN and ADMIN can see Ongoing Work and Active Users Dock
   const isAdminOrSuperadmin = user?.role === "SUPERADMIN" || user?.role === "ADMIN";
 
+  // Helper function to get role-aware paths
+  const getPath = (path) => {
+    const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
+    return isOpsUser ? `/ops${path}` : path;
+  };
+
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showPackModal, setShowPackModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showOngoingModal, setShowOngoingModal] = useState(false);
   const [ongoingTasks, setOngoingTasks] = useState([]);
@@ -122,18 +126,6 @@ export default function PackingInvoiceListPage() {
   };
 
   const handlePackClick = async (invoice) => {
-    await loadInvoices();
-
-    if (invoice.status !== "PICKED") {
-      toast.error("This invoice is no longer available for packing");
-      return;
-    }
-
-    setSelectedInvoice(invoice);
-    setShowPackModal(true);
-  };
-
-  const handlePackInvoice = async () => {
     if (!user?.email) {
       toast.error("Could not determine your account. Please log in again.");
       return;
@@ -141,65 +133,59 @@ export default function PackingInvoiceListPage() {
 
     try {
       const activeRes = await api.get("/sales/packing/active/");
-      
+
       if (activeRes.data?.data) {
         const activeInvoice = activeRes.data.data.invoice;
         const customerName = activeInvoice?.customer?.name ? ` for ${activeInvoice.customer.name}` : '';
         toast.error(`You already have an active packing session for Invoice #${activeInvoice?.invoice_no}${customerName}`, { duration: 7000 });
-        setShowPackModal(false);
         return;
       }
 
+      const invoiceNo = invoice.invoice_no;
+
       await api.post("/sales/packing/start/", {
-        invoice_no: selectedInvoice.invoice_no,
+        invoice_no: invoiceNo,
         user_email: user.email,
         notes: "Packing started",
       });
 
-      setShowPackModal(false);
-      setSelectedInvoice(null);
-      await loadInvoices();
-
-      toast.success(`Packing started for ${selectedInvoice.invoice_no}`);
+      toast.success(`Packing started for ${invoiceNo}`);
+      navigate(getPath(`/packing/box-assignment/${invoiceNo}`));
     } catch (err) {
-      console.error("Error in handlePackInvoice:", err);
-      
+      console.error("Error in handlePackClick:", err);
+
       if (err.response?.status === 409) {
         try {
           const activeRes = await api.get("/sales/packing/active/");
           const activeInvoice = activeRes.data?.data?.invoice || activeRes.data?.invoice || activeRes.data?.data;
-          
+
           if (activeInvoice && (activeInvoice.id || activeInvoice.invoice_no)) {
             const customerName = activeInvoice?.customer?.name ? ` for ${activeInvoice.customer.name}` : '';
             toast.error(`You already have an active packing session for Invoice #${activeInvoice?.invoice_no}${customerName}`, { duration: 7000 });
-            setShowPackModal(false);
             return;
           }
-          
-          const errorInvoiceNo = err.response?.data?.invoice_no || 
-                                err.response?.data?.data?.invoice_no ||
-                                err.response?.data?.details?.invoice_no;
-          
+
+          const errorInvoiceNo = err.response?.data?.invoice_no ||
+                                 err.response?.data?.data?.invoice_no ||
+                                 err.response?.data?.details?.invoice_no;
+
           if (errorInvoiceNo) {
             toast.error(`You already have an active packing session for Invoice #${errorInvoiceNo}`, { duration: 7000 });
-            setShowPackModal(false);
             return;
           }
-          
+
           toast.error("You already have an active packing session", { duration: 7000 });
-          setShowPackModal(false);
           return;
         } catch (activeErr) {
           toast.error("You already have an active packing session", { duration: 7000 });
-          setShowPackModal(false);
           return;
         }
       }
-      
+
       const msg = err.response?.data?.errors?.invoice_no?.[0];
       const errorMessage = err.response?.data?.message || '';
 
-      if (msg?.includes("already exists") || 
+      if (msg?.includes("already exists") ||
           errorMessage.toLowerCase().includes("active") ||
           errorMessage.toLowerCase().includes("already")) {
         try {
@@ -208,7 +194,6 @@ export default function PackingInvoiceListPage() {
             const inv = activeRes.data.data.invoice;
             const customerName = inv?.customer?.name ? ` for ${inv.customer.name}` : '';
             toast.error(`You already have an active packing session for Invoice #${inv?.invoice_no}${customerName}`, { duration: 7000 });
-            setShowPackModal(false);
             return;
           }
         } catch (activeErr) {
@@ -217,16 +202,16 @@ export default function PackingInvoiceListPage() {
       }
 
       const userEmailError = err.response?.data?.errors?.user_email?.[0] || err.response?.data?.errors?.user_email || '';
-      
-      if (err.response?.status === 404 || 
+
+      if (err.response?.status === 404 ||
           userEmailError.toLowerCase().includes('user not found') ||
           userEmailError.toLowerCase().includes('please scan a valid email') ||
           err.response?.data?.detail?.toLowerCase().includes('user not found')) {
         toast.error("No user found with this email address", { duration: 5000 });
         return;
       }
-      
-      if (errorMessage === 'Privilege Not Given' || 
+
+      if (errorMessage === 'Privilege Not Given' ||
           userEmailError.toLowerCase().includes('does not have access') ||
           userEmailError.toLowerCase().includes('please contact admin')) {
         toast.error("Privilege Not Given - User does not have access to packing functionality", { duration: 5000 });
@@ -435,15 +420,6 @@ export default function PackingInvoiceListPage() {
           )}
         </div>
       </div>
-
-      {/* Pack Invoice Modal */}
-      <PackInvoiceModal
-        isOpen={showPackModal}
-        onClose={() => setShowPackModal(false)}
-        onPack={handlePackInvoice}
-        invoiceNumber={selectedInvoice?.invoice_no}
-        customerName={selectedInvoice?.customer?.name}
-      />
 
       {/* Ongoing Work Modal — admin/superadmin only */}
       {isAdminOrSuperadmin && showOngoingModal && (

@@ -63,6 +63,12 @@ export default function BoxAssignmentPage() {
   const isReviewInvoice = bill?.billing_status === "REVIEW" && Boolean(bill?.return_info);
   const hasIssues = savedIssues.length > 0;
 
+  // Helper function to get role-aware paths
+  const getPath = (path) => {
+    const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
+    return isOpsUser ? `/ops${path}` : path;
+  };
+
   useEffect(() => { loadBillDetails(); }, [invoiceNo]);
 
   useEffect(() => {
@@ -226,7 +232,14 @@ export default function BoxAssignmentPage() {
     const box = boxes.find(b => b.id === boxId);
     if (!box || box.items.length === 0) { toast.error("Cannot complete an empty box. Please assign items first."); return; }
     setBoxes(prev => prev.map(b => b.id === boxId ? { ...b, is_sealed: true } : b));
-    toast.success("Box completed! You can now print the label.");
+    toast.success("Box completed!");
+  };
+
+  const handleCompleteAndPrint = async (boxId) => {
+    const box = boxes.find(b => b.id === boxId);
+    if (!box || box.items.length === 0) { toast.error("Cannot complete an empty box. Please assign items first."); return; }
+    setBoxes(prev => prev.map(b => b.id === boxId ? { ...b, is_sealed: true } : b));
+    await handlePrintBoxLabel(boxId);
   };
 
   // UPDATED: label layout matches reference image
@@ -690,7 +703,7 @@ export default function BoxAssignmentPage() {
         boxes: boxes.map(box => ({ box_id: box.boxId, items: box.items.map(item => ({ item_id: item.itemId, item_name: item.itemName, item_code: item.itemCode, quantity: item.quantity })) }))
       });
       toast.success("Packing completed successfully!");
-      navigate("/packing/my");
+      navigate(getPath("/packing/invoices"));
     } catch (err) {
       console.error("Complete packing error:", err);
       const errorData = err.response?.data;
@@ -975,15 +988,16 @@ export default function BoxAssignmentPage() {
                           <button onClick={() => removeBox(box.id)} className="text-[10px] text-red-400 hover:text-red-600 font-medium px-1">Remove</button>
                         )}
                         {!isDone ? (
-                          <button onClick={() => handleCompleteBox(box.id)} disabled={box.items.length === 0}
-                            className="px-2 py-0.5 bg-blue-600 text-white text-[11px] font-semibold rounded hover:bg-blue-700 disabled:opacity-40">
-                            Complete
+                          <button onClick={() => handleCompleteAndPrint(box.id)} disabled={box.items.length === 0}
+                            className="px-2 py-0.5 bg-blue-600 text-white text-[11px] font-semibold rounded hover:bg-blue-700 disabled:opacity-40 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                            Complete & Print
                           </button>
                         ) : (
                           <button onClick={() => handlePrintBoxLabel(box.id)}
                             className="px-2 py-0.5 bg-purple-600 text-white text-[11px] font-semibold rounded hover:bg-purple-700 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                            {printedBoxes.has(box.id) ? 'Reprint' : 'Print'}
+                            Reprint
                           </button>
                         )}
                       </div>

@@ -293,7 +293,8 @@ export default function MyPackingListPage() {
           end_date: today 
         },
       });
-      setCompletedToday(res.data?.results || []);
+      const results = res.data?.results || [];
+      setCompletedToday([...results].sort((a, b) => new Date(b.end_time) - new Date(a.end_time)));
     } catch (err) {
       console.error("Failed to load completed packing", err);
       if (err.response?.status === 401) {
