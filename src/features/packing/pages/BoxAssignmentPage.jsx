@@ -4,6 +4,7 @@ import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import { formatQuantity } from "../../../utils/formatters";
+import PackInvoiceModal from "../components/PackInvoiceModal";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -59,11 +60,13 @@ export default function BoxAssignmentPage() {
   const [otherIssueNotes, setOtherIssueNotes] = useState("");
   const [savedIssues, setSavedIssues] = useState([]);
 
+  // Item detail modal — stores the single item to preview
+  const [packModalItem, setPackModalItem] = useState(null);
+
   const isReInvoiced = bill?.billing_status === "RE_INVOICED";
   const isReviewInvoice = bill?.billing_status === "REVIEW" && Boolean(bill?.return_info);
   const hasIssues = savedIssues.length > 0;
 
-  // Helper function to get role-aware paths
   const getPath = (path) => {
     const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
     return isOpsUser ? `/ops${path}` : path;
@@ -242,9 +245,6 @@ export default function BoxAssignmentPage() {
     await handlePrintBoxLabel(boxId);
   };
 
-  // UPDATED: label layout matches reference image
-  // Layout: [Customer info (top) + QR bottom-right] | [Icons column far right]
-  // Footer: Alfa Agencies logo + address
   const handlePrintBoxLabel = async (boxId) => {
     const box = boxes.find(b => b.id === boxId);
     if (!box) return;
@@ -296,7 +296,6 @@ export default function BoxAssignmentPage() {
               color: black;
               overflow: hidden;
             }
-
             .label-container {
               width: 15cm;
               height: 10cm;
@@ -307,15 +306,11 @@ export default function BoxAssignmentPage() {
               overflow: hidden;
               background: white;
             }
-
-            /* Main content  */
             .main-content {
               display: flex;
               flex: 1;
               overflow: hidden;
             }
-
-            /* Customer info fills top; QR anchored bottom-right of this section */
             .customer-qr-section {
               flex: 1;
               display: flex;
@@ -323,7 +318,6 @@ export default function BoxAssignmentPage() {
               border-right: 1.5px solid #000;
               overflow: hidden;
             }
-
             .customer-info {
               flex: 1;
               padding: 10px 14px 4px 14px;
@@ -385,8 +379,6 @@ export default function BoxAssignmentPage() {
               margin-top: 1px;
               word-wrap: break-word;
             }
-
-            /* QR: bottom-right of customer section */
             .qr-bottom-row {
               display: flex;
               justify-content: flex-end;
@@ -406,7 +398,6 @@ export default function BoxAssignmentPage() {
               text-align: center;
               text-transform: uppercase;
               letter-spacing: 0.4px;
-              
             }
             .qr-container {
               border: 1.5px solid #000000;
@@ -426,8 +417,6 @@ export default function BoxAssignmentPage() {
               word-break: break-all;
               max-width: 105px;
             }
-
-            /* Icons: far right narrow column */
             .icons-column {
               width: 1.5cm;
               flex-shrink: 0;
@@ -463,14 +452,11 @@ export default function BoxAssignmentPage() {
             }
             .this-way-up-arrows { display: flex; gap: 4px; }
             .arrow-svg { width: 12px; height: 16px; }
-
             .icon-emoji {
               font-size: 22px;
               filter: grayscale(100%) brightness(0);
               line-height: 1;
             }
-
-            /* Footer */
             .company-footer {
               display: flex;
               align-items: center;
@@ -488,7 +474,6 @@ export default function BoxAssignmentPage() {
             }
             .company-info { display: flex; flex-direction: column; gap: 2px; }
             .company-address { font-size: 12px; color: #000; font-weight: 500; }
-
             @media print {
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
             }
@@ -496,10 +481,7 @@ export default function BoxAssignmentPage() {
         </head>
         <body>
           <div class="label-container">
-
             <div class="main-content">
-
-              <!-- Customer info + QR bottom-right -->
               <div class="customer-qr-section">
                 <div class="customer-info">
                   <p class="to-label">Ship To</p>
@@ -520,8 +502,6 @@ export default function BoxAssignmentPage() {
                   </div>
                 </div>
               </div>
-
-              <!-- Icons far right -->
               <div class="icons-column">
                 <div class="this-way-up-box">
                   <div class="this-way-up-arrows">
@@ -543,10 +523,7 @@ export default function BoxAssignmentPage() {
                   <span class="icon-label">Keep Dry</span>
                 </div>
               </div>
-
             </div>
-
-            <!-- Footer -->
             <div class="company-footer">
               <img src="/black.png" alt="Alfa Agencies" class="company-logo" />
               <div class="company-info">
@@ -555,9 +532,7 @@ export default function BoxAssignmentPage() {
                 <span class="company-address">Ph: (Mob) 9387724365, 7909220300, 7909220400</span>
               </div>
             </div>
-
           </div>
-
           <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
           <script>
             window.onload = function() {
@@ -750,7 +725,6 @@ export default function BoxAssignmentPage() {
           </p>
         </div>
 
-        {/* Banners inline */}
         {isReInvoiced && bill.return_info && (
           <div className="flex items-center gap-1.5 bg-teal-50 border border-teal-300 rounded px-2 py-1 text-xs text-teal-800 font-medium">
             <svg className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -770,7 +744,6 @@ export default function BoxAssignmentPage() {
           </div>
         )}
 
-        {/* Validation errors pill */}
         {errors.length > 0 && (
           <div className="ml-auto flex items-center gap-1.5 bg-red-50 border border-red-300 rounded px-2 py-1 text-xs text-red-700 font-medium">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -778,7 +751,6 @@ export default function BoxAssignmentPage() {
           </div>
         )}
 
-        {/* Complete packing button - always visible */}
         <div className="ml-auto flex gap-2">
           {hasIssues && !isReviewInvoice && (
             <button onClick={handleSendInvoiceToReview} disabled={loading}
@@ -800,9 +772,8 @@ export default function BoxAssignmentPage() {
       {/* Main 2-col body */}
       <div className={`flex flex-1 gap-2 p-2 overflow-hidden ${isReviewInvoice ? 'opacity-50 pointer-events-none' : ''}`}>
 
-        {/*LEFT: Items */}
+        {/* LEFT: Items */}
         <div className="flex flex-col w-[42%] bg-white rounded-lg shadow overflow-hidden">
-          {/* Items header */}
           <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50 flex-shrink-0">
             <div className="flex items-center gap-3">
               <span className="text-sm font-bold text-gray-700">Items</span>
@@ -821,7 +792,6 @@ export default function BoxAssignmentPage() {
             </span>
           </div>
 
-          {/* Assign bar for selected items */}
           {selectedItems.length > 0 && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 border-b border-teal-200 flex-shrink-0">
               <span className="text-xs font-semibold text-teal-800">{selectedItems.length} item{selectedItems.length > 1 ? 's' : ''}</span>
@@ -837,7 +807,6 @@ export default function BoxAssignmentPage() {
             </div>
           )}
 
-          {/* Single-item assign bar */}
           {selectedItem && selectedItems.length === 0 && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 border-b border-teal-200 flex-shrink-0">
               <span className="text-xs font-semibold text-teal-800 truncate max-w-[120px]">{selectedItem.name || selectedItem.item_name}</span>
@@ -857,7 +826,6 @@ export default function BoxAssignmentPage() {
             </div>
           )}
 
-          {/* Items list compact rows */}
           <div className="overflow-y-auto flex-1 hide-scrollbar">
             {[...(bill.items || [])].sort((a, b) => {
               const aR = getRemainingQuantityForItem(a.id), bR = getRemainingQuantityForItem(b.id);
@@ -870,7 +838,6 @@ export default function BoxAssignmentPage() {
               const remaining = totalRequired - totalAssigned;
               const isFullyAssigned = remaining === 0;
               const isOverAssigned = remaining < 0;
-              // Green only after ALL boxes containing this item are sealed
               const isFullyPacked = isFullyAssigned && boxes.every(box => {
                 const hasItem = box.items.some(a => a.itemId === item.id && a.quantity > 0);
                 return !hasItem || completedBoxes.has(box.id);
@@ -883,10 +850,10 @@ export default function BoxAssignmentPage() {
                   draggable={!isFullyAssigned}
                   onDragStart={e => !isFullyAssigned && handleDragStart(e, item)}
                   onDragEnd={handleDragEnd}
-                  onClick={() => !isFullyAssigned && !isReviewInvoice && setSelectedItem(prev => prev?.id === item.id ? null : item)}
+                  onClick={() => !isReviewInvoice && setPackModalItem(item)}
                   className={`flex items-center gap-2 px-3 py-1.5 border-b border-gray-100 cursor-pointer transition-colors select-none
-                    ${isSelected ? 'bg-teal-50' : selectedItem?.id === item.id ? 'bg-teal-50' : isFullyPacked ? 'bg-green-50' : isOverAssigned ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                    ${!isFullyAssigned ? 'hover:bg-teal-50' : ''}`}>
+                    ${isSelected ? 'bg-teal-50' : isFullyPacked ? 'bg-green-50' : isOverAssigned ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    hover:bg-teal-50`}>
 
                   {/* Checkbox */}
                   {!isFullyAssigned
@@ -902,12 +869,12 @@ export default function BoxAssignmentPage() {
                     <p className={`text-xs font-semibold truncate leading-tight ${isFullyPacked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                       {item.name || item.item_name}
                     </p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {/* <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {item.mrp && <span className="text-[10px] text-green-600 font-semibold">MRP: {parseFloat(item.mrp).toFixed(2)}</span>}
                       {item.expiry_date && <span className="text-[10px] text-orange-500">Exp: {new Date(item.expiry_date).toLocaleDateString('en-GB')}</span>}
                       {(item.package || item.packaging || item.pkg || item.packing) && <span className="text-[10px] text-gray-500">Pkg: {item.package || item.packaging || item.pkg || item.packing}</span>}
                       {(item.batch_no || item.batch || item.batch_number) && <span className="text-[10px] text-blue-600 font-semibold">Batch: {item.batch_no || item.batch || item.batch_number}</span>}
-                    </div>
+                    </div> */}
                   </div>
 
                   {/* Qty + progress */}
@@ -936,9 +903,8 @@ export default function BoxAssignmentPage() {
           </div>
         </div>
 
-        {/*RIGHT: Boxes*/}
+        {/* RIGHT: Boxes */}
         <div className="flex flex-col flex-1 bg-white rounded-lg shadow overflow-hidden">
-          {/* Boxes header */}
           <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50 flex-shrink-0">
             <span className="text-sm font-bold text-gray-700">
               Boxes
@@ -956,7 +922,6 @@ export default function BoxAssignmentPage() {
             )}
           </div>
 
-          {/* Boxes list */}
           <div className="overflow-y-auto flex-1 p-2 space-y-2 hide-scrollbar">
             {boxes.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-gray-400">
@@ -978,7 +943,6 @@ export default function BoxAssignmentPage() {
                     onDrop={e => handleDrop(e, box)}
                     className={`rounded-lg border-2 transition-all ${isDone ? 'border-green-400 bg-green-50' : dragOverBox === box.id ? 'border-teal-400 bg-teal-50 border-dashed' : 'border-gray-200 bg-white'}`}>
 
-                    {/* Box header row */}
                     <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-100">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-gray-700 font-mono">{box.boxId}</span>
@@ -1004,7 +968,6 @@ export default function BoxAssignmentPage() {
                       </div>
                     </div>
 
-                    {/* Items in box */}
                     {box.items.length === 0 ? (
                       <div className="flex items-center justify-center py-3 text-xs text-gray-400 italic">
                         {isDone ? 'Empty box' : 'Drop items here or assign from left panel'}
@@ -1079,7 +1042,36 @@ export default function BoxAssignmentPage() {
           </div>
         </div>
       )}
+
+      {/* Item detail modal via PackInvoiceModal */}
+      <PackInvoiceModal
+        isOpen={!!packModalItem}
+        onClose={() => setPackModalItem(null)}
+        invoiceNumber={invoiceNo}
+        customerName={bill?.customer?.name || bill?.customer_name}
+        items={packModalItem ? [packModalItem] : []}
+        boxes={boxes.filter(b => !completedBoxes.has(b.id))}
+        onConfirm={(item, boxId, quantity) => {
+          const box = boxes.find(b => b.id === boxId);
+          if (!box) return;
+          const qty = parseFloat(quantity);
+          if (isNaN(qty) || qty <= 0) { toast.error("Please enter a valid quantity"); return; }
+          const remaining = getRemainingQuantityForItem(item.id);
+          if (qty > remaining) { toast.error(`Cannot assign ${qty}. Only ${remaining} remaining.`); return; }
+          setBoxes(prev => prev.map(b => {
+            if (b.id !== boxId) return b;
+            const existingIdx = b.items.findIndex(i => i.itemId === item.id);
+            if (existingIdx >= 0) {
+              const updated = [...b.items];
+              updated[existingIdx] = { ...updated[existingIdx], quantity: updated[existingIdx].quantity + qty };
+              return { ...b, items: updated };
+            }
+            return { ...b, items: [...b.items, { itemId: item.id, itemName: item.name || item.item_name, itemCode: item.code || item.item_code, quantity: qty }] };
+          }));
+          toast.success(`Assigned ${qty} × ${item.name || item.item_name} to ${box.boxId}`);
+          setPackModalItem(null);
+        }}
+      />
     </div>
   );
-
 }
