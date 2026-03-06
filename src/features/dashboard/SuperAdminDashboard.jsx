@@ -87,6 +87,71 @@ export default function SuperAdminDashboard() {
 
             fetchBreakdown();
           }
+
+          // Also handle packing/picking/delivery events that don't include aggregated stats
+          // e.g. events like 'packing_started', 'packing_completed', or payloads containing
+          // `packing_status` / `status` fields. Refresh breakdown and recent activity.
+          const isPackingEvent = () => {
+            try {
+              if (!data) return false;
+              const t = (data.type || '').toString().toLowerCase();
+              if (t.includes('pack') || t.includes('packing')) return true;
+              if (data.packing_status) return true;
+              const sVal = (data.status || '').toString().toUpperCase();
+              const packingStatuses = ['PICKED','PACKED','PACKING','PREPARING','IN_PROGRESS'];
+              if (packingStatuses.includes(sVal)) return true;
+            } catch (e) {
+              return false;
+            }
+            return false;
+          };
+
+          if (isPackingEvent()) {
+            // Optimistically adjust packing breakdown locally for snappier UI
+            try {
+              const payload = data || {};
+              const t = (payload.type || '').toString().toLowerCase();
+              const pstatus = (payload.packing_status || payload.status || '').toString().toUpperCase();
+
+              setBreakdown(prev => {
+                const next = { ...prev };
+                const pk = { ...next.packing };
+
+                const incPreparing = (t.includes('start') || t.includes('prepare') || pstatus === 'IN_PROGRESS' || pstatus === 'PREPARING');
+                const incCompleted = (t.includes('complete') || t.includes('packed') || pstatus === 'PACKED' || pstatus === 'COMPLETED');
+                const isCancelled = (t.includes('cancel') || pstatus === 'CANCELLED');
+
+                if (incPreparing) {
+                  pk.preparing = (pk.preparing || 0) + 1;
+                  pk.pending = Math.max((pk.pending || 0) - 1, 0);
+                } else if (incCompleted) {
+                  // a packing finished: move one from preparing -> completed
+                  pk.completed = (pk.completed || 0) + 1;
+                  pk.preparing = Math.max((pk.preparing || 0) - 1, 0);
+                } else if (isCancelled) {
+                  // cancelled: move from preparing back to pending if possible
+                  if ((pk.preparing || 0) > 0) {
+                    pk.preparing = Math.max(pk.preparing - 1, 0);
+                    pk.pending = (pk.pending || 0) + 1;
+                  }
+                }
+
+                next.packing = pk;
+                return next;
+              });
+            } catch (e) {
+              console.error('Failed to optimistically update packing breakdown', e);
+            }
+
+            // Refresh counts and recent activity when packing-related events occur
+            fetchAllStats();
+            fetchTodayStats();
+            fetchBreakdown();
+            // Update timestamp to show UI "live" indicator
+            setSseLastUpdated(new Date());
+            // Also refresh recent activity list
+            try { fetchRecentActivity(); } catch (e) { /* fetchRecentActivity defined later in effect but will exist when this runs */ }
+          }
         } catch (error) {
           console.error('❌ Error parsing SSE data:', error);
         }
@@ -151,11 +216,21 @@ export default function SuperAdminDashboard() {
     fetchRecentActivity();
     const activityInterval = setInterval(fetchRecentActivity, 10000);
 
+    // Listen for session cancellations from other pages and refresh dashboard data
+    const cancelHandler = () => {
+      fetchAllStats();
+      fetchTodayStats();
+      fetchBreakdown();
+      fetchRecentActivity();
+    };
+    window.addEventListener('session:cancelled', cancelHandler);
+
     return () => {
       clearTimeout(sseTimeout);
       clearInterval(activityInterval);
       clearInterval(breakdownInterval);
       if (eventSourceRef.current) eventSourceRef.current.close();
+      window.removeEventListener('session:cancelled', cancelHandler);
     };
   }, []);
 

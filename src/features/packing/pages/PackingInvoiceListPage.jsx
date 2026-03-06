@@ -37,14 +37,29 @@ export default function PackingInvoiceListPage() {
     loadInvoices();
   }, []);
 
-  // SSE Live Updates
+  // SSE Live Updates: refresh when packing-related events occur so "in progress" counts update
   useEffect(() => {
     const eventSource = new EventSource(`${API_BASE_URL}/sales/sse/invoices/`);
 
     eventSource.onmessage = (event) => {
       try {
-        const invoice = JSON.parse(event.data);
-        if (invoice.status === "PICKED") {
+        const payload = JSON.parse(event.data);
+
+        // If this event relates to packing state changes, refresh lists
+        const packingRelated = (
+          payload.type && payload.type.toString().toLowerCase().includes('pack')
+        ) || (payload.packing_status) || (payload.status && ['PICKED','PACKED','PACKING','PREPARING','IN_PROGRESS'].includes(payload.status));
+
+        if (packingRelated) {
+          // Refresh both the main invoice list and ongoing packing tasks
+          loadInvoices();
+          loadOngoingTasks();
+          return;
+        }
+
+        // Fallback: existing logic for PICKED status events
+        if (payload.status === "PICKED") {
+          const invoice = payload;
           setInvoices(prev => {
             const exists = prev.find(inv => inv.id === invoice.id);
             if (exists) {
@@ -53,8 +68,9 @@ export default function PackingInvoiceListPage() {
             const updated = [...prev, invoice];
             return updated.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
           });
-        } else {
-          setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
+        } else if (payload.id) {
+          // If other events indicate invoice removed from PICKED list, remove it
+          setInvoices(prev => prev.filter(inv => inv.id !== payload.id));
         }
       } catch (e) {
         console.error("Invalid SSE invoice:", e);

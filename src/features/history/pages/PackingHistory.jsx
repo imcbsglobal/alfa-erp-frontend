@@ -265,6 +265,9 @@ export default function PackingHistory() {
                     Duration
                   </th>
                   <th className="px-3 sm:px-6 py-4 text-sm font-bold text-white">
+                    Boxes
+                  </th>
+                  <th className="px-3 sm:px-6 py-4 text-sm font-bold text-white">
                     Notes
                   </th>
                 </tr>
@@ -319,6 +322,26 @@ export default function PackingHistory() {
                       )}
                     </td>
                     <td className="px-3 sm:px-6 py-3">
+                      {h.boxes && h.boxes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {h.boxes.map((box, idx) => (
+                            <span
+                              key={idx}
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                                box.is_sealed
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                  : 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                              }`}
+                            >
+                              📦 {box.box_id}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 sm:px-6 py-3">
                       <div className="max-w-xs">
                         <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
                           {h.notes && h.notes.includes('[ADMIN OVERRIDE]') ? (
@@ -338,7 +361,7 @@ export default function PackingHistory() {
 
                 {history.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="text-center py-4 text-gray-500">
+                    <td colSpan="8" className="text-center py-4 text-gray-500">
                       No packing records found
                     </td>
                   </tr>

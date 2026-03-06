@@ -47,6 +47,9 @@ export default function PackingInvoiceReportPage() {
     loadSessions();
   }, [currentPage, dateFilter, debouncedSearch, timeFilter]);
 
+  const sortByStartTime = (arr) =>
+    [...arr].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
   const loadSessions = async () => {
     setLoading(true);
     try {
@@ -61,7 +64,7 @@ export default function PackingInvoiceReportPage() {
 
       if (!q) {
         const res = await api.get("/sales/packing/history/", { params });
-        const results = res.data.results || [];
+        const results = sortByStartTime(res.data.results || []);
         setRawSessions(results);
         setSessions(results);
         setTotalCount(res.data.count || 0);
@@ -71,8 +74,9 @@ export default function PackingInvoiceReportPage() {
         const searchResults = searchRes.data.results || [];
 
         if (searchResults.length > 0) {
-          setRawSessions(searchResults);
-          setSessions(searchResults);
+          const sorted = sortByStartTime(searchResults);
+          setRawSessions(sorted);
+          setSessions(sorted);
           setTotalCount(searchRes.data.count || 0);
         } else {
           // Fallback: client-side packer name filter
@@ -80,7 +84,7 @@ export default function PackingInvoiceReportPage() {
           if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
 
           const allRes = await api.get("/sales/packing/history/", { params: allParams });
-          const allResults = allRes.data.results || [];
+          const allResults = sortByStartTime(allRes.data.results || []);
 
           const packerMatches = allResults.filter(s =>
             (s.packer_name || '').toLowerCase().includes(q)
@@ -158,27 +162,9 @@ export default function PackingInvoiceReportPage() {
               />
             </div>
 
-            {/* Time */}
-            {/* <div className="flex items-center gap-1.5">
-              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Time:</label>
-              <select
-                value={timeFilter}
-                onChange={(e) => { setTimeFilter(e.target.value); setCurrentPage(1); }}
-                className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white w-[80px]"
-              >
-                <option value="">All</option>
-                <option value="1">1 hr</option>
-                <option value="2">2 hr</option>
-                <option value="3">3 hr</option>
-                <option value="4">4 hr</option>
-                <option value="6">6 hr</option>
-                <option value="12">12 hr</option>
-              </select>
-            </div> */}
-
             <div className="h-6 w-px bg-gray-200" />
 
-            {/* Unified Search — invoice/customer via API, packer via client filter */}
+            {/* Unified Search */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Search:</label>
               <div className="relative">
@@ -223,7 +209,7 @@ export default function PackingInvoiceReportPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
-                      {["Invoice No", "Customer", "Packer", "Packing Date & Time", "Status", "Actions"].map(h => (
+                      {["Invoice No", "Customer", "Packer", "Packing Date & Time", "Boxes", "Status", "Actions"].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -241,13 +227,32 @@ export default function PackingInvoiceReportPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                           {session.packer_name || '—'}
                         </td>
-                        {/* Merged Date + Start Time + End Time */}
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                           <p>{formatDateDDMMYYYY(session.created_at)}</p>
                           <p className="text-xs text-gray-500">
                             {formatTime(session.start_time)}
                             {session.end_time ? ` → ${formatTime(session.end_time)}` : ''}
                           </p>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {session.boxes && session.boxes.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {session.boxes.map((box, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                                    box.is_sealed
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                      : 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                                  }`}
+                                >
+                                  📦 {box.box_id}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[session.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>

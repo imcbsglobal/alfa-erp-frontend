@@ -152,6 +152,16 @@ export default function MyInvoiceListPage() {
     }
   }, [activeInvoice?.invoice_no]);
 
+  // Listen for session cancellations (dispatched from other pages)
+  useEffect(() => {
+    const handler = () => {
+      loadActivePicking();
+      loadTodayCompletedPicking();
+    };
+    window.addEventListener('session:cancelled', handler);
+    return () => window.removeEventListener('session:cancelled', handler);
+  }, []);
+
   const loadActivePicking = async () => {
     try {
       setLoading(true);
@@ -357,6 +367,12 @@ export default function MyInvoiceListPage() {
         cancel_reason: "User cancelled picking"
       });
       toast.success("Picking cancelled");
+
+      // Notify other pages that this session was cancelled
+      try {
+        window.dispatchEvent(new CustomEvent('session:cancelled', { detail: { invoice_no: activeInvoice.invoice_no, session_type: 'PICKING' } }));
+      } catch (e) {}
+
       await loadActivePicking();
       await loadTodayCompletedPicking();
     } catch (err) {

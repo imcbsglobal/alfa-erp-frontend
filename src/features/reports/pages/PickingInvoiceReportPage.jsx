@@ -47,6 +47,9 @@ export default function PickingInvoiceReportPage() {
     loadSessions();
   }, [currentPage, dateFilter, debouncedSearch, timeFilter]);
 
+  const sortByStartTime = (arr) =>
+    [...arr].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
   const loadSessions = async () => {
     setLoading(true);
     try {
@@ -61,8 +64,7 @@ export default function PickingInvoiceReportPage() {
 
       if (!q) {
         const res = await api.get("/sales/picking/history/", { params });
-        const results = res.data.results || [];
-        results.sort((a, b) => new Date(a.invoice_created_at) - new Date(b.invoice_created_at));
+        const results = sortByStartTime(res.data.results || []);
         setRawSessions(results);
         setSessions(results);
         setTotalCount(res.data.count || 0);
@@ -72,9 +74,9 @@ export default function PickingInvoiceReportPage() {
         const searchResults = searchRes.data.results || [];
 
         if (searchResults.length > 0) {
-          searchResults.sort((a, b) => new Date(a.invoice_created_at) - new Date(b.invoice_created_at));
-          setRawSessions(searchResults);
-          setSessions(searchResults);
+          const sorted = sortByStartTime(searchResults);
+          setRawSessions(sorted);
+          setSessions(sorted);
           setTotalCount(searchRes.data.count || 0);
         } else {
           // Fallback: client-side picker name filter
@@ -82,8 +84,7 @@ export default function PickingInvoiceReportPage() {
           if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
 
           const allRes = await api.get("/sales/picking/history/", { params: allParams });
-          const allResults = allRes.data.results || [];
-          allResults.sort((a, b) => new Date(a.invoice_created_at) - new Date(b.invoice_created_at));
+          const allResults = sortByStartTime(allRes.data.results || []);
 
           const pickerMatches = allResults.filter(s =>
             (s.picker_name || '').toLowerCase().includes(q)
@@ -100,7 +101,6 @@ export default function PickingInvoiceReportPage() {
       setLoading(false);
     }
   };
-
 
   const handleViewSession = (session) => {
     const invoiceData = {
@@ -160,27 +160,9 @@ export default function PickingInvoiceReportPage() {
               />
             </div>
 
-            {/* Time */}
-            {/* <div className="flex items-center gap-1.5">
-              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Time:</label>
-              <select
-                value={timeFilter}
-                onChange={(e) => { setTimeFilter(e.target.value); setCurrentPage(1); }}
-                className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white w-[80px]"
-              >
-                <option value="">All</option>
-                <option value="1">1 hr</option>
-                <option value="2">2 hr</option>
-                <option value="3">3 hr</option>
-                <option value="4">4 hr</option>
-                <option value="6">6 hr</option>
-                <option value="12">12 hr</option>
-              </select>
-            </div> */}
-
             <div className="h-6 w-px bg-gray-200" />
 
-            {/* Unified Search — invoice/customer via API, picker via client filter */}
+            {/* Unified Search */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Search:</label>
               <div className="relative">
@@ -247,7 +229,6 @@ export default function PickingInvoiceReportPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                           {session.picker_name || '—'}
                         </td>
-                        {/* Merged Date + Start Time + End Time column */}
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                           <p>{formatDateDDMMYYYY(session.created_at)}</p>
                           <p className="text-xs text-gray-500">

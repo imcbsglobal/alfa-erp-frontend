@@ -95,6 +95,12 @@ export default function MyDeliveryListPage() {
 
   useEffect(() => {
     loadAllDeliveries();
+
+    const handler = () => {
+      loadAllDeliveries();
+    };
+    window.addEventListener('session:cancelled', handler);
+    return () => window.removeEventListener('session:cancelled', handler);
   }, []);
 
   // SSE live updates for delivery assignments and status changes
@@ -411,6 +417,9 @@ export default function MyDeliveryListPage() {
 
       toast.success("Delivery cancelled. Invoice is now available for anyone to deliver.");
       
+      // Notify other pages that a delivery was cancelled
+      try { window.dispatchEvent(new CustomEvent('session:cancelled', { detail: { invoice_no: cancelModal.delivery.invoice_no, session_type: 'DELIVERY' } })); } catch (e) {}
+
       await loadAllDeliveries();
       
     } catch (err) {

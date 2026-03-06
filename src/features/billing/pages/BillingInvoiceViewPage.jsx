@@ -33,12 +33,7 @@ export default function BillingInvoiceViewPage() {
   };
 
   const handleBack = () => {
-    const backPath = location.state?.backPath || location.state?.from;
-    if (backPath) {
-      navigate(backPath);
-    } else {
-      navigate("/billing/invoices");
-    }
+    navigate(-1);
   };
 
   const indexOfLastItem = currentPage * itemsPerPage;

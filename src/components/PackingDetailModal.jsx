@@ -208,6 +208,32 @@ export default function PackingDetailModal({ isOpen, onClose, invoiceId }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Box IDs */}
+                {invoice.boxes && invoice.boxes.length > 0 && (
+                  <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
+                    <h3 className="text-xs sm:text-sm font-bold text-teal-600 mb-2 sm:mb-3 uppercase tracking-wide">
+                      Packed Boxes ({invoice.boxes.length})
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {invoice.boxes.map((box, idx) => (
+                        <span
+                          key={idx}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                            box.is_sealed
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                              : 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                          }`}
+                        >
+                          📦 {box.box_id}
+                          {box.is_sealed && (
+                            <span className="text-emerald-500 text-xs">✓</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">

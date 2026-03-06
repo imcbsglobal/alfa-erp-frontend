@@ -53,6 +53,19 @@ export default function MyPackingListPage() {
     }
   }, [user]);
 
+  // Also listen for explicit cancellation events dispatched from other pages
+  useEffect(() => {
+    const handler = (e) => {
+      // Refresh packing lists when a session is cancelled elsewhere
+      loadMyCheckingBills();
+      loadHeldBills();
+      loadCompletedToday();
+    };
+
+    window.addEventListener('session:cancelled', handler);
+    return () => window.removeEventListener('session:cancelled', handler);
+  }, []);
+
   useEffect(() => {
     // Only set up SSE if user is authenticated
     if (!user) return;
@@ -384,7 +397,14 @@ export default function MyPackingListPage() {
 
       toast.success(`Packing cancelled`);
       
-      // Reload the lists
+      // Notify other pages that a session was cancelled so they can refresh
+      try {
+        window.dispatchEvent(new CustomEvent('session:cancelled', { detail: { invoice_no: bill.invoice_no, session_type: 'PACKING' } }));
+      } catch (e) {
+        // ignore in non-browser environments
+      }
+
+      // Reload the lists locally as well
       loadMyCheckingBills();
       loadHeldBills();
     } catch (err) {

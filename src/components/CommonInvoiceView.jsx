@@ -54,54 +54,7 @@ export default function CommonInvoiceView() {
   };
 
   const handleBack = () => {
-    // If a backPath was passed via navigation state, always use it first
-    if (location.state?.backPath) {
-      navigate(location.state.backPath);
-      return;
-    }
-    // If navigated from Hold/Pending Invoices, always go back there
-    if (location.state?.fromPendingInvoices) {
-      navigate("/invoices/pending");
-      return;
-    }
-    // Role-based navigation
-    if (user?.role === "PICKER") {
-      navigate(`/ops/picking/invoices/`);
-      return;
-    }
-    if (user?.role === "PACKER") {
-      navigate(`/ops/packing/invoices/`);
-      return;
-    }
-    if (user?.role === "BILLER") {
-      navigate(`/ops/billing/invoices/`);
-      return;
-    }
-    if (user?.role === "DELIVERY") {
-      navigate(`/ops/delivery/dispatch/`);
-      return;
-    }
-
-    // Section-based navigation for admin/superadmin
-    switch(currentSection) {
-      case 'picking':
-        navigate("/invoices");
-        break;
-      case 'packing':
-        navigate("/packing/invoices");
-        break;
-      case 'billing':
-        navigate("/billing/invoices");
-        break;
-      case 'billing-review':
-        navigate("/billing/reviewed");
-        break;
-      case 'delivery':
-        navigate("/delivery/dispatch");
-        break;
-      default:
-        navigate("/invoices");
-    }
+    navigate(-1);
   };
 
   const getSectionTitle = () => {

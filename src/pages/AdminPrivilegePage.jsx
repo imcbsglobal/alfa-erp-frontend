@@ -47,6 +47,12 @@ const AdminPrivilegePage = () => {
   useEffect(() => {
     loadIncompleteBills();
     loadFeatureSettings();
+
+    const handler = () => {
+      loadIncompleteBills();
+    };
+    window.addEventListener('session:cancelled', handler);
+    return () => window.removeEventListener('session:cancelled', handler);
   }, []);
 
   const loadFeatureSettings = async () => {

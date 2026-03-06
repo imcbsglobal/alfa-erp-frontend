@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getInvoiceReport } from "../../../services/sales";
+import api from "../../../services/api";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateTime, formatNumber } from '../../../utils/formatters';
@@ -41,28 +42,25 @@ export default function InvoiceReportPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // rawInvoices = everything returned by API (no search param for salesman queries)
   const [rawInvoices, setRawInvoices] = useState([]);
-  // invoices = what's displayed after client-side salesman filter
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [timeFilter, setTimeFilter] = useState('');
   const searchRef = useRef(null);
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => { searchRef.current?.focus(); }, []);
 
-  // Re-run whenever filters or search changes
   useEffect(() => {
     loadInvoices();
-  }, [currentPage, statusFilter, dateFilter, debouncedSearch, timeFilter]);
+  }, [currentPage, statusFilter, dateFilter, debouncedSearch]);
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -70,10 +68,6 @@ export default function InvoiceReportPage() {
       const params = { page: currentPage, page_size: itemsPerPage };
       if (statusFilter) params.status = statusFilter;
       if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
-      if (timeFilter) {
-        const cutoff = new Date(Date.now() - parseInt(timeFilter) * 60 * 60 * 1000);
-        params.start_time = cutoff.toISOString();
-      }
 
       const q = debouncedSearch.trim().toLowerCase();
 
@@ -84,7 +78,6 @@ export default function InvoiceReportPage() {
         setInvoices(results);
         setTotalCount(res.data.count || 0);
       } else {
-        // First try API search for invoice/customer
         const searchRes = await getInvoiceReport({ ...params, search: debouncedSearch });
         const searchResults = searchRes.data.results || [];
 
@@ -93,7 +86,6 @@ export default function InvoiceReportPage() {
           setInvoices(searchResults);
           setTotalCount(searchRes.data.count || 0);
         } else {
-          // Fallback: fetch all (no pagination) to check salesman name client-side
           const allParams = { page_size: 10000 };
           if (statusFilter) allParams.status = statusFilter;
           if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
@@ -123,36 +115,71 @@ export default function InvoiceReportPage() {
     });
   };
 
-  const downloadExcel = () => {
-    if (!invoices.length) { toast.error("No data to export"); return; }
+  const downloadExcel = async () => {
+    setExporting(true);
+    const toastId = toast.loading("Preparing export...");
 
-    const rows = invoices.map((inv) => ({
-      "Invoice No":    inv.invoice_no || "",
-      "Created By":    inv.salesman?.name || "N/A",
-      "Date & Time":  formatDateTime(inv.created_at),
-      "Customer Name": inv.customer?.name || inv.temp_name || "N/A",
-      "Area":          inv.customer?.area || inv.customer?.address1 || "",
-      "Amount (₹)":    parseFloat(inv.Total) || 0,
-      "Status":        inv.status || "",
-    }));
+    try {
+      // Lightweight export endpoint — no heavy joins
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
-    const ws = XLSX.utils.json_to_sheet(rows);
+      const res = await api.get("/sales/invoice-report/export/", { params });
+      let allData = res.data.data || [];
 
-    // Column widths
-    ws["!cols"] = [
-      { wch: 14 }, { wch: 18 }, { wch: 22 },
-      { wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 14 },
-    ];
+      // Salesman fallback filter (same logic as table view)
+      const q = debouncedSearch.trim().toLowerCase();
+      if (q && allData.length > 0) {
+        const hasDirectMatch = allData.some(row =>
+          (row.invoice_no || '').toLowerCase().includes(q) ||
+          (row.customer_name || '').toLowerCase().includes(q)
+        );
+        if (!hasDirectMatch) {
+          allData = allData.filter(row =>
+            (row.created_by || '').toLowerCase().includes(q)
+          );
+        }
+      }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Invoice Report");
+      if (!allData.length) {
+        toast.error("No data to export", { id: toastId });
+        return;
+      }
 
-    const dateLabel = dateFilter || new Date().toISOString().split("T")[0];
-    const statusLabel = statusFilter || "All";
-    const filename = `Invoice_Report_${dateLabel}_${statusLabel}.xlsx`;
+      toast.loading(`Building Excel for ${allData.length} invoices...`, { id: toastId });
 
-    XLSX.writeFile(wb, filename);
-    toast.success(`Exported ${invoices.length} invoices to Excel`);
+      const rows = allData.map((row) => ({
+        "Invoice No":    row.invoice_no || '',
+        "Created By":    row.created_by || 'N/A',
+        "Date & Time":   formatDateTime(row.created_at),
+        "Customer Name": row.customer_name || 'N/A',
+        "Area":          row.area || '',
+        "Amount (₹)":    row.amount || 0,
+        "Status":        row.status || '',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [
+        { wch: 18 }, { wch: 18 }, { wch: 22 },
+        { wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 14 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Invoice Report");
+
+      const dateLabel = dateFilter || new Date().toISOString().split("T")[0];
+      const statusLabel = statusFilter || "All";
+      XLSX.writeFile(wb, `Invoice_Report_${dateLabel}_${statusLabel}.xlsx`);
+
+      toast.success(`Exported ${allData.length} invoices`, { id: toastId });
+    } catch (err) {
+      console.error("Export failed:", err);
+      toast.error("Export failed. Please try again.", { id: toastId });
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -179,24 +206,6 @@ export default function InvoiceReportPage() {
               />
             </div>
 
-            {/* Time */}
-            {/* <div className="flex items-center gap-1.5">
-              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Time:</label>
-              <select
-                value={timeFilter}
-                onChange={(e) => { setTimeFilter(e.target.value); setCurrentPage(1); }}
-                className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white w-[80px]"
-              >
-                <option value="">All</option>
-                <option value="1">1 hr</option>
-                <option value="2">2 hr</option>
-                <option value="3">3 hr</option>
-                <option value="4">4 hr</option>
-                <option value="6">6 hr</option>
-                <option value="12">12 hr</option>
-              </select>
-            </div> */}
-
             {/* Status */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Status:</label>
@@ -213,7 +222,7 @@ export default function InvoiceReportPage() {
 
             <div className="h-6 w-px bg-gray-200" />
 
-            {/* Unified Search */}
+            {/* Search */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Search:</label>
               <div className="relative">
@@ -246,11 +255,11 @@ export default function InvoiceReportPage() {
               </button>
               <button
                 onClick={downloadExcel}
-                disabled={loading || invoices.length === 0}
+                disabled={loading || exporting}
                 className="px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg font-semibold text-sm shadow hover:from-emerald-600 hover:to-green-700 transition-all whitespace-nowrap flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download size={14} />
-                Excel
+                {exporting ? "Exporting..." : `Excel (All ${totalCount})`}
               </button>
             </div>
           </div>

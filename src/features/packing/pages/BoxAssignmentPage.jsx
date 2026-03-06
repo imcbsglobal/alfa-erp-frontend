@@ -855,15 +855,6 @@ export default function BoxAssignmentPage() {
                     ${isSelected ? 'bg-teal-50' : isFullyPacked ? 'bg-green-50' : isOverAssigned ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                     hover:bg-teal-50`}>
 
-                  {/* Checkbox */}
-                  {!isFullyAssigned
-                    ? <input type="checkbox" checked={isSelected}
-                        onChange={e => { e.stopPropagation(); toggleItemSelection(item.id); }}
-                        className="w-3.5 h-3.5 text-teal-600 rounded flex-shrink-0" onClick={e => e.stopPropagation()} />
-                    : isFullyPacked
-                      ? <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                      : <svg className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5" /></svg>}
-
                   {/* Main info */}
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-semibold truncate leading-tight ${isFullyPacked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>

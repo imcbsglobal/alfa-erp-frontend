@@ -476,6 +476,31 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                           </div>
                         </div>
 
+                        {/* Packed Boxes */}
+                        {invoiceData.packing.boxes && invoiceData.packing.boxes.length > 0 && (
+                          <div className="mt-3">
+                            <div className="flex items-center gap-1.5 text-gray-500 mb-1.5">
+                              <Package size={14} />
+                              <span className="font-medium text-xs">Packed Boxes ({invoiceData.packing.boxes.length})</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {invoiceData.packing.boxes.map((box, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                                    box.is_sealed
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                      : 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                                  }`}
+                                >
+                                  📦 {box.box_id}
+                                  {box.is_sealed && <span className="text-emerald-500">✓</span>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Return Info for Packing Stage */}
                         {getReturnInfo('packing') && (
                           <div className="mt-3">

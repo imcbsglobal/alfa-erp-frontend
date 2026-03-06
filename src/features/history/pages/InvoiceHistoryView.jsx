@@ -609,7 +609,7 @@ export default function InvoiceHistoryView() {
                       )}
 
                       {item.packing && (
-                        <div className="flex justify-between items-center py-1 border-b">
+                        <div className="flex justify-between items-start py-1 border-b">
                           <span className="text-gray-600">📦 Packing:</span>
                           <div className="text-right">
                             {statusBadge(item.packing.packing_status)}
