@@ -65,8 +65,27 @@ export default function PackingInvoiceReportPage() {
       if (!q) {
         const res = await api.get("/sales/packing/history/", { params });
         const results = sortByStartTime(res.data.results || []);
-        setRawSessions(results);
-        setSessions(results);
+        // enrich each packing session with picking timestamps when available
+        const enrich = async (rows) => {
+          return await Promise.all(rows.map(async (s) => {
+            try {
+              const pickRes = await api.get('/sales/picking/history/', { params: { search: s.invoice_no, page_size: 1 } });
+              const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
+              if (pick) {
+                s.picking_start_time = pick.start_time;
+                s.picking_end_time = pick.end_time;
+                s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
+              }
+            } catch (e) {
+              // ignore per-row failures
+            }
+            return s;
+          }));
+        };
+
+        const enriched = await enrich(results);
+        setRawSessions(enriched);
+        setSessions(enriched);
         setTotalCount(res.data.count || 0);
       } else {
         // Try API search first
@@ -75,8 +94,22 @@ export default function PackingInvoiceReportPage() {
 
         if (searchResults.length > 0) {
           const sorted = sortByStartTime(searchResults);
-          setRawSessions(sorted);
-          setSessions(sorted);
+          // enrich matched results as well
+          const enriched = await Promise.all(sorted.map(async (s) => {
+            try {
+              const pickRes = await api.get('/sales/picking/history/', { params: { search: s.invoice_no, page_size: 1 } });
+              const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
+              if (pick) {
+                s.picking_start_time = pick.start_time;
+                s.picking_end_time = pick.end_time;
+                s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
+              }
+            } catch (e) {}
+            return s;
+          }));
+
+          setRawSessions(enriched);
+          setSessions(enriched);
           setTotalCount(searchRes.data.count || 0);
         } else {
           // Fallback: client-side packer name filter
@@ -89,9 +122,23 @@ export default function PackingInvoiceReportPage() {
           const packerMatches = allResults.filter(s =>
             (s.packer_name || '').toLowerCase().includes(q)
           );
+          // enrich the subset with picking timestamps
+          const enrichedMatches = await Promise.all(packerMatches.map(async (s) => {
+            try {
+              const pickRes = await api.get('/sales/picking/history/', { params: { search: s.invoice_no, page_size: 1 } });
+              const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
+              if (pick) {
+                s.picking_start_time = pick.start_time;
+                s.picking_end_time = pick.end_time;
+                s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
+              }
+            } catch (e) {}
+            return s;
+          }));
+
           setRawSessions(allResults);
-          setSessions(packerMatches);
-          setTotalCount(packerMatches.length);
+          setSessions(enrichedMatches);
+          setTotalCount(enrichedMatches.length);
         }
       }
     } catch (err) {
@@ -209,7 +256,7 @@ export default function PackingInvoiceReportPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
-                      {["Invoice No", "Customer", "Packer", "Packing Date & Time", "Boxes", "Status", "Actions"].map(h => (
+                      {["Invoice No", "Customer", "Picking Date & Time", "Packer", "Packing Date & Time", "Boxes", "Status", "Actions"].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -223,6 +270,23 @@ export default function PackingInvoiceReportPage() {
                         <td className="px-4 py-3 text-sm text-gray-700">
                           <p>{session.customer_name || '—'}</p>
                           <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || '—'}</p>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                          {(() => {
+                            const pickDate = session.picking_date || session.invoice_created_at || session.invoice_date || session.created_at || '';
+                            const pickStart = session.picking_start_time;
+                            const pickEnd = session.picking_end_time;
+                            if (!pickDate && !pickStart && !pickEnd) return <span className="text-gray-400">—</span>;
+                            return (
+                              <>
+                                <p>{pickDate ? formatDateDDMMYYYY(pickDate) : formatDateDDMMYYYY(pickStart || pickEnd)}</p>
+                                <p className="text-xs text-gray-500">
+                                  {pickStart ? formatTime(pickStart) : (pickDate ? formatTime(pickDate) : '')}
+                                  {pickEnd ? ` → ${formatTime(pickEnd)}` : ''}
+                                </p>
+                              </>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                           {session.packer_name || '—'}
