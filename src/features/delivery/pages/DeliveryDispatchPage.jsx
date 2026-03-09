@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, Truck, Package, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import useUrlPage from '../../../utils/useUrlPage';
 import api from '../../../services/api';
 import DeliveryModal from '../components/DeliveryModal';
 import { useAuth } from "../../auth/AuthContext";
@@ -24,7 +25,7 @@ const DeliveryDispatchPage = () => {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const itemsPerPage = 10;
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import { X } from "lucide-react";
 import Pagination from "../../../components/Pagination";
 import { getDeliveryHistory } from "../../../services/sales";
@@ -16,7 +17,7 @@ export default function DeliveryHistory() {
   const [loading, setLoading] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 8;
 

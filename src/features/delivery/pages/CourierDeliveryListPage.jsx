@@ -3,6 +3,7 @@ import { Truck, Upload, X, CheckCircle } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import useUrlPage from '../../../utils/useUrlPage';
 import { formatNumber, formatFileSize, formatDetailedDateTime, formatAmount } from '../../../utils/formatters';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -11,7 +12,7 @@ const CourierDeliveryListPage = () => {
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [uploadModal, setUploadModal] = useState({ open: false, delivery: null });
   const [uploadedFile, setUploadedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
@@ -29,7 +30,7 @@ export default function PackingInvoiceListPage() {
   const [showOngoingModal, setShowOngoingModal] = useState(false);
   const [ongoingTasks, setOngoingTasks] = useState([]);
   const [loadingOngoing, setLoadingOngoing] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [searchTerm, setSearchTerm] = useState('');
   const itemsPerPage = 10;
 

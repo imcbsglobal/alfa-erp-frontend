@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import PickInvoiceModal from "../components/PickInvoiceModal";
 import BulkPickModal from "../components/BulkPickModal";
 import api from "../../../services/api";
@@ -26,7 +27,7 @@ export default function InvoiceListPage() {
   const [showOngoingModal, setShowOngoingModal] = useState(false);
   const [ongoingTasks, setOngoingTasks] = useState([]);
   const [loadingOngoing, setLoadingOngoing] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef(null);
   const itemsPerPage = 10;

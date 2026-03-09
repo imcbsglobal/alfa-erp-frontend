@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
@@ -15,7 +16,7 @@ export default function PendingInvoicesPage() {
 
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef(null);
   const itemsPerPage = 15;

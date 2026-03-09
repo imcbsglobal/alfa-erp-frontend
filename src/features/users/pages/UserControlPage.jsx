@@ -11,6 +11,7 @@ import {
 import toast from "react-hot-toast";
 import { MENU_CONFIG } from "../../../layout/Sidebar/menuConfig";
 import Pagination from "../../../components/Pagination";
+import useUrlPage from '../../../utils/useUrlPage';
 
 // Function to get icon component from menu config
 const getIconFromConfig = (menu) => {
@@ -142,7 +143,7 @@ export default function UserControlPage() {
   const [expandedMenus, setExpandedMenus] = useState({});
   const [showMobileUserList, setShowMobileUserList] = useState(true);
   const USERS_PER_PAGE = 10;
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
 
   const fetchUsers = async () => {
     setLoading(true);

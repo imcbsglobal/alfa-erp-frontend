@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
@@ -18,7 +19,7 @@ export default function BillingReviewedListPage() {
   const [reviewModal, setReviewModal] = useState({ open: false, invoice: null });
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const itemsPerPage = 10;
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import { Package, Eye, RefreshCw, User, Mail, Clock, X } from 'lucide-react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import useUrlPage from '../../../utils/useUrlPage';
 import Pagination from "../../../components/Pagination";
 import ActiveUsersDock from '../../../components/ActiveUsersDock';
 import { formatNumber, formatAmount, formatDateTime } from '../../../utils/formatters';
@@ -13,7 +14,7 @@ const CompanyDeliveryListPage = () => {
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const navigate = useNavigate();
   const itemsPerPage = 10;
 

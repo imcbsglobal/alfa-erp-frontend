@@ -1,6 +1,7 @@
 // src/features/master/pages/CourierListPage.jsx
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
 import { getCouriers, updateCourier, deleteCourier } from "../../../services/sales";
@@ -15,7 +16,7 @@ export default function CourierListPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const itemsPerPage = 10;
 
   const [editingCourier, setEditingCourier] = useState(null);

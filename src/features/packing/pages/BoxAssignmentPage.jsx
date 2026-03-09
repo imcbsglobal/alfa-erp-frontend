@@ -312,19 +312,25 @@ export default function BoxAssignmentPage() {
               overflow: hidden;
             }
             .customer-qr-section {
-              flex: 1;
+              flex: 1 1 0%;
               display: flex;
               flex-direction: column;
               border-right: 1.5px solid #000;
               overflow: hidden;
+              justify-content: flex-start;
+              min-height: 0;
+              position: relative;
             }
             .customer-info {
-              flex: 1;
+              flex: 1 1 auto;
+              min-height: 0;
               padding: 10px 14px 4px 14px;
+              padding-right: 140px;
               display: flex;
               flex-direction: column;
               justify-content: flex-start;
               gap: 1px;
+              overflow: auto;
             }
             .to-label {
               font-size: 8px;
@@ -383,7 +389,11 @@ export default function BoxAssignmentPage() {
               display: flex;
               justify-content: flex-end;
               padding: 0 10px 8px 10px;
-              flex-shrink: 0;
+              flex: 0 0 auto;
+              position: absolute;
+              right: 12px;
+              bottom: 8px;
+              background: white;
             }
             .qr-block {
               display: flex;
@@ -490,7 +500,6 @@ export default function BoxAssignmentPage() {
                   ${(customerArea || customerAddr1) ? `<p class="customer-area">${[customerArea, customerAddr1].filter(Boolean).join(', ')}</p>` : ''}
                   ${(customerAddr2 || customerPincode) ? `<p class="customer-addr">${[customerAddr2, customerPincode].filter(Boolean).join(', ')}</p>` : ''}
                   ${(customerPhone1 || customerPhone2) ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>` : ''}
-                  ${customerEmail  ? `<p class="customer-email">${customerEmail}</p>` : ''}
                 </div>
                 <div class="qr-bottom-row">
                   <div class="qr-block">

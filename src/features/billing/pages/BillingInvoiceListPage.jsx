@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import { X } from "lucide-react";
 import api from "../../../services/api";
 import { useAuth } from "../../auth/AuthContext";
@@ -21,7 +22,7 @@ export default function BillingInvoiceListPage() {
   const [loading, setLoading] = useState(true);
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 

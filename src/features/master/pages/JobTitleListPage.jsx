@@ -1,6 +1,7 @@
 // src/features/master/pages/JobTitleListPage.jsx
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
 import Pagination from "../../../components/Pagination";
@@ -24,7 +25,7 @@ export default function JobTitleListPage() {
   const [filterTitle, setFilterTitle] = useState("ALL");
   const [filterDepartment, setFilterDepartment] = useState("ALL");
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const itemsPerPage = 10;
 
   const [editingJob, setEditingJob] = useState(null);

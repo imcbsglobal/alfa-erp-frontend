@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import api from "../../../services/api";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
@@ -31,7 +32,7 @@ export default function PickingInvoiceReportPage() {
   const [rawSessions, setRawSessions] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);

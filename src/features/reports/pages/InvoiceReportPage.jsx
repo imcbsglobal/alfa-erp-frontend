@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import { getInvoiceReport } from "../../../services/sales";
 import api from "../../../services/api";
 import toast from "react-hot-toast";
@@ -46,7 +47,7 @@ export default function InvoiceReportPage() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
   const [statusFilter, setStatusFilter] = useState('');

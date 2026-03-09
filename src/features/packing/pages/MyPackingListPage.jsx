@@ -470,8 +470,27 @@ export default function MyPackingListPage() {
             html, body { width: 15cm; height: 10cm; font-family: Arial, sans-serif; background: white; color: black; overflow: hidden; }
             .label-container { width: 15cm; height: 10cm; border: 2px solid #000; border-radius: 5px; display: flex; flex-direction: column; overflow: hidden; background: white; }
             .main-content { display: flex; flex: 1; overflow: hidden; }
-            .customer-qr-section { flex: 1; display: flex; flex-direction: column; border-right: 1.5px solid #000; overflow: hidden; }
-            .customer-info { flex: 1; padding: 10px 14px 4px 14px; display: flex; flex-direction: column; justify-content: flex-start; gap: 1px; }
+            .customer-qr-section { 
+              flex: 1 1 0%;
+              display: flex;
+              flex-direction: column;
+              border-right: 1.5px solid #000;
+              overflow: hidden;
+              justify-content: flex-start;
+              min-height: 0;
+              position: relative;
+            }
+            .customer-info {
+              flex: 1 1 auto;
+              min-height: 0;
+              padding: 10px 14px 4px 14px;
+              padding-right: 140px;
+              display: flex;
+              flex-direction: column;
+              justify-content: flex-start;
+              gap: 1px;
+              overflow: auto;
+            }
             .to-label { font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; letter-spacing: 1px; margin-bottom: 4px; }
             .customer-name { font-weight: bold; font-size: 20px; text-transform: uppercase; color: #000; line-height: 1.2; word-wrap: break-word; }
             .customer-name-ml { font-family: 'Noto Sans Malayalam', Arial, sans-serif; font-size: 18px; font-weight: bold; color: #000; line-height: 1.4; margin-top: 2px; word-wrap: break-word; }
@@ -479,7 +498,16 @@ export default function MyPackingListPage() {
             .customer-addr { font-size: 13px; color: #000; line-height: 1.5; word-wrap: break-word; }
             .customer-contact { font-size: 13px; font-weight: bold; color: #000; margin-top: 4px; word-wrap: break-word; }
             .customer-email { font-size: 12px; font-weight: bold; color: #000; margin-top: 1px; word-wrap: break-word; }
-            .qr-bottom-row { display: flex; justify-content: flex-end; padding: 0 10px 8px 10px; flex-shrink: 0; }
+            .qr-bottom-row { 
+              display: flex; 
+              justify-content: flex-end; 
+              padding: 0 10px 8px 10px; 
+              flex: 0 0 auto;
+              position: absolute;
+              right: 12px;
+              bottom: 8px;
+              background: white;
+            }
             .qr-block { display: flex; flex-direction: column; align-items: center; gap: 3px; }
             .inv-no-label { font-size: 12px; font-weight: bold; color: #000; text-align: center; text-transform: uppercase; letter-spacing: 0.4px; }
             .qr-container { border: 1.5px solid #000; padding: 3px; background: white; }
@@ -511,7 +539,6 @@ export default function MyPackingListPage() {
                   ${(customerArea || customerAddr1) ? `<p class="customer-area">${[customerArea, customerAddr1].filter(Boolean).join(', ')}</p>` : ''}
                   ${(customerAddr2 || customerPincode) ? `<p class="customer-addr">${[customerAddr2, customerPincode].filter(Boolean).join(', ')}</p>` : ''}
                   ${(customerPhone1 || customerPhone2) ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>` : ''}
-                  ${customerEmail  ? `<p class="customer-email">${customerEmail}</p>` : ''}
                 </div>
                 <div class="qr-bottom-row">
                   <div class="qr-block">

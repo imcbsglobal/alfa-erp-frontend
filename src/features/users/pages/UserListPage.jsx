@@ -1,6 +1,7 @@
 // src/pages/users/UserListPage.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import useUrlPage from '../../../utils/useUrlPage';
 import { useAuth } from "../../auth/AuthContext";
 import Pagination from "../../../components/Pagination";
 import { X } from "lucide-react";
@@ -27,7 +28,7 @@ export default function UserListPage() {
   const [jobTitles, setJobTitles] = useState([]);
 
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [itemsPerPage] = useState(10);
 
   // Permission check

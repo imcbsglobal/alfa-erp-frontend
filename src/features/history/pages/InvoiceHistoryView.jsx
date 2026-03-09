@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Pagination from "../../../components/Pagination";
+import useUrlPage from '../../../utils/useUrlPage';
 import { getPickingHistory, getPackingHistory, getDeliveryHistory, getBillingHistory } from "../../../services/sales";
 import ConsolidateDetailModal from "../../../components/ConsolidateDetailModal";
 import { formatDateTime } from '../../../utils/formatters';
@@ -12,7 +13,7 @@ export default function InvoiceHistoryView() {
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
   const [loading, setLoading] = useState(false);
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 10;
 
