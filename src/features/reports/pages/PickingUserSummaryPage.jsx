@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import api from "../../../services/api";
+import { getPickingHistory } from "../../../services/sales";
 import toast from "react-hot-toast";
 import { formatNumber } from '../../../utils/formatters';
 import { RefreshCw } from 'lucide-react';
@@ -23,13 +23,11 @@ export default function PickingUserSummaryPage() {
       let allSessions = [];
 
       while (true) {
-        const res = await api.get("/sales/picking/history/", {
-          params: {
-            start_date: date,
-            end_date: date,
-            page_size: 100,
-            page,
-          }
+        const res = await getPickingHistory({
+          start_date: date,
+          end_date: date,
+          page_size: 100,
+          page,
         });
 
         const results = res.data.results || [];

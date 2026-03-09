@@ -95,3 +95,41 @@ export const getInvoiceReport = (params = {}) => {
 export const getBillingUserSummary = (params = {}) => {
   return api.get("/sales/billing/user-summary/", { params });
 };
+
+// Generic paginated-URL fetcher (for DRF cursor/page-based next URLs)
+export const getByUrl = (url) => api.get(url);
+
+// Invoices list
+export const getInvoices = (params = {}) => api.get("/sales/invoices/", { params });
+
+// Picking
+export const startPicking = (data) => api.post("/sales/picking/start/", data);
+export const completePicking = (data) => api.post("/sales/picking/complete/", data);
+export const bulkStartPicking = (data) => api.post("/sales/picking/bulk-start/", data);
+
+// Billing invoices
+export const getBillingInvoices = (params = {}) => api.get("/sales/billing/invoices/", { params });
+export const returnBillingInvoice = (data) => api.post("/sales/billing/return/", data);
+
+// Packing operations
+export const savePackingDraft = (data) => api.post("/sales/packing/save-draft/", data);
+export const getPackingBill = (invoiceNo) => api.get(`/sales/packing/bill/${invoiceNo}/`);
+export const completePackingSession = (data) => api.post("/sales/packing/complete-packing/", data);
+export const startPackingCheck = (data) => api.post("/sales/packing/start-checking/", data);
+export const holdForConsolidation = (data) => api.post("/sales/packing/hold-for-consolidation/", data);
+export const getMyPackingChecking = () => api.get("/sales/packing/my-checking/");
+export const getConsolidatedPacking = (invoiceNo) => api.get(`/sales/packing/consolidated/${invoiceNo}/`);
+export const getCompletedPacking = (invoiceNo) => api.get(`/sales/packing/completed/${invoiceNo}/`);
+export const getBoxDetails = (boxId) => api.get(`/sales/packing/box-details/${boxId}/`);
+export const completeConsolidatedPacking = (data) => api.post("/sales/packing/complete-consolidated-packing/", data);
+
+// Delivery
+export const assignDelivery = (data) => api.post("/sales/delivery/assign/", data);
+export const uploadDeliverySlip = (formData) =>
+  api.post("/sales/delivery/upload-slip/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+// Reports / Settings
+export const exportInvoiceReport = (params = {}) => api.get("/sales/invoice-report/export/", { params });
+export const getDeveloperSettings = () => api.get("/common/developer-settings/");

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Mail, FileText, Package, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "../../../services/api";
+import { bulkStartPicking } from "../../../services/sales";
 
 export default function BulkPickModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState(1); // 1: Email scan, 2: Invoice scanning
@@ -73,7 +73,7 @@ export default function BulkPickModal({ isOpen, onClose, onSuccess }) {
 
     setIsStarting(true);
     try {
-      const response = await api.post("/sales/picking/bulk-start/", {
+      const response = await bulkStartPicking({
         user_email: verifiedEmail,
         invoice_numbers: invoiceNumbers
       });

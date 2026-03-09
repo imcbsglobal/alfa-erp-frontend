@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Eye, RefreshCw, User, Mail, Clock, X } from 'lucide-react';
-import api from '../../../services/api';
+import { getByUrl } from '../../../services/sales';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import useUrlPage from '../../../utils/useUrlPage';
@@ -89,7 +89,7 @@ const CompanyDeliveryListPage = () => {
       
       // Fetch all pages
       while (nextUrl) {
-        const res = await api.get(nextUrl);
+        const res = await getByUrl(nextUrl);
         const results = res.data.results || [];
         allDeliveries = [...allDeliveries, ...results];
         

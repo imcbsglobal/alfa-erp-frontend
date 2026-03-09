@@ -1,6 +1,11 @@
 ﻿import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import api from "../../../services/api";
+import {
+  savePackingDraft,
+  getPackingBill,
+  returnBillingInvoice,
+  completePackingSession,
+} from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import { formatQuantity } from "../../../utils/formatters";
@@ -114,7 +119,7 @@ export default function BoxAssignmentPage() {
   const saveDraft = useMemo(() => debounce(async (currentBoxes) => {
     if (!currentBoxes.length) return;
     try {
-      await api.post("/sales/packing/save-draft/", {
+      await savePackingDraft({
         invoice_no: invoiceNo,
         boxes: currentBoxes.map(box => ({
           box_id: box.boxId,
@@ -130,7 +135,7 @@ export default function BoxAssignmentPage() {
   const loadBillDetails = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/sales/packing/bill/${invoiceNo}/`);
+      const res = await getPackingBill(invoiceNo);
       setBill(res.data?.data);
       if (res.data?.data?.boxes && res.data.data.boxes.length > 0) {
         setBoxes(res.data.data.boxes.map((box, idx) => ({
@@ -197,7 +202,7 @@ export default function BoxAssignmentPage() {
     try {
       setLoading(true);
       const notes = savedIssues.map((i) => `${i.item}: ${i.issues.join(", ")}`).join(" | ");
-      await api.post("/sales/billing/return/", { invoice_no: bill.invoice_no, return_reason: notes, user_email: user.email });
+      await returnBillingInvoice({ invoice_no: bill.invoice_no, return_reason: notes, user_email: user.email });
       toast.success("Invoice sent to billing review");
       setSavedIssues([]);
       await loadBillDetails();
@@ -682,7 +687,7 @@ export default function BoxAssignmentPage() {
     setErrors([]);
     try {
       setCompleting(true);
-      await api.post("/sales/packing/complete-packing/", {
+      await completePackingSession({
         invoice_no: invoiceNo,
         boxes: boxes.map(box => ({ box_id: box.boxId, items: box.items.map(item => ({ item_id: item.itemId, item_name: item.itemName, item_code: item.itemCode, quantity: item.quantity })) }))
       });

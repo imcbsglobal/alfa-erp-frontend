@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, Upload, X, CheckCircle } from 'lucide-react';
-import api from '../../../services/api';
+import { getByUrl, uploadDeliverySlip } from '../../../services/sales';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import useUrlPage from '../../../utils/useUrlPage';
@@ -79,7 +79,7 @@ const CourierDeliveryListPage = () => {
       
       // Fetch all pages
       while (nextUrl) {
-        const res = await api.get(nextUrl);
+        const res = await getByUrl(nextUrl);
         const results = res.data.results || [];
         allDeliveries = [...allDeliveries, ...results];
         
@@ -166,11 +166,7 @@ const CourierDeliveryListPage = () => {
 
       console.log('Uploading slip for:', uploadModal.delivery.invoice_no);
 
-      await api.post('/sales/delivery/upload-slip/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      await uploadDeliverySlip(formData);
 
       toast.success('Courier slip uploaded successfully! Delivery marked as completed.');
       

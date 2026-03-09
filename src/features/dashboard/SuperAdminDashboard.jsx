@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
 import { getUsers } from '../../services/auth';
-import api from '../../services/api';
+import {
+  getPickingHistory,
+  getPackingHistory,
+  getInvoices,
+} from '../../services/sales';
+import { getStatusBreakdown, getDashboardStats } from '../../services/analytics';
 import toast from 'react-hot-toast';
 
 export default function SuperAdminDashboard() {
@@ -174,8 +179,8 @@ export default function SuperAdminDashboard() {
     const fetchRecentActivity = async () => {
       try {
         const [pickingHistoryRes, packingHistoryRes] = await Promise.allSettled([
-          api.get('/sales/picking/history/', { params: { page_size: 5, ordering: '-created_at' } }),
-          api.get('/sales/packing/history/', { params: { page_size: 5, ordering: '-created_at' } }),
+          getPickingHistory({ page_size: 5, ordering: '-created_at' }),
+          getPackingHistory({ page_size: 5, ordering: '-created_at' }),
         ]);
 
         const activities = [];
@@ -236,7 +241,7 @@ export default function SuperAdminDashboard() {
 
   const fetchBreakdown = async () => {
     try {
-      const response = await api.get('/analytics/status-breakdown/');
+      const response = await getStatusBreakdown();
       if (response.data.success && response.data.breakdown) {
         setBreakdown(response.data.breakdown);
       }
@@ -247,7 +252,7 @@ export default function SuperAdminDashboard() {
 
   const fetchTodayStats = async () => {
     try {
-      const response = await api.get('/analytics/dashboard-stats/');
+      const response = await getDashboardStats();
       if (response.data.success && response.data.stats) {
         const s = response.data.stats;
         setTodayStats({
@@ -270,7 +275,7 @@ export default function SuperAdminDashboard() {
     try {
       const [usersRes, invoicesRes] = await Promise.allSettled([
         getUsers(),
-        api.get('/sales/invoices/', { params: { page_size: 1000 } }),
+        getInvoices({ page_size: 1000 }),
       ]);
 
       let totalAdmins = 0, totalUsers = 0, activeUsers = 0;

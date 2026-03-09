@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import api from "../../../services/api";
+import {
+  getConsolidatedPacking,
+  getCompletedPacking,
+} from "../../../services/sales";
 import toast from "react-hot-toast";
 import { formatQuantity } from "../../../utils/formatters";
 import { QRCodeSVG } from "qrcode.react";
@@ -114,9 +117,9 @@ export default function BoxLabelPrintPage() {
       
       let res;
       if (isConsolidated) {
-        res = await api.get(`/sales/packing/consolidated/${invoiceNo}/`);
+        res = await getConsolidatedPacking(invoiceNo);
       } else {
-        res = await api.get(`/sales/packing/completed/${invoiceNo}/`);
+        res = await getCompletedPacking(invoiceNo);
       }
       
       setPackingData(res.data?.data);

@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
-import api from "../../../services/api";
+import {
+  getActivePickingTask,
+  getBillingInvoices,
+  startPicking,
+  getPickingHistory,
+  returnBillingInvoice,
+  completePicking,
+  cancelSession,
+} from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
-import { getActivePickingTask } from "../../../services/sales";
 import toast from "react-hot-toast";
 import ConfirmationModal from '../../../components/ConfirmationModal';
 import { formatTime, formatDate, getTodayISOString, formatDateTime, formatInvoiceDate, formatMRP, formatQuantity } from '../../../utils/formatters';
@@ -172,12 +179,10 @@ export default function MyInvoiceListPage() {
       
       if (!task) {
         // No active task, check for RE_INVOICED bills
-        const reInvoicedRes = await api.get("/sales/billing/invoices/", {
-          params: { 
-            billing_status: "RE_INVOICED",
-            returned_by_email: user?.email,
-            returned_from_section: "PICKING"
-          }
+        const reInvoicedRes = await getBillingInvoices({
+          billing_status: "RE_INVOICED",
+          returned_by_email: user?.email,
+          returned_from_section: "PICKING"
         });
         
         const reInvoicedBills = reInvoicedRes.data?.results || [];
@@ -186,7 +191,7 @@ export default function MyInvoiceListPage() {
         if (reInvoicedBills.length > 0) {
           const invoice = reInvoicedBills[0];
           try {
-            await api.post("/sales/picking/start/", {
+            await startPicking({
               invoice_no: invoice.invoice_no,
               user_email: user.email
             });
@@ -217,9 +222,7 @@ export default function MyInvoiceListPage() {
   const loadTodayCompletedPicking = async () => {
     try {
       const today = getTodayISOString();
-      const res = await api.get("/sales/picking/history/", {
-        params: { status: "PICKED", start_date: today, end_date: today },
-      });
+      const res = await getPickingHistory({ status: "PICKED", start_date: today, end_date: today });
       setCompletedInvoices(res.data?.results || []);
     } catch (err) {
       console.error("Failed to load picking history", err);
@@ -299,7 +302,7 @@ export default function MyInvoiceListPage() {
     try {
       setLoading(true);
       const notes = savedIssues.map((i) => `${i.item}: ${i.issues.join(", ")}`).join(" | ");
-      await api.post("/sales/billing/return/", {
+      await returnBillingInvoice({
         invoice_no: activePickingTask.invoice.invoice_no,
         return_reason: notes,
         user_email: user.email,
@@ -334,7 +337,7 @@ export default function MyInvoiceListPage() {
     }
     try {
       setLoading(true);
-      await api.post("/sales/picking/complete/", {
+      await completePicking({
         invoice_no: activeInvoice.invoice_no,
         user_email: user.email,
         notes: isReInvoiced ? "[RE-PICK] Corrected invoice picked" : "Picked all items",
@@ -360,7 +363,7 @@ export default function MyInvoiceListPage() {
   const confirmCancelPicking = async () => {
     try {
       setLoading(true);
-      await api.post("/sales/cancel-session/", {
+      await cancelSession({
         invoice_no: activeInvoice.invoice_no,
         user_email: user.email,
         session_type: "PICKING",

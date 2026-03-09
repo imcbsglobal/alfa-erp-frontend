@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
 import { X } from "lucide-react";
-import api from "../../../services/api";
+import { getBillingInvoices } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
@@ -121,7 +121,7 @@ export default function BillingInvoiceListPage() {
         params.search = searchTerm;
       }
 
-      const res = await api.get("/sales/billing/invoices/", { params });
+      const res = await getBillingInvoices(params);
       const results = res.data.results || [];
       const count = res.data.count || 0;
 

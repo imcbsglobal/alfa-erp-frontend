@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "../../../services/api";
+import { getBoxDetails } from "../../../services/sales";
 import { toast } from "react-hot-toast";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -20,7 +20,7 @@ export default function BoxDetailsPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(`/sales/packing/box-details/${boxId}/`);
+      const response = await getBoxDetails(boxId);
       // Extract data from the response wrapper
       const data = response.data?.data || response.data;
       setBoxData(data);

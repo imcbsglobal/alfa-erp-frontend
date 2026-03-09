@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import api from "../../../services/api";
+import { getPackingHistory, getPickingHistory } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
@@ -64,13 +64,13 @@ export default function PackingInvoiceReportPage() {
       const q = debouncedSearch.trim().toLowerCase();
 
       if (!q) {
-        const res = await api.get("/sales/packing/history/", { params });
+        const res = await getPackingHistory(params);
         const results = sortByStartTime(res.data.results || []);
         // enrich each packing session with picking timestamps when available
         const enrich = async (rows) => {
           return await Promise.all(rows.map(async (s) => {
             try {
-              const pickRes = await api.get('/sales/picking/history/', { params: { search: s.invoice_no, page_size: 1 } });
+              const pickRes = await getPickingHistory({ search: s.invoice_no, page_size: 1 });
               const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
               if (pick) {
                 s.picking_start_time = pick.start_time;
@@ -90,7 +90,7 @@ export default function PackingInvoiceReportPage() {
         setTotalCount(res.data.count || 0);
       } else {
         // Try API search first
-        const searchRes = await api.get("/sales/packing/history/", { params: { ...params, search: debouncedSearch } });
+        const searchRes = await getPackingHistory({ ...params, search: debouncedSearch });
         const searchResults = searchRes.data.results || [];
 
         if (searchResults.length > 0) {
@@ -98,7 +98,7 @@ export default function PackingInvoiceReportPage() {
           // enrich matched results as well
           const enriched = await Promise.all(sorted.map(async (s) => {
             try {
-              const pickRes = await api.get('/sales/picking/history/', { params: { search: s.invoice_no, page_size: 1 } });
+              const pickRes = await getPickingHistory({ search: s.invoice_no, page_size: 1 });
               const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
               if (pick) {
                 s.picking_start_time = pick.start_time;
@@ -117,7 +117,7 @@ export default function PackingInvoiceReportPage() {
           const allParams = { page_size: 10000 };
           if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
 
-          const allRes = await api.get("/sales/packing/history/", { params: allParams });
+          const allRes = await getPackingHistory(allParams);
           const allResults = sortByStartTime(allRes.data.results || []);
 
           const packerMatches = allResults.filter(s =>
@@ -126,7 +126,7 @@ export default function PackingInvoiceReportPage() {
           // enrich the subset with picking timestamps
           const enrichedMatches = await Promise.all(packerMatches.map(async (s) => {
             try {
-              const pickRes = await api.get('/sales/picking/history/', { params: { search: s.invoice_no, page_size: 1 } });
+              const pickRes = await getPickingHistory({ search: s.invoice_no, page_size: 1 });
               const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
               if (pick) {
                 s.picking_start_time = pick.start_time;

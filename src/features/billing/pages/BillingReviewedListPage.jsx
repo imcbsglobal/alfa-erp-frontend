@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import api from "../../../services/api";
+import { getBillingInvoices } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
@@ -81,18 +81,8 @@ export default function BillingReviewedListPage() {
     try {
       // Fetch only REVIEW and RE_INVOICED invoices directly from the API
       const [reviewRes, reInvoicedRes] = await Promise.all([
-        api.get("/sales/billing/invoices/", {
-          params: { 
-            billing_status: "REVIEW",
-            page_size: 100 // Fetch more items per page
-          }
-        }),
-        api.get("/sales/billing/invoices/", {
-          params: { 
-            billing_status: "RE_INVOICED",
-            page_size: 100
-          }
-        })
+        getBillingInvoices({ billing_status: "REVIEW", page_size: 100 }),
+        getBillingInvoices({ billing_status: "RE_INVOICED", page_size: 100 }),
       ]);
 
       const reviewInvoices = reviewRes.data?.results || [];
@@ -108,7 +98,6 @@ export default function BillingReviewedListPage() {
       });
 
       setInvoices(allReviewedInvoices);
-      setCurrentPage(1);
     } catch (err) {
       console.error("Error loading invoices:", err);
       toast.error(

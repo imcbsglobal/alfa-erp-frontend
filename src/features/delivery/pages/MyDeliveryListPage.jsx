@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import api from "../../../services/api";
+import {
+  getConsiderList,
+  getDeliveryHistory,
+  assignDelivery,
+  completeDelivery,
+  cancelSession,
+} from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import { Truck, Package, CheckCircle, Clock, MapPin, PlayCircle } from "lucide-react";
 import toast from "react-hot-toast";
@@ -172,13 +178,11 @@ export default function MyDeliveryListPage() {
   // Load pending deliveries assigned to this user
   const loadPendingDeliveries = async () => {
     try {
-      const res = await api.get("/sales/delivery/consider-list/", {
-        params: {
-          delivery_type: 'INTERNAL',
-          status: 'TO_CONSIDER',
-          search: user.email,
-          page_size: 50
-        }
+      const res = await getConsiderList({
+        delivery_type: 'INTERNAL',
+        status: 'TO_CONSIDER',
+        search: user.email,
+        page_size: 50
       });
       
       // Filter for deliveries assigned to current user with TO_CONSIDER status
@@ -196,12 +200,10 @@ export default function MyDeliveryListPage() {
 
   const loadActiveDelivery = async () => {
     try {
-      const res = await api.get("/sales/delivery/history/", {
-        params: {
-          search: user.email,
-          status: 'IN_TRANSIT',
-          page_size: 1
-        }
+      const res = await getDeliveryHistory({
+        search: user.email,
+        status: 'IN_TRANSIT',
+        page_size: 1
       });
       
       if (res.data?.results && res.data.results.length > 0) {
@@ -229,14 +231,12 @@ export default function MyDeliveryListPage() {
   const loadTodayCompletedDeliveries = async () => {
     try {
       const today = getTodayISOString();
-      const res = await api.get("/sales/delivery/history/", {
-        params: {
-          search: user.email,
-          status: 'DELIVERED',
-          start_date: today,
-          end_date: today,
-          page_size: 50
-        }
+      const res = await getDeliveryHistory({
+        search: user.email,
+        status: 'DELIVERED',
+        start_date: today,
+        end_date: today,
+        page_size: 50
       });
       
       const completed = (res.data?.results || []).filter(delivery => 
@@ -260,7 +260,7 @@ export default function MyDeliveryListPage() {
         delivery_type: 'INTERNAL'
       };
 
-      await api.post("/sales/delivery/assign/", payload);
+      await assignDelivery(payload);
       toast.success("Delivery started successfully!");
       
       await loadAllDeliveries();
@@ -342,7 +342,7 @@ export default function MyDeliveryListPage() {
         payload.delivery_location_accuracy = Math.round(locationData.accuracy);
       }
 
-      await api.post("/sales/delivery/complete/", payload);
+      await completeDelivery(payload);
 
       toast.success("Delivery completed successfully!");
       closeCompleteModal();
@@ -408,7 +408,7 @@ export default function MyDeliveryListPage() {
     try {
       setLoading(true);
       
-      await api.post("/sales/cancel-session/", {
+      await cancelSession({
         invoice_no: cancelModal.delivery.invoice_no,
         user_email: user.email,
         session_type: "DELIVERY",

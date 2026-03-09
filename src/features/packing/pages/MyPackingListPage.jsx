@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../../services/api";
+import {
+  getActivePackingTask,
+  getBillingInvoices,
+  startPacking,
+  getMyPackingChecking,
+  getPackingHistory,
+  startPackingCheck,
+  holdForConsolidation,
+  cancelSession,
+  getPackingBill,
+} from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import { formatTime, formatDate, formatQuantity } from '../../../utils/formatters';
@@ -157,7 +167,7 @@ export default function MyPackingListPage() {
       setLoading(true);
       
       // First check for active packing session
-      const res = await api.get("/sales/packing/active/");
+      const res = await getActivePackingTask();
       const activeData = res.data?.data;
 
       if (activeData && activeData.invoice) {
@@ -177,12 +187,10 @@ export default function MyPackingListPage() {
         // No active session, check for RE_INVOICED bills that need to be resumed
         console.log('📦 No active session, checking for RE_INVOICED bills...');
         
-        const reInvoicedRes = await api.get("/sales/billing/invoices/", {
-          params: { 
-            billing_status: "RE_INVOICED",
-            returned_by_email: user?.email,
-            returned_from_section: "PACKING"
-          }
+        const reInvoicedRes = await getBillingInvoices({
+          billing_status: "RE_INVOICED",
+          returned_by_email: user?.email,
+          returned_from_section: "PACKING"
         });
         
         const reInvoicedBills = reInvoicedRes.data?.results || [];
@@ -195,7 +203,7 @@ export default function MyPackingListPage() {
           
           try {
             // Start packing session for the corrected bill
-            await api.post("/sales/packing/start/", {
+            await startPacking({
               invoice_no: bill.invoice_no,
               user_email: user.email
             });
@@ -203,7 +211,7 @@ export default function MyPackingListPage() {
             console.log('✅ Packing session started successfully');
             
             // Reload active data to get the full bill details
-            const newRes = await api.get("/sales/packing/active/");
+            const newRes = await getActivePackingTask();
             const newActiveData = newRes.data?.data;
             
             if (newActiveData && newActiveData.invoice) {
@@ -262,7 +270,7 @@ export default function MyPackingListPage() {
         return;
       }
 
-      const res = await api.get("/sales/packing/my-checking/");
+      const res = await getMyPackingChecking();
       const bills = res.data?.data || [];
       
       // Filter only held bills - check in packer_info
@@ -299,13 +307,11 @@ export default function MyPackingListPage() {
       }
 
       const today = new Date().toISOString().split('T')[0];
-      const res = await api.get("/sales/packing/history/", {
-        params: { 
-          status: "PACKED", 
-          start_date: today, 
-          end_date: today,
-          page_size: 0   // returns all results for today
-        },
+      const res = await getPackingHistory({
+        status: "PACKED",
+        start_date: today,
+        end_date: today,
+        page_size: 0
       });
       // Handle both paginated and non-paginated response shapes
       const results = res.data?.results || res.data || [];
@@ -328,7 +334,7 @@ export default function MyPackingListPage() {
     try {
       setLoading(true);
       
-      await api.post("/sales/packing/start-checking/", {
+      await startPackingCheck({
         invoice_no: bill.invoice_no,
         user_email: user.email,
       });
@@ -367,7 +373,7 @@ export default function MyPackingListPage() {
     }
 
     try {
-      await api.post("/sales/packing/hold-for-consolidation/", {
+      await holdForConsolidation({
         invoice_no: currentBillForHold.invoice_no,
         customer_name: customerName,
         assign_to_email: assignToEmail || null,
@@ -388,7 +394,7 @@ export default function MyPackingListPage() {
 
   const handleCancelBill = async (bill) => {
     try {
-      await api.post("/sales/cancel-session/", {
+      await cancelSession({
         invoice_no: bill.invoice_no,
         user_email: user.email,
         session_type: "PACKING",
@@ -417,7 +423,7 @@ export default function MyPackingListPage() {
     if (!invoiceNo || loadingBoxes.has(invoiceNo) || billBoxDetails[invoiceNo]) return;
     setLoadingBoxes(prev => new Set([...prev, invoiceNo]));
     try {
-      const res = await api.get(`/sales/packing/bill/${invoiceNo}/`);
+      const res = await getPackingBill(invoiceNo);
       setBillBoxDetails(prev => ({ ...prev, [invoiceNo]: res.data?.data }));
     } catch (err) {
       console.error("Failed to load box details", err);

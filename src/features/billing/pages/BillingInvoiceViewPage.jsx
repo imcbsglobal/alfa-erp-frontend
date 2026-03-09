@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import api from "../../../services/api";
+import { getInvoiceById } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import { formatDateDDMMYYYY, formatNumber, formatTime, formatMRP, formatQuantity, formatAmount, formatDateTime } from "../../../utils/formatters";
 
@@ -23,7 +23,7 @@ export default function BillingInvoiceViewPage() {
   const loadInvoice = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/sales/invoices/${id}/`);
+      const res = await getInvoiceById(id);
       setInvoice(res.data);
     } catch (err) {
       console.error("Failed to load invoice:", err);

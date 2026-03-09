@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 export default function Pagination({
   currentPage,
   totalItems,
@@ -8,6 +10,17 @@ export default function Pagination({
 }) {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const indexOfLast = currentPage * itemsPerPage;
+
+  // Keep a stable ref so the effect never needs onPageChange as a dependency
+  const onPageChangeRef = useRef(onPageChange);
+  useEffect(() => { onPageChangeRef.current = onPageChange; });
+
+  // Auto-correct if currentPage exceeds totalPages (e.g. after data shrinks)
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      onPageChangeRef.current(totalPages);
+    }
+  }, [currentPage, totalPages]);
   const indexOfFirst = indexOfLast - itemsPerPage;
 
   if (totalItems === 0) return null;
@@ -94,6 +107,7 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
+          aria-label="Previous page"
           className={`px-1.5 py-0.5 rounded-md text-[11px] transition-all ${
             currentPage === 1
               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
@@ -135,6 +149,7 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
+          aria-label="Next page"
           className={`px-1.5 py-0.5 rounded-md text-[11px] transition-all ${
             currentPage === totalPages
               ? "bg-gray-100 text-gray-400 cursor-not-allowed"

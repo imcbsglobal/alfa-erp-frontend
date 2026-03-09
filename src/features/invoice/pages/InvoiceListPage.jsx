@@ -3,8 +3,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
 import PickInvoiceModal from "../components/PickInvoiceModal";
 import BulkPickModal from "../components/BulkPickModal";
-import api from "../../../services/api";
-import { getActivePickingTask } from "../../../services/sales";
+import {
+  getActivePickingTask,
+  getByUrl,
+  getDeveloperSettings,
+  getPickingHistory,
+  completePicking,
+  startPicking,
+} from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
@@ -48,7 +54,7 @@ export default function InvoiceListPage() {
   useEffect(() => {
     const fetchDeveloperSettings = async () => {
       try {
-        const response = await api.get('/common/developer-settings/');
+        const response = await getDeveloperSettings();
         const manualEnabled = response.data.data.enable_manual_picking_completion;
         const bulkEnabled = response.data.data.enable_bulk_picking;
         console.log('🔧 Manual Completion Check (from API):', {
@@ -135,7 +141,7 @@ export default function InvoiceListPage() {
       
       // Fetch all pages
       while (nextUrl) {
-        const res = await api.get(nextUrl);
+        const res = await getByUrl(nextUrl);
         const results = res.data.results || [];
         allInvoices = [...allInvoices, ...results];
         
@@ -164,9 +170,7 @@ export default function InvoiceListPage() {
     try {
       // Fetch from picking history API which has start_time and duration fields
       // Use status=PREPARING to get ongoing picking sessions
-      const res = await api.get("/sales/picking/history/", {
-        params: { status: "PREPARING", page_size: 9999 }
-      });
+      const res = await getPickingHistory({ status: "PREPARING", page_size: 9999 });
       const responseData = res.data?.results || [];
       
       console.log("Ongoing tasks data:", responseData);
@@ -254,7 +258,7 @@ export default function InvoiceListPage() {
         completionData.invoice_id = invoiceToComplete.invoice_id || invoiceToComplete.id;
       }
 
-      await api.post("/sales/picking/complete/", completionData);
+      await completePicking(completionData);
 
       toast.success(`Picking completed for ${invoiceToComplete.invoice_no}`);
       setShowConfirmComplete(false);
@@ -321,7 +325,7 @@ export default function InvoiceListPage() {
     try {
       // First check if there's already an active picking session
       console.log("Checking for active picking session...");
-      const activeRes = await api.get("/sales/picking/active/");
+      const activeRes = await getActivePickingTask();
       console.log("Active picking response:", activeRes.data);
       
       if (activeRes.data?.data) {
@@ -334,7 +338,7 @@ export default function InvoiceListPage() {
       }
 
       // No active session, proceed with starting picking
-      await api.post("/sales/picking/start/", {
+      await startPicking({
         invoice_no: selectedInvoice.invoice_no,
         user_email: employeeEmail,
         notes: "Picking started",
@@ -354,7 +358,7 @@ export default function InvoiceListPage() {
       if (err.response?.status === 409) {
         console.log("409 Conflict - Active session detected, fetching details...");
         try {
-          const activeRes = await api.get("/sales/picking/active/");
+          const activeRes = await getActivePickingTask();
           console.log("Fetched active session:", activeRes.data);
           
           // Try different possible response structures
@@ -405,7 +409,7 @@ export default function InvoiceListPage() {
           errorMessage.toLowerCase().includes("already")) {
         console.log("Active session error detected from message, fetching details...");
         try {
-          const activeRes = await api.get("/sales/picking/active/");
+          const activeRes = await getActivePickingTask();
           console.log("Fetched active session:", activeRes.data);
           
           if (activeRes.data?.data) {

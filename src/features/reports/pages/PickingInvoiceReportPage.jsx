@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import api from "../../../services/api";
+import { getPickingHistory } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
@@ -64,14 +64,14 @@ export default function PickingInvoiceReportPage() {
       const q = debouncedSearch.trim().toLowerCase();
 
       if (!q) {
-        const res = await api.get("/sales/picking/history/", { params });
+        const res = await getPickingHistory(params);
         const results = sortByStartTime(res.data.results || []);
         setRawSessions(results);
         setSessions(results);
         setTotalCount(res.data.count || 0);
       } else {
         // Try API search first
-        const searchRes = await api.get("/sales/picking/history/", { params: { ...params, search: debouncedSearch } });
+        const searchRes = await getPickingHistory({ ...params, search: debouncedSearch });
         const searchResults = searchRes.data.results || [];
 
         if (searchResults.length > 0) {
@@ -84,7 +84,7 @@ export default function PickingInvoiceReportPage() {
           const allParams = { page_size: 10000 };
           if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
 
-          const allRes = await api.get("/sales/picking/history/", { params: allParams });
+          const allRes = await getPickingHistory(allParams);
           const allResults = sortByStartTime(allRes.data.results || []);
 
           const pickerMatches = allResults.filter(s =>

@@ -303,7 +303,7 @@ export default function DepartmentListPage() {
                 <input
                   type="text"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm"
                   placeholder="Search by name..."
                 />
@@ -329,7 +329,7 @@ export default function DepartmentListPage() {
               </label>
               <select
                 value={filterName}
-                onChange={(e) => setFilterName(e.target.value)}
+                onChange={(e) => { setFilterName(e.target.value); setCurrentPage(1); }}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm"
               >
                 <option value="ALL">All Departments</option>
@@ -348,19 +348,20 @@ export default function DepartmentListPage() {
               {searchTerm && (
                 <span className="px-2 sm:px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2">
                   Search: "{searchTerm}"
-                  <button onClick={() => setSearchTerm("")} className="hover:text-teal-900">×</button>
+                  <button onClick={() => { setSearchTerm(""); setCurrentPage(1); }} className="hover:text-teal-900">×</button>
                 </span>
               )}
               {filterName !== "ALL" && (
                 <span className="px-2 sm:px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2">
                   Name: {filterName}
-                  <button onClick={() => setFilterName("ALL")} className="hover:text-cyan-900">×</button>
+                  <button onClick={() => { setFilterName("ALL"); setCurrentPage(1); }} className="hover:text-cyan-900">×</button>
                 </span>
               )}
               <button
                 onClick={() => {
                   setSearchTerm("");
                   setFilterName("ALL");
+                  setCurrentPage(1);
                 }}
                 className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 font-medium"
               >

@@ -195,7 +195,7 @@ export default function CourierListPage() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                 className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-teal-500 focus:outline-none"
                 placeholder="Search..."
               />
@@ -205,7 +205,7 @@ export default function CourierListPage() {
             </div>
             <select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-teal-500 focus:outline-none"
             >
               <option value="ALL">All Types</option>
@@ -214,7 +214,7 @@ export default function CourierListPage() {
             </select>
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-teal-500 focus:outline-none"
             >
               <option value="ALL">All Status</option>

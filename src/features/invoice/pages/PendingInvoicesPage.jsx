@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import api from "../../../services/api";
+import { getByUrl } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
@@ -72,7 +72,7 @@ export default function PendingInvoicesPage() {
       
       // Fetch all pages
       while (nextUrl) {
-        const res = await api.get(nextUrl);
+        const res = await getByUrl(nextUrl);
         const results = res.data.results || [];
         allInvoices = [...allInvoices, ...results];
         

@@ -397,7 +397,7 @@ export default function UserListPage() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                 placeholder="Search users"
                 className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
               />
@@ -418,7 +418,7 @@ export default function UserListPage() {
               </span>
               {searchTerm && (
                 <button
-                  onClick={() => setSearchTerm('')}
+                  onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   title="Clear search"
                 >
@@ -429,7 +429,7 @@ export default function UserListPage() {
 
             <select
               value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
+              onChange={(e) => { setFilterRole(e.target.value); setCurrentPage(1); }}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
             >
               <option value="ALL">All Roles</option>
@@ -440,7 +440,7 @@ export default function UserListPage() {
 
             <select
               value={filterJobTitle}
-              onChange={(e) => setFilterJobTitle(e.target.value)}
+              onChange={(e) => { setFilterJobTitle(e.target.value); setCurrentPage(1); }}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
             >
               <option value="ALL">All Job Titles</option>
@@ -453,7 +453,7 @@ export default function UserListPage() {
 
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
             >
               <option value="ALL">All Status</option>

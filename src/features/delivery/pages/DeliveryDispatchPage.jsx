@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Eye, Truck, Package, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useUrlPage from '../../../utils/useUrlPage';
-import api from '../../../services/api';
+import {
+  getByUrl,
+  getDeliveryHistory,
+  startDelivery,
+} from '../../../services/sales';
 import DeliveryModal from '../components/DeliveryModal';
 import { useAuth } from "../../auth/AuthContext";
 import DeliveryStatusBadge from '../components/DeliveryStatusBadge';
@@ -98,7 +102,7 @@ const DeliveryDispatchPage = () => {
       
       // Fetch all pages
       while (nextUrl) {
-        const res = await api.get(nextUrl);
+        const res = await getByUrl(nextUrl);
         const results = res.data.results || [];
         allInvoices = [...allInvoices, ...results];
         
@@ -130,7 +134,7 @@ const DeliveryDispatchPage = () => {
   const loadOngoingDeliveries = async () => {
     setLoadingOngoing(true);
     try {
-      const res = await api.get('/sales/delivery/history/?status=IN_TRANSIT');
+      const res = await getDeliveryHistory({ status: 'IN_TRANSIT' });
       const responseData = res.data?.results;
       console.log('Ongoing deliveries data:', responseData);
       if (responseData) {
@@ -164,7 +168,7 @@ const DeliveryDispatchPage = () => {
   const handleConfirmDelivery = async (payload) => {
     setSubmitting(true);
     try {
-      const response = await api.post('/sales/delivery/start/', payload);
+      const response = await startDelivery(payload);
 
       if (response.data.success) {
         // Show appropriate success message based on delivery type

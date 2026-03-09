@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import api from "../../../services/api";
+import {
+  getPackingBill,
+  returnBillingInvoice,
+  completeConsolidatedPacking,
+} from "../../../services/sales";
 import toast from "react-hot-toast";
 import { formatQuantity } from "../../../utils/formatters";
 import { useAuth } from "../../auth/AuthContext";
@@ -124,7 +128,7 @@ export default function ConsolidatedPackingPage() {
       
       // Fetch details for all bills
       const billPromises = billIds.map(id => 
-        api.get(`/sales/packing/bill/${id}/`)
+        getPackingBill(id)
       );
       
       const responses = await Promise.all(billPromises);
@@ -250,7 +254,7 @@ export default function ConsolidatedPackingPage() {
       
       // Send all bills for review
       const reviewPromises = bills.map(bill => 
-        api.post("/sales/billing/return/", {
+        returnBillingInvoice({
           invoice_no: bill.invoice_no,
           return_reason: `[Consolidated Packing] ${notes}`,
           user_email: user.email,
@@ -856,7 +860,7 @@ export default function ConsolidatedPackingPage() {
         }))
       }));
 
-      const response = await api.post("/sales/packing/complete-consolidated-packing/", {
+      const response = await completeConsolidatedPacking({
         invoice_numbers: billIds,
         customer_name: customerName,
         boxes: boxData,

@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import { getInvoiceReport } from "../../../services/sales";
-import api from "../../../services/api";
+import { getInvoiceReport, exportInvoiceReport } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateTime, formatNumber } from '../../../utils/formatters';
@@ -127,7 +126,7 @@ export default function InvoiceReportPage() {
       if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
-      const res = await api.get("/sales/invoice-report/export/", { params });
+      const res = await exportInvoiceReport(params);
       let allData = res.data.data || [];
 
       // Salesman fallback filter (same logic as table view)

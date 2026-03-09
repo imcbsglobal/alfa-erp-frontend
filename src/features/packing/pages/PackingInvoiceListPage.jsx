@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import api from "../../../services/api";
+import {
+  getByUrl,
+  getPackingHistory,
+  getActivePackingTask,
+  startPacking,
+} from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
@@ -92,7 +97,7 @@ export default function PackingInvoiceListPage() {
       let nextUrl = "/sales/invoices/?status=PICKED&page_size=100";
       
       while (nextUrl) {
-        const res = await api.get(nextUrl);
+        const res = await getByUrl(nextUrl);
         const results = res.data.results || [];
         allInvoices = [...allInvoices, ...results];
         
@@ -116,7 +121,7 @@ export default function PackingInvoiceListPage() {
   const loadOngoingTasks = async () => {
     setLoadingOngoing(true);
     try {
-      const res = await api.get("/sales/packing/history/?status=IN_PROGRESS");
+      const res = await getPackingHistory({ status: 'IN_PROGRESS' });
       const responseData = res.data?.results;
       if (responseData) {
         setOngoingTasks(responseData);
@@ -149,7 +154,7 @@ export default function PackingInvoiceListPage() {
     }
 
     try {
-      const activeRes = await api.get("/sales/packing/active/");
+      const activeRes = await getActivePackingTask();
 
       if (activeRes.data?.data) {
         const activeInvoice = activeRes.data.data.invoice;
@@ -160,7 +165,7 @@ export default function PackingInvoiceListPage() {
 
       const invoiceNo = invoice.invoice_no;
 
-      await api.post("/sales/packing/start/", {
+      await startPacking({
         invoice_no: invoiceNo,
         user_email: user.email,
         notes: "Packing started",
@@ -173,7 +178,7 @@ export default function PackingInvoiceListPage() {
 
       if (err.response?.status === 409) {
         try {
-          const activeRes = await api.get("/sales/packing/active/");
+          const activeRes = await getActivePackingTask();
           const activeInvoice = activeRes.data?.data?.invoice || activeRes.data?.invoice || activeRes.data?.data;
 
           if (activeInvoice && (activeInvoice.id || activeInvoice.invoice_no)) {
@@ -206,7 +211,7 @@ export default function PackingInvoiceListPage() {
           errorMessage.toLowerCase().includes("active") ||
           errorMessage.toLowerCase().includes("already")) {
         try {
-          const activeRes = await api.get("/sales/packing/active/");
+          const activeRes = await getActivePackingTask();
           if (activeRes.data?.data) {
             const inv = activeRes.data.data.invoice;
             const customerName = inv?.customer?.name ? ` for ${inv.customer.name}` : '';
