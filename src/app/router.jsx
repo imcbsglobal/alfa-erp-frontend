@@ -14,8 +14,11 @@ import JobTitleListPage from "../features/master/pages/JobTitleListPage";
 import AddJobTitlePage from "../features/master/pages/AddJobTitlePage";
 import DepartmentListPage from "../features/master/pages/DepartmentListPage";
 import AddDepartmentPage from "../features/master/pages/AddDepartmentPage";
+
 import CourierListPage from "../features/master/pages/CourierListPage";
 import AddCourierPage from "../features/master/pages/AddCourierPage";
+import TrayListPage from "../features/master/pages/TrayListPage";
+import AddTrayPage from "../features/master/pages/AddTrayPage";
 
 import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
 // import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
@@ -126,6 +129,9 @@ export default function AppRouter() {
           <Route path="/master/department/add" element={<AddDepartmentPage />} />
           <Route path="/master/courier" element={<CourierListPage />} />
           <Route path="/master/courier/add" element={<AddCourierPage />} />
+
+            <Route path="/master/tray" element={<TrayListPage />} />
+            <Route path="/master/tray/add" element={<AddTrayPage />} />
 
           <Route path="/delivery/courier-list" element={<CourierDeliveryListPage />} />
           <Route path="/delivery/company-list" element={<CompanyDeliveryListPage />} />

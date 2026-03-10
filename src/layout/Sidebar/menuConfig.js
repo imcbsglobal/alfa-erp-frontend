@@ -260,6 +260,11 @@ export const MENU_CONFIG = [
         icon: Send,
         path: "/master/courier",
       },
+      {
+        label: "Tray",
+        icon: Box,
+        path: "/master/tray",
+      },
     ],
     isActive: (pathname) => pathname.includes("/master/"),
   },
