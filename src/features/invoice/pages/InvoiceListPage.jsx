@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import ActiveUsersDock from '../../../components/ActiveUsersDock';
 import { formatDateDDMMYYYY, formatTime, formatDuration, formatNumber, formatDate, formatDateTime } from '../../../utils/formatters';
+import { getInvoiceStatusColor, getInvoiceStatusLabel } from '../../../utils/invoiceStatus';
 import { X } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
@@ -504,30 +505,8 @@ export default function InvoiceListPage() {
     }
   };
 
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case "INVOICED":
-        return "bg-yellow-100 text-yellow-700 border-yellow-300";
-      case "PICKING":
-        return "bg-blue-100 text-blue-700 border-blue-300";
-      case "PICKED":
-        return "bg-green-100 text-green-700 border-green-300";
-      case "PACKING":
-        return "bg-purple-100 text-purple-700 border-purple-300";
-      case "PACKED":
-        return "bg-emerald-100 text-emerald-700 border-emerald-300";
-      case "DISPATCHED":
-        return "bg-teal-100 text-teal-700 border-teal-300";
-      case "DELIVERED":
-        return "bg-gray-200 text-gray-700 border-gray-300";
-      case "REVIEW":
-        return "bg-red-100 text-red-700 border-red-300";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-300";
-    }
-  };
-
-  const getStatusLabel = (status) => status || "INVOICED";
+  const getStatusBadgeColor = getInvoiceStatusColor;
+  const getStatusLabel = (status) => getInvoiceStatusLabel(status) || "INVOICED";
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
