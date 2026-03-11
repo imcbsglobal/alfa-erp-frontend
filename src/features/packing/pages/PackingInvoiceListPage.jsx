@@ -172,7 +172,7 @@ export default function PackingInvoiceListPage() {
       });
 
       toast.success(`Packing started for ${invoiceNo}`);
-      navigate(getPath(`/packing/box-assignment/${invoiceNo}`));
+      navigate(getPath(`/packing/tray-assignment/${invoiceNo}`));
     } catch (err) {
       console.error("Error in handlePackClick:", err);
 
@@ -291,6 +291,7 @@ export default function PackingInvoiceListPage() {
       case "PICKING": return "bg-blue-100 text-blue-700 border-blue-300";
       case "PICKED": return "bg-green-100 text-green-700 border-green-300";
       case "PACKING": return "bg-purple-100 text-purple-700 border-purple-300";
+      case "BOXING": return "bg-orange-100 text-orange-700 border-orange-300";
       case "PACKED": return "bg-emerald-100 text-emerald-700 border-emerald-300";
       case "DISPATCHED": return "bg-teal-100 text-teal-700 border-teal-300";
       case "DELIVERED": return "bg-gray-200 text-gray-700 border-gray-300";
@@ -299,7 +300,10 @@ export default function PackingInvoiceListPage() {
     }
   };
 
-  const getStatusLabel = (status) => status || "PICKED";
+  const getStatusLabel = (status) => {
+    if (status === "BOXING") return "IN PROGRESS";
+    return status || "PICKED";
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">

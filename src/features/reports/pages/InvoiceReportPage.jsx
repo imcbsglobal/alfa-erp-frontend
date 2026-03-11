@@ -27,16 +27,8 @@ const STATUS_OPTIONS = [
   { value: 'DELIVERED',  label: 'Delivered'   },
 ];
 
-const STATUS_BADGE = {
-  INVOICED:   'bg-slate-100 text-slate-700 border-slate-300',
-  PICKING:    'bg-blue-100 text-blue-700 border-blue-300',
-  PICKED:     'bg-emerald-100 text-emerald-700 border-emerald-300',
-  PACKING:    'bg-purple-100 text-purple-700 border-purple-300',
-  PACKED:     'bg-teal-100 text-teal-700 border-teal-300',
-  DISPATCHED: 'bg-cyan-100 text-cyan-700 border-cyan-300',
-  DELIVERED:  'bg-green-100 text-green-700 border-green-300',
-  REVIEW:     'bg-red-100 text-red-700 border-red-300',
-};
+import { getInvoiceStatusLabel } from '../../../utils/invoiceStatus';
+import { INVOICE_STATUS_COLORS as STATUS_BADGE } from '../../../utils/invoiceStatus';
 
 export default function InvoiceReportPage() {
   const navigate = useNavigate();
@@ -313,7 +305,7 @@ export default function InvoiceReportPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`px-2.5 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[inv.status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
-                            {inv.status || '—'}
+                            {getInvoiceStatusLabel(inv.status) || inv.status || '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">

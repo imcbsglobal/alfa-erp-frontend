@@ -123,6 +123,15 @@ export const getCompletedPacking = (invoiceNo) => api.get(`/sales/packing/comple
 export const getBoxDetails = (boxId) => api.get(`/sales/packing/box-details/${boxId}/`);
 export const completeConsolidatedPacking = (data) => api.post("/sales/packing/complete-consolidated-packing/", data);
 
+// Tray-based packing workflow
+export const searchTrays = (q) => api.get("/sales/packing/search-trays/", { params: { q } });
+export const getTrayBill = (invoiceNo) => api.get(`/sales/packing/tray-bill/${invoiceNo}/`);
+export const saveTrayDraft = (data) => api.post("/sales/packing/save-tray-draft/", data);
+export const completeTrayPacking = (data) => api.post("/sales/packing/complete-tray-packing/", data);
+export const getBoxingInvoices = (params = {}) => api.get("/sales/packing/boxing-invoices/", { params });
+export const getBoxingData = (invoiceNo) => api.get(`/sales/packing/boxing-data/${invoiceNo}/`);
+export const completeBoxing = (data) => api.post("/sales/packing/complete-boxing/", data);
+
 // Delivery
 export const assignDelivery = (data) => api.post("/sales/delivery/assign/", data);
 export const uploadDeliverySlip = (formData) =>

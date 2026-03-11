@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../features/auth/AuthContext";
 import { formatDateDDMMYYYY, formatNumber, formatTime, formatMRP, formatQuantity, formatAmount, formatLineTotal } from "../utils/formatters";
+import { getInvoiceStatusLabel } from "../utils/invoiceStatus";
 
 export default function CommonInvoiceView() {
   const { user } = useAuth();
@@ -177,7 +178,7 @@ export default function CommonInvoiceView() {
               <MobileInfoRow label="Date & Time" value={`${formatDateDDMMYYYY(invoice.invoice_date)} & ${formatTime(invoice.created_at)}`} />
               <MobileInfoRow label="Salesman" value={invoice.salesman?.name} />
               <MobileInfoRow label="Created By" value={invoice.created_by} />
-              <MobileInfoRow label="Status" value={invoice.status} />
+              <MobileInfoRow label="Status" value={getInvoiceStatusLabel(invoice.status)} />
             </div>
           </div>
 
@@ -292,7 +293,7 @@ export default function CommonInvoiceView() {
                 <div className="space-y-2">
                   <CompactInfoRowInline label1="Invoice No" value1={invoice.invoice_no} label2="Date & Time" value2={`${formatDateDDMMYYYY(invoice.invoice_date)} & ${formatTime(invoice.created_at)}`} />
                   <CompactInfoRowInline label1="Salesman" value1={invoice.salesman?.name} label2="Created By" value2={invoice.created_by} />
-                  <CompactInfoRowInline label1="Status" value1={invoice.status} label2="Priority" value2={invoice.priority || "LOW"} />
+                  <CompactInfoRowInline label1="Status" value1={getInvoiceStatusLabel(invoice.status)} label2="Priority" value2={invoice.priority || "LOW"} />
                 </div>
               </div>
 

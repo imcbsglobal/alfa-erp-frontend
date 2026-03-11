@@ -291,7 +291,7 @@ export default function SuperAdminDashboard() {
         const invoices = invoicesRes.value?.data?.results || [];
         totalInvoices = invoicesRes.value?.data?.count || invoices.length;
         pendingInvoices = invoices.filter(inv => inv.status === 'PENDING').length;
-        inProgressInvoices = invoices.filter(inv => ['ASSIGNED', 'PICKING', 'PICKED', 'PACKING'].includes(inv.status)).length;
+        inProgressInvoices = invoices.filter(inv => ['ASSIGNED', 'PICKING', 'PICKED', 'PACKING', 'BOXING'].includes(inv.status)).length;
         completedInvoices = invoices.filter(inv => ['PACKED', 'DELIVERED', 'COMPLETED'].includes(inv.status)).length;
       }
 

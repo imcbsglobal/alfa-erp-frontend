@@ -33,6 +33,10 @@ import PackingInvoiceListPage from "../features/packing/pages/PackingInvoiceList
 // import PackingInvoiceViewPage from "../features/packing/pages/PackingInvoiceViewPage";
 import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
 import BoxAssignmentPage from "../features/packing/pages/BoxAssignmentPage";
+import TrayAssignmentPage from "../features/packing/pages/TrayAssignmentPage";
+import BoxingListPage from "../features/packing/pages/BoxingListPage";
+import BoxingPage from "../features/packing/pages/BoxingPage";
+import MyBoxingListPage from "../features/packing/pages/MyBoxingListPage";
 import ConsolidatedPackingPage from "../features/packing/pages/ConsolidatedPackingPage";
 import BoxLabelPrintPage from "../features/packing/pages/BoxLabelPrintPage";
 import BoxDetailsPage from "../features/packing/pages/BoxDetailsPage";
@@ -104,6 +108,10 @@ export default function AppRouter() {
           {/* <Route path="/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} /> */}
           <Route path="/packing/my" element={<MyPackingListPage />} />
           <Route path="/packing/box-assignment/:invoiceNo" element={<BoxAssignmentPage />} />
+          <Route path="/packing/tray-assignment/:invoiceNo" element={<TrayAssignmentPage />} />
+          <Route path="/packing/boxing" element={<BoxingListPage />} />
+          <Route path="/packing/boxing/:invoiceNo" element={<BoxingPage />} />
+          <Route path="/packing/my-boxing" element={<MyBoxingListPage />} />
           <Route path="/packing/consolidated-packing" element={<ConsolidatedPackingPage />} />
           <Route path="/packing/print-labels/:invoiceNo" element={<BoxLabelPrintPage />} />
 
@@ -184,6 +192,10 @@ export default function AppRouter() {
           {/* <Route path="/ops/packing/invoices/view/:id" element={<PackingInvoiceViewPage />} /> */}
           <Route path="/ops/packing/my" element={<MyPackingListPage />} />
           <Route path="/ops/packing/box-assignment/:invoiceNo" element={<BoxAssignmentPage />} />
+          <Route path="/ops/packing/tray-assignment/:invoiceNo" element={<TrayAssignmentPage />} />
+          <Route path="/ops/packing/boxing" element={<BoxingListPage />} />
+          <Route path="/ops/packing/boxing/:invoiceNo" element={<BoxingPage />} />
+          <Route path="/ops/packing/my-boxing" element={<MyBoxingListPage />} />
           <Route path="/ops/packing/consolidated-packing" element={<ConsolidatedPackingPage />} />
           <Route path="/ops/packing/print-labels/:invoiceNo" element={<BoxLabelPrintPage />} />
 

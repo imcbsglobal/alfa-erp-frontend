@@ -45,6 +45,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
       VERIFIED: "bg-blue-100 text-blue-700",
       PENDING: "bg-gray-100 text-gray-700",
       IN_PROGRESS: "bg-yellow-100 text-yellow-700",
+      BOXING: "bg-orange-100 text-orange-700",
       PACKED: "bg-blue-100 text-blue-700",
       PACKING: "bg-blue-100 text-blue-700",
       IN_TRANSIT: "bg-blue-100 text-blue-700",

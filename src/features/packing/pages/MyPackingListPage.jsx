@@ -341,8 +341,8 @@ export default function MyPackingListPage() {
 
       toast.success(`Started packing bill #${bill.invoice_no}`);
       
-      // Navigate directly to box assignment (skip checking)
-      navigate(getPath(`/packing/box-assignment/${bill.invoice_no}`));
+      // Navigate directly to tray assignment
+      navigate(getPath(`/packing/tray-assignment/${bill.invoice_no}`));
       
     } catch (err) {
       console.error("Start packing error:", err);
@@ -357,8 +357,7 @@ export default function MyPackingListPage() {
   };
 
   const handleContinueChecking = (bill) => {
-    // Skip checking and go directly to box assignment
-    navigate(getPath(`/packing/box-assignment/${bill.invoice_no}`));
+    navigate(getPath(`/packing/tray-assignment/${bill.invoice_no}`));
   };
 
   const handleHoldBill = (bill) => {
@@ -437,12 +436,13 @@ export default function MyPackingListPage() {
     const boxId = box.boxId || box.box_id;
 
     const customerAddr1   = fullBill?.customer?.address1 || fullBill?.delivery_address || '';
-    const hasAddress      = !!(customerAddr1 || fullBill?.customer?.address2);
+    const hasAddress      = !!(customerAddr1 || fullBill?.customer?.address2 || fullBill?.customer?.address3);
     const customerName    = hasAddress
       ? (fullBill?.customer?.name || fullBill?.customer_name || '')
       : (fullBill?.temp_name || fullBill?.customer?.name || fullBill?.customer_name || '');
     const customerArea    = fullBill?.customer?.area     || '';
     const customerAddr2   = fullBill?.customer?.address2 || '';
+    const customerAddr3   = fullBill?.customer?.address3 || '';
     const customerPincode = fullBill?.customer?.pincode  || '';
     const customerPhone1  = fullBill?.customer?.phone1   || fullBill?.customer_phone || '';
     const customerPhone2  = fullBill?.customer?.phone2   || '';
@@ -542,8 +542,8 @@ export default function MyPackingListPage() {
                   <p class="to-label">Ship To</p>
                   ${customerName   ? `<p class="customer-name">${customerName}</p>` : ''}
                   ${customerNameML ? `<p class="customer-name-ml">${customerNameML}</p>` : ''}
-                  ${(customerArea || customerAddr1) ? `<p class="customer-area">${[customerArea, customerAddr1].filter(Boolean).join(', ')}</p>` : ''}
-                  ${(customerAddr2 || customerPincode) ? `<p class="customer-addr">${[customerAddr2, customerPincode].filter(Boolean).join(', ')}</p>` : ''}
+                  ${(customerAddr1 || customerAddr2) ? `<p class="customer-area">${[customerAddr1, customerAddr2].filter(Boolean).join(', ')}</p>` : ''}
+                  ${(customerAddr3 || customerPincode) ? `<p class="customer-addr">${[customerAddr3, customerPincode].filter(Boolean).join(' - ')}</p>` : ''}
                   ${(customerPhone1 || customerPhone2) ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>` : ''}
                 </div>
                 <div class="qr-bottom-row">
@@ -656,7 +656,7 @@ export default function MyPackingListPage() {
     
     if (selectedBills.length === 1) {
       toast.info("Proceeding with single bill packing");
-      navigate(getPath(`/packing/box-assignment/${selectedBills[0]}`));
+      navigate(getPath(`/packing/tray-assignment/${selectedBills[0]}`));
       return;
     }
     
@@ -1000,7 +1000,7 @@ export default function MyPackingListPage() {
                                   // Use setTimeout to ensure state updates before navigation
                                   setTimeout(() => {
                                     if (allBillIds.length === 1) {
-                                      navigate(getPath(`/packing/box-assignment/${allBillIds[0]}`));
+                                      navigate(getPath(`/packing/tray-assignment/${allBillIds[0]}`));
                                     } else {
                                       toast.success(`Proceeding with ${allBillIds.length} bills for consolidated packing`);
                                       navigate(getPath("/packing/consolidated-packing"), {
@@ -1104,7 +1104,7 @@ export default function MyPackingListPage() {
                               onClick={() => {
                                 const allBillIds = bills.map(b => b.invoice_no);
                                 if (allBillIds.length === 1) {
-                                  navigate(getPath(`/packing/box-assignment/${allBillIds[0]}`));
+                                  navigate(getPath(`/packing/tray-assignment/${allBillIds[0]}`));
                                 } else {
                                   toast.success(`Proceeding with ${allBillIds.length} bills for consolidated packing`);
                                   navigate(getPath("/packing/consolidated-packing"), {

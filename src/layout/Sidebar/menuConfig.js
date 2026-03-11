@@ -96,23 +96,33 @@ export const MENU_CONFIG = [
         label: "Packing",
         icon: Box,
         type: "nested-dropdown",
-        hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
+        hasAccess: (user) => ["PACKER", "SUPERADMIN", "ADMIN", "USER"].includes(user?.role),
         submenu: [
           {
             label: "Packing List",
             icon: Box,
             path: (user) => user?.role === "PACKER" ? "/ops/packing/invoices" : "/packing/invoices",
-            hasAccess: (user) => user?.role === "PACKER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
+            hasAccess: (user) => ["PACKER", "SUPERADMIN", "ADMIN", "USER"].includes(user?.role),
           },
           {
             label: "My Assigned Packing",
             icon: PlusCircle,
             path: (user) => user?.role === "PACKER" ? "/ops/packing/my" : "/packing/my",
             hasAccess: (user, permissions) =>
-              user?.role === "PACKER" || 
-              user?.role === "SUPERADMIN" || 
-              user?.role === "ADMIN" ||
+              ["PACKER", "SUPERADMIN", "ADMIN", "USER"].includes(user?.role) ||
               permissions["my-packing"]?.view === true,
+          },
+          {
+            label: "Boxing List",
+            icon: Box,
+            path: (user) => user?.role === "PACKER" ? "/ops/packing/boxing" : "/packing/boxing",
+            hasAccess: (user) => ["PACKER", "SUPERADMIN", "ADMIN", "USER"].includes(user?.role),
+          },
+          {
+            label: "My Assigned Boxing",
+            icon: PlusCircle,
+            path: (user) => user?.role === "PACKER" ? "/ops/packing/my-boxing" : "/packing/my-boxing",
+            hasAccess: (user) => ["PACKER", "SUPERADMIN", "ADMIN", "USER"].includes(user?.role),
           },
         ],
       },
@@ -293,8 +303,12 @@ export const PAGE_TITLES = {
   "/invoices/my": "My Assigned Bills",
   "/packing/invoices": "Packing Management",
   "/packing/my": "My Assigned Packing",
+  "/packing/boxing": "Boxing List",
+  "/packing/my-boxing": "My Assigned Boxing",
   "/ops/packing/invoices": "Packing Management",
   "/ops/packing/my": "My Assigned Packing",
+  "/ops/packing/boxing": "Boxing List",
+  "/ops/packing/my-boxing": "My Assigned Boxing",
   "/billing/invoices": "Billing Management",
   "/billing/reviewed": "Reviewed Bills",
   "/billing/my": "My Assigned Billing",

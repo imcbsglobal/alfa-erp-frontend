@@ -234,6 +234,7 @@ function StatusBadge({ status }) {
     VERIFIED: "bg-blue-100 text-blue-700 border-blue-200",
     PENDING: "bg-gray-100 text-gray-700 border-gray-200",
     IN_PROGRESS: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    BOXING: "bg-orange-100 text-orange-700 border-orange-200",
     PACKED: "bg-green-100 text-green-700 border-green-200",
     IN_TRANSIT: "bg-yellow-100 text-yellow-700 border-yellow-200",
     DELIVERED: "bg-green-100 text-green-700 border-green-200",

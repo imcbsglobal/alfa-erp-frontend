@@ -168,6 +168,7 @@ export default function BillingInvoiceListPage() {
   };
 
   const getStatusBadgeColor = (status) => {
+    if (status === "BOXING") return "bg-orange-100 text-orange-700 border-orange-300";
     switch (status) {
       case "INVOICED":
         return "bg-slate-100 text-slate-700 border-slate-300";
@@ -204,6 +205,7 @@ export default function BillingInvoiceListPage() {
   };
 
   const getStatusLabel = (status) => {
+    if (status === "BOXING") return "IN PROGRESS";
     switch (status) {
       case "INVOICED": return "Invoiced";
       case "PICKED":   return "Picked";

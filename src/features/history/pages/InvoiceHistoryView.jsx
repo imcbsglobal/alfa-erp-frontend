@@ -4,6 +4,7 @@ import useUrlPage from '../../../utils/useUrlPage';
 import { getPickingHistory, getPackingHistory, getDeliveryHistory, getBillingHistory } from "../../../services/sales";
 import ConsolidateDetailModal from "../../../components/ConsolidateDetailModal";
 import { formatDateTime } from '../../../utils/formatters';
+import { getInvoiceStatusLabel } from '../../../utils/invoiceStatus';
 import { X } from 'lucide-react';
 
 export default function InvoiceHistoryView() {
@@ -209,6 +210,7 @@ export default function InvoiceHistoryView() {
       VERIFIED: "bg-blue-100 text-blue-700 border-blue-200",
       PENDING: "bg-gray-100 text-gray-700 border-gray-200",
       IN_PROGRESS: "bg-yellow-100 text-yellow-700 border-yellow-200",
+      BOXING: "bg-orange-100 text-orange-700 border-orange-200",
       PACKED: "bg-green-100 text-green-700 border-green-200",
       IN_TRANSIT: "bg-blue-100 text-blue-700 border-blue-200",
       DELIVERED: "bg-green-100 text-green-700 border-green-200",
@@ -225,7 +227,7 @@ export default function InvoiceHistoryView() {
           styles[status] || "bg-gray-100 text-gray-700"
         }`}
       >
-        {status.replace(/_/g, " ")}
+        {getInvoiceStatusLabel(status) || status.replace(/_/g, " ")}
       </span>
     );
   };
@@ -239,6 +241,9 @@ export default function InvoiceHistoryView() {
     }
     if (item.packing?.packing_status === "PACKED") {
       return { label: "READY FOR DELIVERY", color: "bg-purple-100 text-purple-700 border-purple-200" };
+    }
+    if (item.packing?.packing_status === "PACKING" || item.packing?.packing_status === "BOXING") {
+      return { label: "IN PROGRESS", color: "bg-orange-100 text-orange-700 border-orange-200" };
     }
     if (item.picking?.picking_status === "PICKED" || item.picking?.picking_status === "VERIFIED") {
       return { label: "IN PACKING", color: "bg-yellow-100 text-yellow-700 border-yellow-200" };
