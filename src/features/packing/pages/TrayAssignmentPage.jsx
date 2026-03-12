@@ -158,7 +158,7 @@ export default function TrayAssignmentPage() {
     if (!q.trim()) { setTraySearchResults([]); return; }
     setSearchingTrays(true);
     try {
-      const res = await searchTrays(q);
+      const res = await searchTrays(q, invoiceNo);
       setTraySearchResults(res.data?.data || []);
     } catch { setTraySearchResults([]); }
     finally { setSearchingTrays(false); }
@@ -170,6 +170,10 @@ export default function TrayAssignmentPage() {
   };
 
   const handleSelectTray = (trayResult) => {
+    if (trayResult.in_use) {
+      toast.error(`Tray ${trayResult.tray_code} is in use by invoice #${trayResult.in_use_invoice}`);
+      return;
+    }
     const alreadyAdded = trays.some(t => t.trayCode === trayResult.tray_code);
     if (alreadyAdded) { toast.error(`Tray ${trayResult.tray_code} is already added`); return; }
     setTrays(prev => [...prev, {
@@ -705,12 +709,17 @@ export default function TrayAssignmentPage() {
                   <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
                     {traySearchResults.map(t => (
                       <button key={t.tray_id} onClick={() => handleSelectTray(t)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-teal-50 text-left transition-colors">
-                        <svg className="w-4 h-4 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                        <span className="text-sm font-semibold text-gray-800">{t.tray_code}</span>
-                        {trays.some(tr => tr.trayCode === t.tray_code) && (
+                        disabled={t.in_use}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                          t.in_use ? "bg-red-50 opacity-70 cursor-not-allowed" : "hover:bg-teal-50 cursor-pointer"
+                        }`}>
+                        <svg className={`w-4 h-4 flex-shrink-0 ${t.in_use ? "text-red-400" : "text-teal-600"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                        <span className={`text-sm font-semibold ${t.in_use ? "text-gray-400" : "text-gray-800"}`}>{t.tray_code}</span>
+                        {t.in_use ? (
+                          <span className="ml-auto text-[10px] text-red-500 font-semibold">In use · #{t.in_use_invoice}</span>
+                        ) : trays.some(tr => tr.trayCode === t.tray_code) ? (
                           <span className="ml-auto text-[10px] text-orange-500 font-medium">Already added</span>
-                        )}
+                        ) : null}
                       </button>
                     ))}
                   </div>

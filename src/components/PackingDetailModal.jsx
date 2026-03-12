@@ -138,17 +138,21 @@ export default function PackingDetailModal({ isOpen, onClose, invoiceId }) {
                         <span className="text-xs text-gray-500">Status</span>
                         <StatusBadge status={invoice.packing_status} />
                       </div>
-                      {invoice.label_count != null && (
-                        <div className="flex justify-between">
-                          <span className="text-xs text-gray-500">Box Count</span>
-                          <span className="text-xs sm:text-sm font-semibold text-gray-800">🏷️ {invoice.label_count}</span>
-                        </div>
-                      )}
-                      {invoice.courier_name && (
-                        <div className="flex justify-between">
-                          <span className="text-xs text-gray-500">Courier</span>
-                          <span className="text-xs sm:text-sm font-semibold text-blue-700">📦 {invoice.courier_name}</span>
-                        </div>
+                      {invoice.packing_status === 'PACKED' && (
+                        <>
+                          {invoice.label_count != null && (
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">Box Count</span>
+                              <span className="text-xs sm:text-sm font-semibold text-gray-800"> {invoice.label_count}</span>
+                            </div>
+                          )}
+                          {invoice.courier_name && (
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">Courier</span>
+                              <span className="text-xs sm:text-sm font-semibold text-blue-700"> {invoice.courier_name}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

@@ -237,7 +237,7 @@ export default function PackingInvoiceReportPage() {
             </div>
 
             <button
-              onClick={() => { loadSessions(); toast.success("Report refreshed"); }}
+              onClick={() => { loadSessions(); toast.success("Report Generated"); }}
               className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap ml-auto"
             >
               Generate
@@ -301,15 +301,21 @@ export default function PackingInvoiceReportPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           <div className="space-y-1">
-                            {session.label_count != null && (
-                              <p className="text-sm text-center font-semibold text-gray-800">
-                                 {session.label_count} {session.label_count !== 1 ? "" : ""}
-                              </p>
-                            )}
-                            {session.courier_name && (
-                              <p className="text-xs text-blue-700 font-medium">📦 {session.courier_name}</p>
-                            )}
-                            {!session.label_count && !session.courier_name && (
+                            {session.packing_status === 'PACKED' ? (
+                              <>
+                                {session.label_count != null && (
+                                  <p className="text-sm text-center font-semibold text-gray-800">
+                                    {session.label_count}
+                                  </p>
+                                )}
+                                {session.courier_name && (
+                                  <p className="text-xs text-center text-blue-700 font-medium"> {session.courier_name}</p>
+                                )}
+                                {!session.label_count && !session.courier_name && (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </>
+                            ) : (
                               <span className="text-gray-400">—</span>
                             )}
                           </div>

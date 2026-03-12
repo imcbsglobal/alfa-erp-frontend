@@ -240,7 +240,7 @@ export default function InvoiceReportPage() {
 
             <div className="flex items-center gap-2 ml-auto">
               <button
-                onClick={() => { loadInvoices(); toast.success("Report generated successfully"); }}
+                onClick={() => { loadInvoices(); toast.success("Report Generated"); }}
                 className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap"
               >
                 Generate

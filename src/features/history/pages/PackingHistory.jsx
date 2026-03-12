@@ -137,12 +137,14 @@ export default function PackingHistory() {
     const styles = {
       PENDING: "bg-gray-100 text-gray-700 border-gray-200",
       IN_PROGRESS: "bg-yellow-100 text-yellow-700 border-yellow-200",
+      PACKING: "bg-orange-100 text-orange-700 border-orange-200",
       PACKED: "bg-green-100 text-green-700 border-green-200",
     };
 
     const labels = {
       PENDING: "Pending",
       IN_PROGRESS: "In Progress",
+      PACKING: "Packing",
       PACKED: "Packed",
     };
 
@@ -324,15 +326,15 @@ export default function PackingHistory() {
                     </td>
                     <td className="px-3 sm:px-6 py-3">
                       <div className="space-y-1">
-                        {h.label_count != null && (
-                          <p className="text-sm text-center font-semibold text-gray-800">
-                             {h.label_count} {h.label_count !== 1 ? "" : ""}
-                          </p>
-                        )}
-                        {h.courier_name && (
-                          <p className="text-xs text-blue-700 font-medium">📦 {h.courier_name}</p>
-                        )}
-                        {!h.label_count && !h.courier_name && (
+                        {h.packing_status === 'PACKED' ? (
+                          <>
+                            {h.label_count != null && (
+                              <p className="text-sm text-center font-semibold text-gray-800">
+                               {h.label_count}
+                              </p>
+                            )}
+                          </>
+                        ) : (
                           <span className="text-gray-400">—</span>
                         )}
                       </div>

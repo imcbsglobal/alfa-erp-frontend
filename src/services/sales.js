@@ -119,7 +119,7 @@ export const getMyPackingChecking = () => api.get("/sales/packing/my-checking/")
 export const getPublicInvoiceDetail = (invoiceNo) => api.get(`/sales/packing/invoice-public/${invoiceNo}/`);
 
 // Tray-based packing workflow
-export const searchTrays = (q) => api.get("/sales/packing/search-trays/", { params: { q } });
+export const searchTrays = (q, invoiceNo = '') => api.get("/sales/packing/search-trays/", { params: { q, ...(invoiceNo && { invoice_no: invoiceNo }) } });
 export const getTrayBill = (invoiceNo) => api.get(`/sales/packing/tray-bill/${invoiceNo}/`);
 export const saveTrayDraft = (data) => api.post("/sales/packing/save-tray-draft/", data);
 export const completeTrayPacking = (data) => api.post("/sales/packing/complete-tray-packing/", data);

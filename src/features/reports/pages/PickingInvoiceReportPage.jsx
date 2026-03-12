@@ -188,7 +188,7 @@ export default function PickingInvoiceReportPage() {
             </div>
 
             <button
-              onClick={() => { loadSessions(); toast.success("Report refreshed"); }}
+              onClick={() => { loadSessions(); toast.success("Report Generated"); }}
               className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap ml-auto"
             >
               Generate

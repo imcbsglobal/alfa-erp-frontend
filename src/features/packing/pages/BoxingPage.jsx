@@ -300,126 +300,133 @@ export default function BoxingPage() {
         </button>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        {/* Customer Info Card */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b bg-gray-50">
-            <h2 className="text-sm font-bold text-gray-700">Delivery Details</h2>
-          </div>
-          <div className="px-4 py-4 grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-xs text-gray-400 font-medium mb-0.5">Customer</p>
-              <p className="font-semibold text-gray-800">{customer.name || invoice.customer_name || "—"}</p>
-            </div>
-            {(customer.area || customer.address1 || invoice.delivery_address) && (
-              <div>
-                <p className="text-xs text-gray-400 font-medium mb-0.5">Address</p>
-                <p className="text-gray-700">
-                  {[customer.area, customer.address1 || invoice.delivery_address, customer.address2, customer.address3, customer.pincode].filter(Boolean).join(", ")}
-                </p>
-              </div>
-            )}
-            {(customer.phone1 || invoice.customer_phone) && (
-              <div>
-                <p className="text-xs text-gray-400 font-medium mb-0.5">Phone</p>
-                <p className="text-gray-700">{customer.phone1 || invoice.customer_phone}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-xs text-gray-400 font-medium mb-0.5">Trays</p>
-              <p className="font-semibold text-teal-700">{trays.length} tray{trays.length !== 1 ? "s" : ""}</p>
-            </div>
-          </div>
-        </div>
+      <div className="px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-        {/* Tray breakdown */}
-        {trays.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b bg-gray-50">
-              <h2 className="text-sm font-bold text-gray-700">Packed Trays</h2>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {trays.map((tray, idx) => (
-                <div key={idx} className="px-4 py-2.5 flex items-center gap-3">
-                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                  </svg>
-                  <span className="text-sm font-mono font-semibold text-gray-800">{tray.tray_code || tray.box_id || tray.trayCode}</span>
-                  {tray.items?.length > 0 && (
-                    <span className="text-xs text-gray-400 ml-auto">{tray.items.length} item{tray.items.length !== 1 ? "s" : ""}</span>
-                  )}
+          {/* LEFT: Delivery Details */}
+          <div className="space-y-5">
+            {/* Customer Info Card */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b bg-gray-50">
+                <h2 className="text-sm font-bold text-gray-700">Delivery Details</h2>
+              </div>
+              <div className="px-4 py-4 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-gray-400 font-medium mb-0.5">Customer</p>
+                  <p className="font-semibold text-gray-800">{customer.name || invoice.customer_name || "—"}</p>
                 </div>
-              ))}
+                {(customer.area || customer.address1 || invoice.delivery_address) && (
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium mb-0.5">Address</p>
+                    <p className="text-gray-700">
+                      {[customer.area, customer.address1 || invoice.delivery_address, customer.address2, customer.address3, customer.pincode].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                )}
+                {(customer.phone1 || invoice.customer_phone) && (
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium mb-0.5">Phone</p>
+                    <p className="text-gray-700">{customer.phone1 || invoice.customer_phone}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-gray-400 font-medium mb-0.5">Trays</p>
+                  <p className="font-semibold text-teal-700">{trays.length} tray{trays.length !== 1 ? "s" : ""}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Label count + actions */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-5">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Number of Address Labels to Print</label>
-            <div className="flex items-center gap-3">
-              <button onClick={() => setLabelCount(v => Math.max(1, v - 1))}
-                className="w-9 h-9 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold">−</button>
-              <input
-                type="number"
-                min="1"
-                max="99"
-                value={labelCount}
-                onChange={e => {
-                  const v = parseInt(e.target.value, 10);
-                  setLabelCount(isNaN(v) || v < 1 ? 1 : Math.min(99, v));
-                }}
-                className="w-20 text-center text-lg font-bold border border-gray-300 rounded-lg py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-              />
-              <button onClick={() => setLabelCount(v => Math.min(99, v + 1))}
-                className="w-9 h-9 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold">+</button>
-              <span className="text-xs text-gray-400">{trays.length > 0 ? `(${trays.length} tray${trays.length !== 1 ? "s" : ""} default)` : ""}</span>
+            {/* Tray breakdown */}
+            {trays.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b bg-gray-50">
+                  <h2 className="text-sm font-bold text-gray-700">Packed Trays</h2>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {trays.map((tray, idx) => (
+                    <div key={idx} className="px-4 py-2.5 flex items-center gap-3">
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                      <span className="text-sm font-mono font-semibold text-gray-800">{tray.tray_code || tray.box_id || tray.trayCode}</span>
+                      {tray.items?.length > 0 && (
+                        <span className="text-xs text-gray-400 ml-auto">{tray.items.length} item{tray.items.length !== 1 ? "s" : ""}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT: Label count + actions */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Number of Address Labels to Print</label>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setLabelCount(v => Math.max(1, v - 1))}
+                  className="w-9 h-9 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold">−</button>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={labelCount}
+                  onChange={e => {
+                    const v = parseInt(e.target.value, 10);
+                    setLabelCount(isNaN(v) || v < 1 ? 1 : Math.min(99, v));
+                  }}
+                  className="w-20 text-center text-lg font-bold border border-gray-300 rounded-lg py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+                <button onClick={() => setLabelCount(v => Math.min(99, v + 1))}
+                  className="w-9 h-9 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold">+</button>
+                <span className="text-xs text-gray-400">{trays.length > 0 ? `(${trays.length} tray${trays.length !== 1 ? "s" : ""} default)` : ""}</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">Default = number of trays. Adjust if extra labels are needed.</p>
             </div>
-            <p className="text-xs text-gray-400 mt-1.5">Default = number of trays. Adjust if extra labels are needed.</p>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Courier</label>
+              <select
+                value={selectedCourier?.courier_id || ""}
+                onChange={e => setSelectedCourier(couriers.find(c => c.courier_id === e.target.value) || null)}
+                className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              >
+                <option value="">— No Courier —</option>
+                {couriers.map(c => (
+                  <option key={c.courier_id} value={c.courier_id}>
+                    {c.courier_name} {c.courier_code ? `(${c.courier_code})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={handlePrintLabels} disabled={printing}
+                className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {printing
+                  ? <><div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />Preparing...</>
+                  : <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z" />
+                    </svg>
+                    Print {labelCount} Label{labelCount !== 1 ? "s" : ""}
+                  </>}
+              </button>
+              <button onClick={handleCompleteBoxing} disabled={completing}
+                className="flex-1 py-2.5 bg-teal-600 text-white text-sm font-bold rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {completing
+                  ? <><div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />Completing...</>
+                  : <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Complete Boxing
+                  </>}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 text-center">Completing boxing moves the invoice to PACKED status for dispatch.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Courier</label>
-            <select
-              value={selectedCourier?.courier_id || ""}
-              onChange={e => setSelectedCourier(couriers.find(c => c.courier_id === e.target.value) || null)}
-              className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            >
-              <option value="">— No Courier —</option>
-              {couriers.map(c => (
-                <option key={c.courier_id} value={c.courier_id}>
-                  {c.courier_name} {c.courier_code ? `(${c.courier_code})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex gap-3">
-            <button onClick={handlePrintLabels} disabled={printing}
-              className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
-              {printing
-                ? <><div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />Preparing...</>
-                : <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z" />
-                  </svg>
-                  Print {labelCount} Label{labelCount !== 1 ? "s" : ""}
-                </>}
-            </button>
-            <button onClick={handleCompleteBoxing} disabled={completing}
-              className="flex-1 py-2.5 bg-teal-600 text-white text-sm font-bold rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center justify-center gap-2">
-              {completing
-                ? <><div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />Completing...</>
-                : <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Complete Boxing
-                </>}
-            </button>
-          </div>
-          <p className="text-xs text-gray-400 text-center">Completing boxing moves the invoice to PACKED status for dispatch.</p>
         </div>
       </div>
     </div>

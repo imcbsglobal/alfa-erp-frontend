@@ -31,11 +31,16 @@ export default function BoxingListPage() {
 
   useEffect(() => { loadInvoices(); }, [loadInvoices]);
 
-  const filtered = invoices.filter(inv =>
-    !search.trim() ||
-    inv.invoice_no?.toLowerCase().includes(search.toLowerCase()) ||
-    inv.customer_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = invoices.filter(inv => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      inv.invoice_no?.toLowerCase().includes(q) ||
+      inv.customer_name?.toLowerCase().includes(q) ||
+      inv.customer?.name?.toLowerCase().includes(q) ||
+      inv.tray_codes?.some(t => t.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -105,21 +110,25 @@ export default function BoxingListPage() {
                     {inv.customer_address && <p className="text-[10px] text-gray-400 truncate mt-0.5">{inv.customer_address}</p>}
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    {inv.tray_count != null && (
-                      <div className="flex items-center gap-1 text-xs text-gray-600">
-                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                        </svg>
-                        <span>{inv.tray_count} tray{inv.tray_count !== 1 ? "s" : ""}</span>
-                      </div>
-                    )}
-                    {inv.completed_at && (
-                      <span className="text-[10px] text-gray-400">
-                        {new Date(inv.completed_at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    )}
-                  </div>
+                  {/* Tray codes */}
+                  {inv.tray_codes?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {inv.tray_codes.map(code => (
+                        <span key={code} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-mono font-semibold text-gray-600">
+                          <svg className="w-2.5 h-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                          </svg>
+                          {code}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {inv.completed_at && (
+                    <span className="text-[10px] text-gray-400">
+                      {new Date(inv.completed_at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
                 </div>
 
                 <div className="px-4 pb-3">

@@ -502,8 +502,9 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                           </div>
                         )}
 
-                        {/* Label Count & Courier */}
-                        {(invoiceData.packing.label_count != null || invoiceData.packing.courier_name) && (
+                        {/* Label Count & Courier — only shown after boxing is complete */}
+                        {invoiceData.packing.packing_status === 'PACKED' &&
+                          (invoiceData.packing.label_count != null || invoiceData.packing.courier_name) && (
                           <div className="mt-3 flex flex-wrap gap-3">
                             {invoiceData.packing.label_count != null && (
                               <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
@@ -514,7 +515,7 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                             {invoiceData.packing.courier_name && (
                               <div className="flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
                                 <span className="text-xs text-gray-500">Courier:</span>
-                                <span className="text-xs font-bold text-blue-700">📦 {invoiceData.packing.courier_name}</span>
+                                <span className="text-xs font-bold text-blue-700"> {invoiceData.packing.courier_name}</span>
                               </div>
                             )}
                           </div>
