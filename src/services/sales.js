@@ -59,8 +59,8 @@ export const getConsiderList = (params) => {
   return api.get("/sales/delivery/consider-list/", { params });
 };
 
-export const getCouriers = async () => {
-  return api.get("/sales/couriers/");
+export const getCouriers = async (params = {}) => {
+  return api.get("/sales/couriers/", { params });
 };
 
 export const getCourierById = (id) => {
@@ -112,16 +112,11 @@ export const getBillingInvoices = (params = {}) => api.get("/sales/billing/invoi
 export const returnBillingInvoice = (data) => api.post("/sales/billing/return/", data);
 
 // Packing operations
-export const savePackingDraft = (data) => api.post("/sales/packing/save-draft/", data);
 export const getPackingBill = (invoiceNo) => api.get(`/sales/packing/bill/${invoiceNo}/`);
-export const completePackingSession = (data) => api.post("/sales/packing/complete-packing/", data);
 export const startPackingCheck = (data) => api.post("/sales/packing/start-checking/", data);
 export const holdForConsolidation = (data) => api.post("/sales/packing/hold-for-consolidation/", data);
 export const getMyPackingChecking = () => api.get("/sales/packing/my-checking/");
-export const getConsolidatedPacking = (invoiceNo) => api.get(`/sales/packing/consolidated/${invoiceNo}/`);
-export const getCompletedPacking = (invoiceNo) => api.get(`/sales/packing/completed/${invoiceNo}/`);
-export const getBoxDetails = (boxId) => api.get(`/sales/packing/box-details/${boxId}/`);
-export const completeConsolidatedPacking = (data) => api.post("/sales/packing/complete-consolidated-packing/", data);
+export const getPublicInvoiceDetail = (invoiceNo) => api.get(`/sales/packing/invoice-public/${invoiceNo}/`);
 
 // Tray-based packing workflow
 export const searchTrays = (q) => api.get("/sales/packing/search-trays/", { params: { q } });

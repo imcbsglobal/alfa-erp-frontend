@@ -453,7 +453,7 @@ export default function MyPackingListPage() {
       try { customerNameML = await transliterateToMalayalam(customerName); } catch { customerNameML = ''; }
     }
 
-    const boxUrl = `${window.location.origin}/box/${boxId}`;
+    const boxUrl = `${window.location.origin}/invoice/${invoiceNo}`;
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -660,15 +660,9 @@ export default function MyPackingListPage() {
       return;
     }
     
-    toast.success(`Proceeding with ${selectedBills.length} bills for consolidated packing`);
-    
-    // Multiple bills selected, proceed to consolidated packing
-    navigate(getPath("/packing/consolidated-packing"), {
-      state: {
-        billIds: selectedBills,
-        customerName: customerName
-      }
-    });
+    // Process first bill — one invoice at a time
+    toast.info(`Processing bill ${selectedBills[0]} — complete and return for the rest`);
+    navigate(getPath(`/packing/tray-assignment/${selectedBills[0]}`));
   };
 
   const renderBillCard = (bill, section = "picked") => {
@@ -1002,13 +996,8 @@ export default function MyPackingListPage() {
                                     if (allBillIds.length === 1) {
                                       navigate(getPath(`/packing/tray-assignment/${allBillIds[0]}`));
                                     } else {
-                                      toast.success(`Proceeding with ${allBillIds.length} bills for consolidated packing`);
-                                      navigate(getPath("/packing/consolidated-packing"), {
-                                        state: {
-                                          billIds: allBillIds,
-                                          customerName: customerName
-                                        }
-                                      });
+                                      toast.info(`Processing bill ${allBillIds[0]} — complete and return for the rest`);
+                                      navigate(getPath(`/packing/tray-assignment/${allBillIds[0]}`));
                                     }
                                   }, 0);
                                 }}
@@ -1106,13 +1095,8 @@ export default function MyPackingListPage() {
                                 if (allBillIds.length === 1) {
                                   navigate(getPath(`/packing/tray-assignment/${allBillIds[0]}`));
                                 } else {
-                                  toast.success(`Proceeding with ${allBillIds.length} bills for consolidated packing`);
-                                  navigate(getPath("/packing/consolidated-packing"), {
-                                    state: {
-                                      billIds: allBillIds,
-                                      customerName: customerName
-                                    }
-                                  });
+                                  toast.info(`Processing bill ${allBillIds[0]} — complete and return for the rest`);
+                                  navigate(getPath(`/packing/tray-assignment/${allBillIds[0]}`));
                                 }
                               }}
                               className="flex-1 px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition-all"

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { formatQuantity } from "../../../utils/formatters";
 
-// ─── Used from BoxAssignmentPage (item row click) ───────────────────────────
 // Props:
 //   isOpen, onClose                   — modal open/close
 //   invoiceNumber, customerName       — header info

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getBoxingData, completeBoxing } from "../../../services/sales";
+import { getBoxingData, completeBoxing, getCouriers } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
 
@@ -18,13 +18,15 @@ const transliterateToMalayalam = async (text) => {
 export default function BoxingPage() {
   const { invoiceNo } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, menus } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [labelCount, setLabelCount] = useState(1);
   const [printing, setPrinting] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [couriers, setCouriers] = useState([]);
+  const [selectedCourier, setSelectedCourier] = useState(null);
 
   const getPath = (path) => {
     const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
@@ -48,6 +50,15 @@ export default function BoxingPage() {
     };
     load();
   }, [invoiceNo]);
+
+  useEffect(() => {
+    getCouriers({ status: "ACTIVE" })
+      .then(res => {
+        const list = res.data?.data || res.data?.results || [];
+        setCouriers(Array.isArray(list) ? list : []);
+      })
+      .catch(() => {});
+  }, []);
 
   const handlePrintLabels = async () => {
     if (!data) return;
@@ -80,9 +91,10 @@ export default function BoxingPage() {
                 <p class="to-label">Ship To</p>
                 ${customerName   ? `<p class="customer-name">${customerName}</p>` : ""}
                 ${customerNameML ? `<p class="customer-name-ml">${customerNameML}</p>` : ""}
-                ${(customerAddr1 || customerAddr2) ? `<p class="customer-area">${[customerAddr1, customerAddr2].filter(Boolean).join(", ")}</p>` : ""}
+                ${(customerAddr1 || customerAddr2) ? `<p class="customer-area">${[customerAddr1, customerAddr2].filter(Boolean).join(" ")}</p>` : ""}
                 ${(customerAddr3 || customerPincode) ? `<p class="customer-addr">${[customerAddr3, customerPincode].filter(Boolean).join(" - ")}</p>` : ""}
                 ${(customerPhone1 || customerPhone2) ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(" &nbsp;|&nbsp; ")}</p>` : ""}
+                ${selectedCourier ? `<p class="courier-line">Courier: ${selectedCourier.courier_name}</p>` : ""}
               </div>
               <div class="qr-bottom-row">
                 <div class="qr-block">
@@ -182,13 +194,14 @@ export default function BoxingPage() {
               .customer-area { font-size: 13px; color: #000; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; word-wrap: break-word; }
               .customer-addr { font-size: 13px; color: #000; line-height: 1.5; word-wrap: break-word; }
               .customer-contact { font-size: 13px; font-weight: bold; color: #000; margin-top: 4px; word-wrap: break-word; }
+              .courier-line { font-size: 11px; font-weight: bold; color: #000; margin-top: 5px; padding: 2px 6px; background: #f0f0f0; border-radius: 3px; display: inline-block; text-transform: uppercase; letter-spacing: 0.4px; }
               .qr-bottom-row { position: absolute; right: 12px; bottom: 8px; background: white; }
               .qr-block { display: flex; flex-direction: column; align-items: center; gap: 3px; }
               .inv-no-label { font-size: 12px; font-weight: bold; color: #000; text-align: center; text-transform: uppercase; letter-spacing: 0.4px; }
               .qr-container { border: 1.5px solid #000; padding: 3px; background: white; }
               [id^="qrcode-"] { width: 95px; height: 95px; }
               [id^="qrcode-"] img, [id^="qrcode-"] canvas { width: 95px !important; height: 95px !important; }
-              .label-count-text { font-size: 8px; font-weight: bold; color: #000; text-align: center; word-break: break-all; max-width: 105px; }
+              .label-count-text { font-size: 10px; font-weight: bold; color: #000; text-align: center; word-break: break-all; max-width: 105px; }
               .icons-column { width: 1.5cm; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 8px 3px; background: white; }
               .icon-item { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
               .icon-label { font-size: 7px; font-weight: bold; text-transform: uppercase; color: #000; letter-spacing: 0.2px; text-align: center; white-space: nowrap; }
@@ -232,9 +245,21 @@ export default function BoxingPage() {
   const handleCompleteBoxing = async () => {
     try {
       setCompleting(true);
-      await completeBoxing({ invoice_no: invoiceNo, label_count: labelCount });
+      await completeBoxing({
+        invoice_no: invoiceNo,
+        label_count: labelCount,
+        courier_id: selectedCourier?.courier_id || null,
+      });
       toast.success(`Invoice #${invoiceNo} boxing complete!`);
-      navigate(getPath("/packing/boxing"));
+      // Redirect based on menu access: admin/superadmin always have full access;
+      // others check if their assigned menus include the packing invoices page
+      const hasPackingAccess =
+        user?.role === "SUPERADMIN" || user?.role === "ADMIN" ||
+        menus.some(m =>
+          m.url?.includes("packing/invoices") ||
+          m.children?.some(c => c.url?.includes("packing/invoices"))
+        );
+      navigate(getPath(hasPackingAccess ? "/packing/invoices" : "/packing/boxing"));
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to complete boxing");
     } finally { setCompleting(false); }
@@ -352,6 +377,22 @@ export default function BoxingPage() {
               <span className="text-xs text-gray-400">{trays.length > 0 ? `(${trays.length} tray${trays.length !== 1 ? "s" : ""} default)` : ""}</span>
             </div>
             <p className="text-xs text-gray-400 mt-1.5">Default = number of trays. Adjust if extra labels are needed.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Courier</label>
+            <select
+              value={selectedCourier?.courier_id || ""}
+              onChange={e => setSelectedCourier(couriers.find(c => c.courier_id === e.target.value) || null)}
+              className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            >
+              <option value="">— No Courier —</option>
+              {couriers.map(c => (
+                <option key={c.courier_id} value={c.courier_id}>
+                  {c.courier_name} {c.courier_code ? `(${c.courier_code})` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3">

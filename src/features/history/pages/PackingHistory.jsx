@@ -323,24 +323,19 @@ export default function PackingHistory() {
                       )}
                     </td>
                     <td className="px-3 sm:px-6 py-3">
-                      {h.boxes && h.boxes.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {h.boxes.map((box, idx) => (
-                            <span
-                              key={idx}
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                                box.is_sealed
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                  : 'bg-yellow-50 text-yellow-700 border-yellow-300'
-                              }`}
-                            >
-                              📦 {box.box_id}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      <div className="space-y-1">
+                        {h.label_count != null && (
+                          <p className="text-sm text-center font-semibold text-gray-800">
+                             {h.label_count} {h.label_count !== 1 ? "" : ""}
+                          </p>
+                        )}
+                        {h.courier_name && (
+                          <p className="text-xs text-blue-700 font-medium">📦 {h.courier_name}</p>
+                        )}
+                        {!h.label_count && !h.courier_name && (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 sm:px-6 py-3">
                       <div className="max-w-xs">

@@ -300,24 +300,19 @@ export default function PackingInvoiceReportPage() {
                           </p>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
-                          {session.boxes && session.boxes.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {session.boxes.map((box, idx) => (
-                                <span
-                                  key={idx}
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                                    box.is_sealed
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                      : 'bg-yellow-50 text-yellow-700 border-yellow-300'
-                                  }`}
-                                >
-                                  📦 {box.box_id}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
+                          <div className="space-y-1">
+                            {session.label_count != null && (
+                              <p className="text-sm text-center font-semibold text-gray-800">
+                                 {session.label_count} {session.label_count !== 1 ? "" : ""}
+                              </p>
+                            )}
+                            {session.courier_name && (
+                              <p className="text-xs text-blue-700 font-medium">📦 {session.courier_name}</p>
+                            )}
+                            {!session.label_count && !session.courier_name && (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[session.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
