@@ -1,66 +1,73 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "../features/auth/pages/LoginPage";
 import ProtectedRoute from "../layout/ProtectedRoute";
 import MainLayout from "../layout/MainLayout";
-import Forbidden from "../pages/Forbidden";
-
-import SuperAdminDashboard from "../features/dashboard/SuperAdminDashboard";
-import UserDashboard from "../features/dashboard/UserDashboard";
-import UserControlPage from "../features/users/pages/UserControlPage";
-import AddUserPage from "../features/users/pages/AddUserPage";
-import UserListPage from "../features/users/pages/UserListPage";
-
-import JobTitleListPage from "../features/master/pages/JobTitleListPage";
-import AddJobTitlePage from "../features/master/pages/AddJobTitlePage";
-import DepartmentListPage from "../features/master/pages/DepartmentListPage";
-import AddDepartmentPage from "../features/master/pages/AddDepartmentPage";
-
-import CourierListPage from "../features/master/pages/CourierListPage";
-import AddCourierPage from "../features/master/pages/AddCourierPage";
-import TrayListPage from "../features/master/pages/TrayListPage";
-import AddTrayPage from "../features/master/pages/AddTrayPage";
-
-import InvoiceListPage from "../features/invoice/pages/InvoiceListPage";
-// import InvoiceViewPage from "../features/invoice/pages/InvoiceViewPage";
-import MyInvoiceListPage from "../features/invoice/pages/MyInvoiceListPage";
-import PendingInvoicesPage from "../features/invoice/pages/PendingInvoicesPage";
-import HistoryPage from "../features/history/pages/HistoryPage";
-import InvoiceHistoryView from "../features/history/pages/InvoiceHistoryView";
 import { useAuth } from "../features/auth/AuthContext";
 
+const LoginPage = lazy(() => import("../features/auth/pages/LoginPage"));
+const Forbidden = lazy(() => import("../pages/Forbidden"));
+
+const SuperAdminDashboard = lazy(() => import("../features/dashboard/SuperAdminDashboard"));
+const UserControlPage = lazy(() => import("../features/users/pages/UserControlPage"));
+const AddUserPage = lazy(() => import("../features/users/pages/AddUserPage"));
+const UserListPage = lazy(() => import("../features/users/pages/UserListPage"));
+
+const JobTitleListPage = lazy(() => import("../features/master/pages/JobTitleListPage"));
+const AddJobTitlePage = lazy(() => import("../features/master/pages/AddJobTitlePage"));
+const DepartmentListPage = lazy(() => import("../features/master/pages/DepartmentListPage"));
+const AddDepartmentPage = lazy(() => import("../features/master/pages/AddDepartmentPage"));
+
+const CourierListPage = lazy(() => import("../features/master/pages/CourierListPage"));
+const AddCourierPage = lazy(() => import("../features/master/pages/AddCourierPage"));
+const TrayListPage = lazy(() => import("../features/master/pages/TrayListPage"));
+const AddTrayPage = lazy(() => import("../features/master/pages/AddTrayPage"));
+
+const InvoiceListPage = lazy(() => import("../features/invoice/pages/InvoiceListPage"));
+const MyInvoiceListPage = lazy(() => import("../features/invoice/pages/MyInvoiceListPage"));
+const PendingInvoicesPage = lazy(() => import("../features/invoice/pages/PendingInvoicesPage"));
+const HistoryPage = lazy(() => import("../features/history/pages/HistoryPage"));
+const InvoiceHistoryView = lazy(() => import("../features/history/pages/InvoiceHistoryView"));
+
 import OperationsLayout from "../layout/OperationsLayout";
-import PackingInvoiceListPage from "../features/packing/pages/PackingInvoiceListPage";
-// import PackingInvoiceViewPage from "../features/packing/pages/PackingInvoiceViewPage";
-import MyPackingListPage from "../features/packing/pages/MyPackingListPage";
-import TrayAssignmentPage from "../features/packing/pages/TrayAssignmentPage";
-import BoxingListPage from "../features/packing/pages/BoxingListPage";
-import BoxingPage from "../features/packing/pages/BoxingPage";
-import InvoicePublicPage from "../pages/InvoicePublicPage";
+const PackingInvoiceListPage = lazy(() => import("../features/packing/pages/PackingInvoiceListPage"));
+const MyPackingListPage = lazy(() => import("../features/packing/pages/MyPackingListPage"));
+const TrayAssignmentPage = lazy(() => import("../features/packing/pages/TrayAssignmentPage"));
+const BoxingListPage = lazy(() => import("../features/packing/pages/BoxingListPage"));
+const BoxingPage = lazy(() => import("../features/packing/pages/BoxingPage"));
+const InvoicePublicPage = lazy(() => import("../pages/InvoicePublicPage"));
 
 // Import Billing Pages
-import BillingInvoiceListPage from "../features/billing/pages/BillingInvoiceListPage";
-import BillingInvoiceViewPage from "../features/billing/pages/BillingInvoiceViewPage";
-import BillingReviewedListPage from "../features/billing/pages/BillingReviewedListPage";
+const BillingInvoiceListPage = lazy(() => import("../features/billing/pages/BillingInvoiceListPage"));
+const BillingInvoiceViewPage = lazy(() => import("../features/billing/pages/BillingInvoiceViewPage"));
+const BillingReviewedListPage = lazy(() => import("../features/billing/pages/BillingReviewedListPage"));
 
 // Import Delivery Pages
-import DeliveryDispatchPage from "../features/delivery/pages/DeliveryDispatchPage";
-import MyDeliveryListPage from "../features/delivery/pages/MyDeliveryListPage";
-import CourierDeliveryListPage from "../features/delivery/pages/CourierDeliveryListPage";
-import CompanyDeliveryListPage from "../features/delivery/pages/CompanyDeliveryListPage";
+const DeliveryDispatchPage = lazy(() => import("../features/delivery/pages/DeliveryDispatchPage"));
+const MyDeliveryListPage = lazy(() => import("../features/delivery/pages/MyDeliveryListPage"));
+const CourierDeliveryListPage = lazy(() => import("../features/delivery/pages/CourierDeliveryListPage"));
+const CompanyDeliveryListPage = lazy(() => import("../features/delivery/pages/CompanyDeliveryListPage"));
 
-import CommonInvoiceView from "../components/CommonInvoiceView";
-import DeveloperSettingsPage from "../pages/DeveloperSettingsPage";
-import AdminPrivilegePage from "../pages/AdminPrivilegePage";
+const CommonInvoiceView = lazy(() => import("../components/CommonInvoiceView"));
+const DeveloperSettingsPage = lazy(() => import("../pages/DeveloperSettingsPage"));
+const AdminPrivilegePage = lazy(() => import("../pages/AdminPrivilegePage"));
 
 // Import Reports Pages
-import InvoiceReportPage from "../features/reports/pages/InvoiceReportPage";
-import BillingUserSummaryPage from "../features/reports/pages/BillingUserSummaryPage";
+const InvoiceReportPage = lazy(() => import("../features/reports/pages/InvoiceReportPage"));
+const BillingUserSummaryPage = lazy(() => import("../features/reports/pages/BillingUserSummaryPage"));
 
-import PickingInvoiceReportPage from "../features/reports/pages/PickingInvoiceReportPage";
-import PickingUserSummaryPage from "../features/reports/pages/PickingUserSummaryPage";
+const PickingInvoiceReportPage = lazy(() => import("../features/reports/pages/PickingInvoiceReportPage"));
+const PickingUserSummaryPage = lazy(() => import("../features/reports/pages/PickingUserSummaryPage"));
 
-import PackingInvoiceReportPage from "../features/reports/pages/Packinginvoicereportpage";
-import PackingUserSummaryPage from "../features/reports/pages/Packingusersummarypage";
+const PackingInvoiceReportPage = lazy(() => import("../features/reports/pages/Packinginvoicereportpage"));
+const PackingUserSummaryPage = lazy(() => import("../features/reports/pages/Packingusersummarypage"));
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center p-6 text-sm text-gray-600">
+      Loading page...
+    </div>
+  );
+}
 
 export default function AppRouter() {
   const { user, menus = [], logout } = useAuth();
@@ -74,7 +81,8 @@ export default function AppRouter() {
   };
   
   return (
-    <Routes>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
       {/* Public */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
@@ -207,6 +215,7 @@ export default function AppRouter() {
 
       {/* Fallback */}
       {/* <Route path="*" element={<Navigate to="/403" replace />} /> */}
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }

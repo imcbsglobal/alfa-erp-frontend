@@ -164,11 +164,10 @@ export default function BoxingPage() {
         <html>
           <head>
             <title>Address Labels – INV ${invoiceNo}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam:wght@400;600&display=swap" rel="stylesheet">
             <style>
               @page { margin: 0; size: 15cm 10cm; }
               * { margin: 0; padding: 0; box-sizing: border-box; }
-              html, body { font-family: Arial, sans-serif; background: white; color: black; }
+              html, body { font-family: 'Segoe UI', sans-serif; background: white; color: black; }
               .page-break { page-break-after: always; }
               .label-container {
                 width: 15cm; height: 10cm;
@@ -190,7 +189,7 @@ export default function BoxingPage() {
               }
               .to-label { font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; letter-spacing: 1px; margin-bottom: 4px; }
               .customer-name { font-weight: bold; font-size: 20px; text-transform: uppercase; color: #000; line-height: 1.2; word-wrap: break-word; }
-              .customer-name-ml { font-family: 'Noto Sans Malayalam', Arial, sans-serif; font-size: 18px; font-weight: bold; color: #000; line-height: 1.4; margin-top: 2px; word-wrap: break-word; }
+              .customer-name-ml { font-size: 18px; font-weight: bold; color: #000; line-height: 1.4; margin-top: 2px; word-wrap: break-word; }
               .customer-area { font-size: 13px; color: #000; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; word-wrap: break-word; }
               .customer-addr { font-size: 13px; color: #000; line-height: 1.5; word-wrap: break-word; }
               .customer-contact { font-size: 13px; font-weight: bold; color: #000; margin-top: 4px; word-wrap: break-word; }

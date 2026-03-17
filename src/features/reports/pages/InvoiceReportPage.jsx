@@ -7,7 +7,6 @@ import Pagination from "../../../components/Pagination";
 import { formatDateTime, formatNumber } from '../../../utils/formatters';
 import { X, Search, Download } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
-import * as XLSX from 'xlsx';
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -112,6 +111,8 @@ export default function InvoiceReportPage() {
     const toastId = toast.loading("Preparing export...");
 
     try {
+      const XLSX = await import('xlsx');
+
       // Lightweight export endpoint — no heavy joins
       const params = {};
       if (statusFilter) params.status = statusFilter;

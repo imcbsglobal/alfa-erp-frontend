@@ -46,9 +46,8 @@ export default function SuperAdminDashboard() {
   const eventSourceRef = useRef(null);
 
   useEffect(() => {
-    fetchAllStats();
-    fetchTodayStats();
-    fetchBreakdown();
+    // Run all three in parallel instead of sequentially
+    Promise.allSettled([fetchAllStats(), fetchTodayStats(), fetchBreakdown()]);
 
     const setupSSE = () => {
       const token = localStorage.getItem('access_token');
@@ -174,7 +173,6 @@ export default function SuperAdminDashboard() {
     };
 
     const sseTimeout = setTimeout(setupSSE, 1000);
-    const breakdownInterval = setInterval(fetchBreakdown, 5000);
 
     const fetchRecentActivity = async () => {
       try {
@@ -219,7 +217,7 @@ export default function SuperAdminDashboard() {
     };
 
     fetchRecentActivity();
-    const activityInterval = setInterval(fetchRecentActivity, 10000);
+    const activityInterval = setInterval(fetchRecentActivity, 30000);
 
     // Listen for session cancellations from other pages and refresh dashboard data
     const cancelHandler = () => {
@@ -233,7 +231,6 @@ export default function SuperAdminDashboard() {
     return () => {
       clearTimeout(sseTimeout);
       clearInterval(activityInterval);
-      clearInterval(breakdownInterval);
       if (eventSourceRef.current) eventSourceRef.current.close();
       window.removeEventListener('session:cancelled', cancelHandler);
     };
@@ -273,29 +270,21 @@ export default function SuperAdminDashboard() {
   const fetchAllStats = async () => {
     setLoading(true);
     try {
-      const [usersRes, invoicesRes] = await Promise.allSettled([
-        getUsers(),
-        getInvoices({ page_size: 1000 }),
-      ]);
-
+      // Only fetch users — invoice counts come from getDashboardStats() already
+      const usersRes = await Promise.allSettled([getUsers()]);
+      
       let totalAdmins = 0, totalUsers = 0, activeUsers = 0;
-      if (usersRes.status === 'fulfilled') {
-        const users = usersRes.value?.data?.data?.results || [];
+      if (usersRes[0].status === 'fulfilled') {
+        const users = usersRes[0].value?.data?.data?.results || [];
         totalAdmins = users.filter(u => u.role === 'ADMIN' || u.role === 'SUPERADMIN').length;
         totalUsers = users.length;
         activeUsers = users.filter(u => u.is_active === true).length;
       }
 
-      let totalInvoices = 0, pendingInvoices = 0, inProgressInvoices = 0, completedInvoices = 0;
-      if (invoicesRes.status === 'fulfilled') {
-        const invoices = invoicesRes.value?.data?.results || [];
-        totalInvoices = invoicesRes.value?.data?.count || invoices.length;
-        pendingInvoices = invoices.filter(inv => inv.status === 'PENDING').length;
-        inProgressInvoices = invoices.filter(inv => ['ASSIGNED', 'PICKING', 'PICKED', 'PACKING', 'BOXING'].includes(inv.status)).length;
-        completedInvoices = invoices.filter(inv => ['PACKED', 'DELIVERED', 'COMPLETED'].includes(inv.status)).length;
-      }
-
-      setStats({ totalAdmins, totalUsers, activeUsers, totalInvoices, pendingInvoices, inProgressInvoices, completedInvoices });
+      setStats(prev => ({ ...prev, totalAdmins, totalUsers, activeUsers,
+          totalInvoices: prev.totalInvoices,
+          pendingInvoices: prev.pendingInvoices,
+        }));
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {

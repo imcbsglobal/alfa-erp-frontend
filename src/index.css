@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body {
+	font-family: "Segoe UI", sans-serif;
+}
+
 /* Hide scrollbars visually but keep scrollability */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }

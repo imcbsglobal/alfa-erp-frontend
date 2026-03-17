@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ShieldCheck, AlertCircle, Search, CheckCircle, X, Clock, User, RefreshCw, Settings, FileSearch, Calendar, AlertTriangle, ArrowRight, ChevronDown, ChevronUp, ChevronRight, Play, Eye } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -138,33 +138,15 @@ const AdminPrivilegePage = () => {
       console.log('Admin Privilege - Fetching incomplete bills');
       
       // Fetch bills from all workflow stages:
-      // 1. Picking in progress (PREPARING)
-      const pickingResponse = await api.get('/sales/picking/history/', {
-        params: {
-          status: 'PREPARING',
-          page_size: 100
-        }
-      });
-      
-      // 2. Packing history to find incomplete packing (IN_PROGRESS or REVIEW)
-      const packingResponse = await api.get('/sales/packing/history/', {
-        params: {
-          status: 'IN_PROGRESS',
-          page_size: 100
-        }
-      });
+      const [pickingResponse, packingResponse, deliveryResponse] = await Promise.allSettled([
+        api.get('/sales/picking/history/', { params: { status: 'PREPARING', page_size: 100 } }),
+        api.get('/sales/packing/history/', { params: { status: 'IN_PROGRESS', page_size: 100 } }),
+        api.get('/sales/delivery/history/', { params: { status: 'IN_TRANSIT', page_size: 100 } }),
+      ]);
 
-      // 3. Delivery history to find incomplete delivery (IN_TRANSIT)
-      const deliveryResponse = await api.get('/sales/delivery/history/', {
-        params: {
-          status: 'IN_TRANSIT',
-          page_size: 100
-        }
-      });
-
-      const pickingBills = pickingResponse.data.results || [];
-      const packingBills = packingResponse.data.results || [];
-      const deliveryBills = deliveryResponse.data.results || [];
+      const pickingBills = pickingResponse.status === 'fulfilled' ? pickingResponse.value.data.results || [] : [];
+      const packingBills = packingResponse.status === 'fulfilled' ? packingResponse.value.data.results || [] : [];
+      const deliveryBills = deliveryResponse.status === 'fulfilled' ? deliveryResponse.value.data.results || [] : [];
       
       // Filter out bills that are already in DELIVERED/CANCELLED status OR have completed their stage
       const validPickingBills = pickingBills.filter(b => {
@@ -474,9 +456,16 @@ const AdminPrivilegePage = () => {
     setBsHistoryLoading(true);
     try {
       const res = await api.get('/sales/admin/bulk-status-history/');
-      if (res.data.success) setBsTransitionLog(res.data.results);
+      if (res.data.success) {
+        // Strip invoice arrays from summary — keeps pipeline visual fast
+        setBsTransitionLog(res.data.results.map(({ invoices, ...summary }) => ({
+          ...summary,
+          invoices: invoices || [], // still keep for detail view but don't block render
+        })));
+      }
     } catch (err) {
       console.error('Failed to load bulk status history:', err);
+      toast.error('Failed to load history');
     } finally {
       setBsHistoryLoading(false);
     }
@@ -545,6 +534,13 @@ const AdminPrivilegePage = () => {
       setBsExecuting(false);
     }
   };
+
+  // Add this before return (
+  const doneMap = useMemo(() => {
+    const map = {};
+    bsTransitionLog.forEach(l => { map[l.to_status] = l; });
+    return map;
+  }, [bsTransitionLog]);
   // ──────────────────────────────────────────────────────────────────────────
 
   return (
@@ -854,7 +850,7 @@ const AdminPrivilegePage = () => {
               {/* ── Pipeline visual ── */}
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
                 {['INVOICED', 'PICKED', 'PACKED', 'DELIVERED'].map((stage, idx, arr) => {
-                  const done = bsTransitionLog.find(l => l.to_status === stage);
+                  const done = doneMap[stage];
                   return (
                     <React.Fragment key={stage}>
                       <div className={`flex flex-col items-center min-w-[100px] rounded-xl p-3 border-2 ${
