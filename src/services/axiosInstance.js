@@ -1,6 +1,10 @@
 import axios from "axios";
 
-const BACKEND_BASE_URL = "http://localhost:8000";
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || (
+  window.location.hostname === "localhost"
+    ? "http://localhost:8000"
+    : window.location.origin
+);
 
 const axiosInstance = axios.create({
   baseURL: BACKEND_BASE_URL,
