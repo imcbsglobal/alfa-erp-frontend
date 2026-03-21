@@ -140,8 +140,10 @@ export default function InvoicePublicPage() {
 
               <div className="px-6 py-4 border-b">
                 <p className="text-base font-bold text-gray-800">{inv.customer_name}</p>
-                {inv.customer_address && (
-                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">{inv.customer_address}</p>
+                {(inv.customer_address || inv.temp_name) && (
+                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                    {inv.customer_address || inv.temp_name}
+                  </p>
                 )}
                 {inv.customer_phone && (
                   <p className="text-sm font-medium text-teal-700 mt-1">{inv.customer_phone}</p>
@@ -219,8 +221,10 @@ export default function InvoicePublicPage() {
               Customer
             </h2>
             <p className="text-lg font-bold text-gray-800">{invoiceData.customer_name}</p>
-            {invoiceData.customer_address && (
-              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{invoiceData.customer_address}</p>
+            {(invoiceData.customer_address || invoiceData.temp_name) && (
+              <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                {invoiceData.customer_address || invoiceData.temp_name}
+              </p>
             )}
             {invoiceData.customer_phone && (
               <a

@@ -329,11 +329,11 @@ export default function BoxingPage() {
                   <p className="text-xs text-gray-400 font-medium mb-0.5">Customer</p>
                   <p className="font-semibold text-gray-800">{customer.name || invoice.customer_name || "—"}</p>
                 </div>
-                {(customer.area || customer.address1 || invoice.delivery_address) && (
+                {(customer.area || customer.address1 || invoice.delivery_address || invoice.temp_name) && (
                   <div>
                     <p className="text-xs text-gray-400 font-medium mb-0.5">Address</p>
                     <p className="text-gray-700">
-                      {[customer.area, customer.address1 || invoice.delivery_address, customer.address2, customer.address3, customer.pincode].filter(Boolean).join(", ")}
+                      {[customer.area, customer.address1 || invoice.delivery_address || invoice.temp_name, customer.address2, customer.address3, customer.pincode].filter(Boolean).join(", ")}
                     </p>
                   </div>
                 )}

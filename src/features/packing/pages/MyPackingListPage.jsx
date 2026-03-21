@@ -870,6 +870,9 @@ export default function MyPackingListPage() {
 
             <div className="text-xs space-y-1">
               <p><strong>Customer:</strong> {bill.customer?.name || bill.customer_name}</p>
+              {(bill.customer?.address1 || bill.temp_name) && (
+                <p><strong>Address:</strong> {bill.customer?.address1 || bill.temp_name}</p>
+              )}
               {isCompleted && (
                 <>
                   <p><strong>Completed:</strong> {formatDate(bill.end_time)} {formatTime(bill.end_time)}</p>

@@ -423,6 +423,9 @@ export default function TrayAssignmentPage() {
           <p className="text-xs text-gray-500">
             <span className="font-semibold text-gray-700">#{bill.invoice_no}  </span>
             {bill.customer?.name || bill.customer_name}
+            {(bill.customer?.address1 || bill.temp_name) && (
+              <span className="ml-1 text-gray-400">· {bill.customer?.address1 || bill.temp_name}</span>
+            )}
           </p>
         </div>
 
