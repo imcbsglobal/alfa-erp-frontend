@@ -34,6 +34,7 @@ const MyPackingListPage = lazy(() => import("../features/packing/pages/MyPacking
 const TrayAssignmentPage = lazy(() => import("../features/packing/pages/TrayAssignmentPage"));
 const BoxingListPage = lazy(() => import("../features/packing/pages/BoxingListPage"));
 const BoxingPage = lazy(() => import("../features/packing/pages/BoxingPage"));
+const MultiBoxingPage = lazy(() => import("../features/packing/pages/MultiBoxingPage"));
 const InvoicePublicPage = lazy(() => import("../pages/InvoicePublicPage"));
 
 // Import Billing Pages
@@ -113,6 +114,7 @@ export default function AppRouter() {
           <Route path="/packing/my" element={<MyPackingListPage />} />
           <Route path="/packing/tray-assignment/:invoiceNo" element={<TrayAssignmentPage />} />
           <Route path="/packing/boxing" element={<BoxingListPage />} />
+          <Route path="/packing/boxing/multi" element={<MultiBoxingPage />} />
           <Route path="/packing/boxing/:invoiceNo" element={<BoxingPage />} />
 
           {/* Billing routes for SUPERADMIN */}
@@ -193,6 +195,7 @@ export default function AppRouter() {
           <Route path="/ops/packing/my" element={<MyPackingListPage />} />
           <Route path="/ops/packing/tray-assignment/:invoiceNo" element={<TrayAssignmentPage />} />
           <Route path="/ops/packing/boxing" element={<BoxingListPage />} />
+          <Route path="/ops/packing/boxing/multi" element={<MultiBoxingPage />} />
           <Route path="/ops/packing/boxing/:invoiceNo" element={<BoxingPage />} />
 
           {/* Billing */}

@@ -426,6 +426,16 @@ export default function InvoiceHistoryView() {
                               {statusBadge(item.packing.packing_status)}
                               <p className="text-xs text-gray-500">{item.packing.packer_name}</p>
                               <p className="text-xs text-gray-400">{formatDuration(item.packing.duration)}</p>
+                              {item.packing.boxing_group_id && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <div className="w-3.5 h-3.5 rounded bg-teal-500 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2" />
+                                    </svg>
+                                  </div>
+                                  <span className="text-[10px] text-teal-700 font-semibold">Consolidated</span>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <span className="text-gray-400 text-xs">-</span>

@@ -33,6 +33,9 @@ const transliterateToMalayalam = async (text) => {
 };
 
 export default function MyPackingListPage() {
+  const GROUP_ADDR_BY_GROUP_KEY = "packing.groupAddressByGroupId";
+  const GROUP_ADDR_BY_INVOICES_KEY = "packing.groupAddressByInvoices";
+
   const [loading, setLoading] = useState(false);
   const [myCheckingBills, setMyCheckingBills] = useState([]);
   const [heldBills, setHeldBills] = useState([]);
@@ -432,10 +435,47 @@ export default function MyPackingListPage() {
     }
   };
 
-  const handlePrintBoxLabel = async (box, fullBill, labelCountOverride = null, courierNameOverride = null) => {
+  const getPreferredGroupedInvoiceNo = (group) => {
+    try {
+      const groupId = group?.groupId;
+      const groupedInvoiceNos = (group?.bills || []).map((b) => b.invoice_no).filter(Boolean);
+      const fallback = groupedInvoiceNos[0] || null;
+
+      if (!groupId || groupedInvoiceNos.length === 0) return fallback;
+
+      const byGroup = JSON.parse(localStorage.getItem(GROUP_ADDR_BY_GROUP_KEY) || "{}");
+      const preferredByGroup = byGroup[groupId];
+      if (preferredByGroup && groupedInvoiceNos.includes(preferredByGroup)) {
+        return preferredByGroup;
+      }
+
+      const invoiceSetKey = [...groupedInvoiceNos].sort().join(",");
+      const byInvoices = JSON.parse(localStorage.getItem(GROUP_ADDR_BY_INVOICES_KEY) || "{}");
+      const preferredByInvoices = byInvoices[invoiceSetKey];
+      if (preferredByInvoices && groupedInvoiceNos.includes(preferredByInvoices)) {
+        return preferredByInvoices;
+      }
+
+      return fallback;
+    } catch {
+      return (group?.bills || []).map((b) => b.invoice_no).filter(Boolean)[0] || null;
+    }
+  };
+
+  const handlePrintBoxLabel = async (
+    box,
+    fullBill,
+    labelCountOverride = null,
+    courierNameOverride = null,
+    groupedInvoiceNosOverride = []
+  ) => {
     const invoiceNo = fullBill?.invoice_no;
     const labelCount = Number(labelCountOverride ?? fullBill?.label_count ?? 1) || 1;
     const courierName = courierNameOverride || fullBill?.courier_name || "";
+    const groupedInvoiceNos = Array.from(
+      new Set((Array.isArray(groupedInvoiceNosOverride) ? groupedInvoiceNosOverride : []).filter(Boolean))
+    );
+    const groupedInvoiceCount = groupedInvoiceNos.length;
 
     // Use the same API data source as Boxing page so printed fields match exactly.
     let printSource = fullBill;
@@ -467,7 +507,10 @@ export default function MyPackingListPage() {
       try { customerNameML = await transliterateToMalayalam(customerName); } catch { customerNameML = ''; }
     }
 
-    const qrUrl = `${window.location.origin}/invoice/${invoiceNo}`;
+    const groupedInvoicesParam = encodeURIComponent(groupedInvoiceNos.join(','));
+    const qrUrl = groupedInvoiceCount > 1
+      ? `${window.location.origin}/invoice/${invoiceNo}?invoices=${groupedInvoicesParam}`
+      : `${window.location.origin}/invoice/${invoiceNo}`;
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -492,7 +535,7 @@ export default function MyPackingListPage() {
             </div>
             <div class="qr-bottom-row">
               <div class="qr-block">
-                <p class="inv-no-label">INV: ${invoiceNo}</p>
+                <p class="inv-no-label">${groupedInvoiceCount > 1 ? `INVOICES: ${groupedInvoiceCount}` : `INV: ${invoiceNo}`}</p>
                 <div class="qr-container"><div id="qrcode-${idx}"></div></div>
                 <p class="label-count-text">BOX: ${idx + 1}/${labelCount}</p>
               </div>
@@ -583,6 +626,7 @@ export default function MyPackingListPage() {
             .qr-bottom-row { position: absolute; right: 12px; bottom: 8px; background: white; }
             .qr-block { display: flex; flex-direction: column; align-items: center; gap: 3px; }
             .inv-no-label { font-size: 12px; font-weight: bold; color: #000; text-align: center; text-transform: uppercase; letter-spacing: 0.4px; }
+            .inv-sub-label { font-size: 9px; font-weight: bold; color: #333; text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
             .qr-container { border: 1.5px solid #000; padding: 3px; background: white; }
             [id^="qrcode-"] { width: 95px; height: 95px; }
             [id^="qrcode-"] img, [id^="qrcode-"] canvas { width: 95px !important; height: 95px !important; }
@@ -1200,121 +1244,255 @@ export default function MyPackingListPage() {
             <div className="text-center py-8">
               <p className="text-gray-500 text-sm">No completed packing yet</p>
             </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {completedToday.map((bill) => (
-                <div key={bill.id} onClick={() => toggleExpand(bill.id, bill.invoice_no)} className="p-3 hover:bg-gray-50 cursor-pointer">
-                  <div className="flex justify-between items-start mb-1">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-xs sm:text-sm">#{bill.invoice_no}</p>
-                      <p className="text-[10px] sm:text-xs text-gray-600 truncate">
-                        {bill.customer?.name || bill.customer_name || "-"}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-0.5 ml-2">
-                      <span className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-[9px] sm:text-[10px] font-semibold whitespace-nowrap">
-                        PACKED
-                      </span>
-                      <p className="text-[9px] sm:text-[10px] text-gray-600">{formatDate(bill.end_time)}</p>
-                    </div>
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-gray-600">
-                    <span>{formatTime(bill.start_time)}</span>
-                    <span className="mx-1">→</span>
-                    <span>{formatTime(bill.end_time)}</span>
-                    <span className="ml-2">
-                      ({bill.duration != null
-                        ? `${Math.floor(bill.duration)}m ${Math.round((bill.duration % 1) * 60)}s`
-                        : "-"})
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
-                    <span className="text-[10px] sm:text-xs text-gray-600">
-                      Number of Address Labels to Print: <span className="font-semibold text-gray-700">{bill.label_count || 1}</span>
-                    </span>
-                    {bill.courier_name && (
-                      <span className="text-[10px] sm:text-xs text-gray-600">
-                        Courier: <span className="font-semibold text-gray-700">{bill.courier_name}</span>
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handlePrintBoxLabel({ box_id: `ADDR-${bill.invoice_no}` }, bill, bill.label_count || 1, bill.courier_name || '')}
-                      className="flex items-center gap-1 px-2 py-0.5 bg-teal-600 text-white text-[10px] font-semibold rounded hover:bg-teal-700"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                      </svg>
-                      Print Address ({bill.label_count || 1})
-                    </button>
-                  </div>
-                  {expandedBill === bill.id && (
-                    <div className="mt-2 pt-2 border-t text-[10px] sm:text-xs" onClick={e => e.stopPropagation()}>
-                      {loadingBoxes.has(bill.invoice_no) ? (
-                        <p className="text-gray-400 text-center py-2">Loading box details...</p>
-                      ) : billBoxDetails[bill.invoice_no]?.boxes?.length > 0 ? (
-                        <div className="space-y-2">
-                          <p className="font-semibold mb-1 text-gray-700">
-                            Boxes ({billBoxDetails[bill.invoice_no].boxes.length})
-                          </p>
-                          {billBoxDetails[bill.invoice_no].boxes.map((box, boxIdx) => (
-                            <div key={boxIdx} className="border border-gray-200 rounded-lg p-2 bg-gray-50">
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-1.5">
-                                  <svg className="w-3 h-3 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                  </svg>
-                                  <span className="font-semibold text-gray-800">Box {boxIdx + 1}</span>
-                                  <span className="text-gray-400 font-mono text-[10px]">{box.box_id || box.boxId}</span>
-                                  <span className="text-gray-500">· {(box.items || []).length} item{(box.items || []).length !== 1 ? 's' : ''}</span>
-                                </div>
-                                <button
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    handlePrintBoxLabel(
-                                      box,
-                                      billBoxDetails[bill.invoice_no],
-                                      bill.label_count || 1,
-                                      bill.courier_name || ''
-                                    );
-                                  }}
-                                  className="flex items-center gap-1 px-2 py-0.5 bg-teal-600 text-white text-[10px] font-semibold rounded hover:bg-teal-700"
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                  </svg>
-                                  Print {bill.label_count || 1}
-                                </button>
-                              </div>
-                              <div className="space-y-0.5 pl-4">
-                                {(box.items || []).map((item, itemIdx) => (
-                                  <div key={itemIdx} className="flex justify-between text-gray-600">
-                                    <span className="truncate mr-2">{item.item_name || item.itemName}</span>
-                                    <span className="font-medium whitespace-nowrap text-gray-700">{item.quantity} pcs</span>
+          ) : (() => {
+            // Group bills by boxing_group_id
+            const grouped = {};
+            completedToday.forEach(bill => {
+              const groupId = bill.boxing_group_id || `single-${bill.id}`;
+              if (!grouped[groupId]) grouped[groupId] = [];
+              grouped[groupId].push(bill);
+            });
+
+            // Sort grouped bills and flatten for rendering
+            const sortedGroups = Object.entries(grouped)
+              .map(([groupId, bills]) => ({
+                groupId,
+                bills: bills.sort((a, b) => new Date(b.end_time) - new Date(a.end_time)),
+                isPacked: bills.length > 1
+              }))
+              .sort((a, b) => new Date(b.bills[0].end_time) - new Date(a.bills[0].end_time));
+
+            return (
+              <div className="divide-y divide-gray-200">
+                {sortedGroups.map((group) => (
+                  group.isPacked ? (
+                    <div key={group.groupId} className="mx-2 my-2 rounded-xl overflow-hidden">
+                      {/* Group Header */}
+                      <div className="bg-teal-50 px-3 py-2.5 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-md bg-teal-500 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-xs text-teal-900 leading-tight">
+                              {[...new Set(group.bills.map(b => b.customer?.name || b.customer_name).filter(Boolean))].join(" · ")}
+                            </p>
+                            <p className="text-[10px] text-teal-700">
+                              Consolidated · {group.bills.length} invoices · {formatDate(group.bills[0].end_time)}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-0.5 bg-teal-700 text-white text-[10px] font-semibold rounded-full whitespace-nowrap">
+                          PACKED
+                        </span>
+                      </div>
+
+                      {/* Individual bills inside group */}
+                      {group.bills.map((bill, billIdx) => (
+                        <div
+                          key={bill.id}
+                          onClick={() => toggleExpand(bill.id, bill.invoice_no)}
+                          className="px-3 py-2 border-t border-teal-100 flex items-start justify-between gap-2 cursor-pointer hover"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-xs text-gray-900">#{bill.invoice_no}</p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">
+                              {formatTime(bill.start_time)} → {formatTime(bill.end_time)} &nbsp;
+                              ({bill.duration != null ? `${Math.floor(bill.duration)}m ${Math.round((bill.duration % 1) * 60)}s` : "—"})
+                            </p>
+
+                            {/* Expanded detail inside group bill */}
+                            {expandedBill === bill.id && (
+                              <div className="mt-2 pt-2 border-t border-teal-100 text-[10px]" onClick={e => e.stopPropagation()}>
+                                {loadingBoxes.has(bill.invoice_no) ? (
+                                  <p className="text-gray-400 py-1">Loading box details...</p>
+                                ) : billBoxDetails[bill.invoice_no]?.boxes?.length > 0 ? (
+                                  <div className="space-y-2">
+                                    <p className="font-semibold text-gray-700">Boxes ({billBoxDetails[bill.invoice_no].boxes.length})</p>
+                                    {billBoxDetails[bill.invoice_no].boxes.map((box, boxIdx) => (
+                                      <div key={boxIdx} className="border border-gray-200 rounded-lg p-2 bg-gray-50">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="font-semibold text-gray-800">Box {boxIdx + 1}</span>
+                                            <span className="text-gray-400 font-mono">{box.box_id || box.boxId}</span>
+                                            <span className="text-gray-500">· {(box.items || []).length} item{(box.items || []).length !== 1 ? 's' : ''}</span>
+                                          </div>
+                                        </div>
+                                        <div className="space-y-0.5 pl-4">
+                                          {(box.items || []).map((item, itemIdx) => (
+                                            <div key={itemIdx} className="flex justify-between text-gray-600">
+                                              <span className="truncate mr-2">{item.item_name || item.itemName}</span>
+                                              <span className="font-medium whitespace-nowrap">{item.quantity} pcs</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                ) : (
+                                  <div>
+                                    <p className="font-semibold mb-1">Items ({bill.items?.length || 0})</p>
+                                    {bill.items?.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between py-0.5">
+                                        <span className="truncate mr-2">{item.name || item.item_name}</span>
+                                        <span className="font-medium whitespace-nowrap">{formatQuantity(item.quantity || item.qty, 'pcs')}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-[10px] font-medium px-2 py-0.5 bg-teal-100 text-teal-800 rounded">PACKED</span>
+                            <p className="text-[10px] text-gray-400 mt-1">{formatDate(bill.end_time)}</p>
+                          </div>
                         </div>
-                      ) : (
-                        <div>
-                          <p className="font-semibold mb-1">Items ({bill.items?.length || 0})</p>
-                          {bill.items?.map((item, idx) => (
-                            <div key={idx} className="flex justify-between py-0.5">
-                              <span className="truncate mr-2">{item.name || item.item_name}</span>
-                              <span className="font-medium whitespace-nowrap">
-                                {formatQuantity(item.quantity || item.qty, 'pcs')}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      ))}
+
+                      {/* Print footer */}
+                      <div className="flex items-center justify-end gap-3 px-3 py-2 bg-teal-50 border-t border-teal-200" onClick={e => e.stopPropagation()}>
+                        <span className="text-[10px] text-teal-700">
+                          Boxes: <strong>{group.bills[0].label_count || 1}</strong>
+                        </span>
+                        {group.bills[0].courier_name && (
+                          <span className="text-[10px] text-teal-700">
+                            Courier: <strong>{group.bills[0].courier_name}</strong>
+                          </span>
+                        )}
+                        <button
+                          onClick={() => {
+                            const groupedInvoiceNos = group.bills.map((b) => b.invoice_no).filter(Boolean);
+                            const preferredInvoiceNo = getPreferredGroupedInvoiceNo(group);
+                            const preferredBill = group.bills.find((b) => b.invoice_no === preferredInvoiceNo) || group.bills[0];
+
+                            if (!preferredBill) return;
+
+                            handlePrintBoxLabel(
+                              { box_id: `ADDR-${preferredBill.invoice_no}` },
+                              preferredBill,
+                              preferredBill.label_count || 1,
+                              preferredBill.courier_name || '',
+                              groupedInvoiceNos
+                            );
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-teal-700 text-white text-[10px] font-semibold rounded-md hover:bg-teal-800"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                          </svg>
+                          Print all addresses ({group.bills[0].label_count || 1})
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                  ) : (
+                    /* SINGLE BILL — existing flat style, unchanged */
+                    <div key={group.groupId}>
+                      {group.bills.map((bill, billIdx) => (
+                        <div key={bill.id} onClick={() => toggleExpand(bill.id, bill.invoice_no)} className="p-3 cursor-pointer border-b border-gray-100 last:border-b-0">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-xs sm:text-sm">#{bill.invoice_no}</p>
+                              <p className="text-[10px] sm:text-xs text-gray-600 truncate">
+                                {bill.customer?.name || bill.customer_name || "-"}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-0.5 ml-2">
+                              <span className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-[9px] sm:text-[10px] font-semibold whitespace-nowrap">PACKED</span>
+                              <p className="text-[9px] sm:text-[10px] text-gray-600">{formatDate(bill.end_time)}</p>
+                            </div>
+                          </div>
+                          <div className="text-[10px] sm:text-xs text-gray-600">
+                            <span>{formatTime(bill.start_time)}</span>
+                            <span className="mx-1">→</span>
+                            <span>{formatTime(bill.end_time)}</span>
+                            <span className="ml-2">
+                              ({bill.duration != null ? `${Math.floor(bill.duration)}m ${Math.round((bill.duration % 1) * 60)}s` : "-"})
+                            </span>
+                          </div>
+
+                          <div className="mt-2 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                            <span className="text-[10px] sm:text-xs text-gray-600">
+                              Number of Address Labels to Print: <span className="font-semibold text-gray-700">{bill.label_count || 1}</span>
+                            </span>
+                            {bill.courier_name && (
+                              <span className="text-[10px] sm:text-xs text-gray-600">
+                                Courier: <span className="font-semibold text-gray-700">{bill.courier_name}</span>
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handlePrintBoxLabel({ box_id: `ADDR-${bill.invoice_no}` }, bill, bill.label_count || 1, bill.courier_name || '')}
+                              className="flex items-center gap-1 px-2 py-0.5 bg-teal-600 text-white text-[10px] font-semibold rounded hover:bg-teal-700"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                              </svg>
+                              Print Address ({bill.label_count || 1})
+                            </button>
+                          </div>
+
+                          {expandedBill === bill.id && (
+                            <div className="mt-2 pt-2 border-t text-[10px] sm:text-xs" onClick={e => e.stopPropagation()}>
+                              {loadingBoxes.has(bill.invoice_no) ? (
+                                <p className="text-gray-400 text-center py-2">Loading box details...</p>
+                              ) : billBoxDetails[bill.invoice_no]?.boxes?.length > 0 ? (
+                                <div className="space-y-2">
+                                  <p className="font-semibold mb-1 text-gray-700">Boxes ({billBoxDetails[bill.invoice_no].boxes.length})</p>
+                                  {billBoxDetails[bill.invoice_no].boxes.map((box, boxIdx) => (
+                                    <div key={boxIdx} className="border border-gray-200 rounded-lg p-2 bg-gray-50">
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <svg className="w-3 h-3 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                          </svg>
+                                          <span className="font-semibold text-gray-800">Box {boxIdx + 1}</span>
+                                          <span className="text-gray-400 font-mono text-[10px]">{box.box_id || box.boxId}</span>
+                                          <span className="text-gray-500">· {(box.items || []).length} item{(box.items || []).length !== 1 ? 's' : ''}</span>
+                                        </div>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); handlePrintBoxLabel(box, billBoxDetails[bill.invoice_no], bill.label_count || 1, bill.courier_name || ''); }}
+                                          className="flex items-center gap-1 px-2 py-0.5 bg-teal-600 text-white text-[10px] font-semibold rounded hover:bg-teal-700"
+                                        >
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                          </svg>
+                                          Print {bill.label_count || 1}
+                                        </button>
+                                      </div>
+                                      <div className="space-y-0.5 pl-4">
+                                        {(box.items || []).map((item, itemIdx) => (
+                                          <div key={itemIdx} className="flex justify-between text-gray-600">
+                                            <span className="truncate mr-2">{item.item_name || item.itemName}</span>
+                                            <span className="font-medium whitespace-nowrap">{item.quantity} pcs</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div>
+                                  <p className="font-semibold mb-1">Items ({bill.items?.length || 0})</p>
+                                  {bill.items?.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between py-0.5">
+                                      <span className="truncate mr-2">{item.name || item.item_name}</span>
+                                      <span className="font-medium whitespace-nowrap">{formatQuantity(item.quantity || item.qty, 'pcs')}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

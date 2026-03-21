@@ -2,6 +2,64 @@ import { useEffect, useState } from "react";
 import { X, User, Mail, Phone, Clock, CheckCircle, Package, Truck, FileText, AlertTriangle, DollarSign } from "lucide-react";
 import { formatDetailedDateTime } from "../utils/formatters";
 
+function GroupedPackingInfo({ currentInvoiceNo, boxingGroupId }) {
+  const [groupedInvoices, setGroupedInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!boxingGroupId) return;
+    import("../services/api").then(({ default: api }) => {
+      api.get("/sales/packing/history/", {
+        params: { boxing_group_id: boxingGroupId, page_size: 50 }
+      })
+        .then(res => {
+          const results = res.data?.results || res.data || [];
+          // Show all invoices in the group except the current one
+          const others = results.filter(r => r.invoice_no !== currentInvoiceNo);
+          setGroupedInvoices(others);
+        })
+        .catch(() => setGroupedInvoices([]))
+        .finally(() => setLoading(false));
+    });
+  }, [boxingGroupId, currentInvoiceNo]);
+
+  return (
+    <div className="mt-3 p-3 bg-teal-50 rounded-lg border border-teal-200">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-5 h-5 rounded bg-teal-600 flex items-center justify-center flex-shrink-0">
+          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        </div>
+        <p className="text-xs font-semibold text-teal-900">Packed together with</p>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-teal-600 pl-7">Loading...</p>
+      ) : groupedInvoices.length === 0 ? (
+        <p className="text-xs text-teal-600 pl-7">No other invoices found in this group.</p>
+      ) : (
+        <div className="pl-7 space-y-1.5">
+          {groupedInvoices.map(inv => (
+            <div
+              key={inv.invoice_no}
+              className="flex items-center justify-between bg-white rounded border border-teal-200 px-2.5 py-1.5"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-teal-700">#{inv.invoice_no}</span>
+                <span className="text-xs text-gray-600">{inv.customer_name}</span>
+              </div>
+              {inv.customer_area && (
+                <span className="text-[10px] text-gray-400">{inv.customer_area}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, invoiceData }) {
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
@@ -519,6 +577,14 @@ export default function ConsolidateDetailModal({ isOpen, onClose, invoiceNo, inv
                               </div>
                             )}
                           </div>
+                        )}
+
+                        {/* ↓ ADD THIS NEW BLOCK RIGHT HERE ↓ */}
+                        {invoiceData.packing.boxing_group_id && (
+                          <GroupedPackingInfo
+                            currentInvoiceNo={invoiceNo}
+                            boxingGroupId={invoiceData.packing.boxing_group_id}
+                          />
                         )}
 
                         {/* Return Info for Packing Stage */}

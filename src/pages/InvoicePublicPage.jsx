@@ -1,22 +1,60 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { getPublicInvoiceDetail } from "../services/sales";
 
 export default function InvoicePublicPage() {
   const { invoiceNo } = useParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [invoiceData, setInvoiceData] = useState(null);
+  const [groupedInvoices, setGroupedInvoices] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    const groupedInvoiceNos = Array.from(
+      new Set(
+        (query.get("invoices") || "")
+          .split(",")
+          .map((n) => n.trim())
+          .filter(Boolean)
+      )
+    );
+
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
+
+        if (groupedInvoiceNos.length > 1) {
+          const results = await Promise.allSettled(
+            groupedInvoiceNos.map((no) => getPublicInvoiceDetail(no))
+          );
+
+          const successData = results
+            .filter((result) => result.status === "fulfilled")
+            .map((result) => result.value?.data?.data || result.value?.data)
+            .filter(Boolean);
+
+          if (successData.length === 0) {
+            setGroupedInvoices([]);
+            setInvoiceData(null);
+            setError("No invoices found for this grouped QR");
+            return;
+          }
+
+          setGroupedInvoices(successData);
+          setInvoiceData(null);
+          return;
+        }
+
         const response = await getPublicInvoiceDetail(invoiceNo);
         const data = response.data?.data || response.data;
         setInvoiceData(data);
+        setGroupedInvoices([]);
       } catch (err) {
+        setGroupedInvoices([]);
+        setInvoiceData(null);
         setError(
           err.response?.data?.error ||
           err.response?.data?.message ||
@@ -27,7 +65,9 @@ export default function InvoicePublicPage() {
       }
     };
     load();
-  }, [invoiceNo]);
+  }, [invoiceNo, location.search]);
+
+  const isGroupedView = groupedInvoices.length > 1;
 
   if (loading) {
     return (
@@ -40,7 +80,7 @@ export default function InvoicePublicPage() {
     );
   }
 
-  if (error || !invoiceData) {
+  if (error || (!invoiceData && groupedInvoices.length === 0)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
@@ -51,6 +91,91 @@ export default function InvoicePublicPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Invoice Not Found</h2>
           <p className="text-gray-500 text-sm">{error || "The invoice you're looking for doesn't exist."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isGroupedView) {
+    const totalItems = groupedInvoices.reduce((sum, inv) => sum + (inv.items?.length || 0), 0);
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 py-8 px-4">
+        <div className="max-w-3xl mx-auto space-y-5">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-teal-100 text-sm mb-1">Grouped Shipment</p>
+                  <h1 className="text-2xl font-bold">{groupedInvoices.length} Invoices</h1>
+                  <p className="text-teal-200 text-sm mt-1">{totalItems} total items</p>
+                </div>
+                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-5 border-b">
+              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Invoices In This Group</h2>
+              <div className="flex flex-wrap gap-2">
+                {groupedInvoices.map((inv) => (
+                  <span key={inv.invoice_no} className="px-2.5 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-bold">
+                    {inv.invoice_no}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {groupedInvoices.map((inv) => (
+            <div key={inv.invoice_no} className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+                <h2 className="text-sm font-bold text-gray-700">Invoice {inv.invoice_no}</h2>
+                <span className="text-xs text-gray-400 font-medium">{inv.items?.length || 0} items</span>
+              </div>
+
+              <div className="px-6 py-4 border-b">
+                <p className="text-base font-bold text-gray-800">{inv.customer_name}</p>
+                {inv.customer_address && (
+                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">{inv.customer_address}</p>
+                )}
+                {inv.customer_phone && (
+                  <p className="text-sm font-medium text-teal-700 mt-1">{inv.customer_phone}</p>
+                )}
+              </div>
+
+              {inv.items?.length > 0 ? (
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Item Name</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {inv.items.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-gray-400 text-xs">{idx + 1}</td>
+                        <td className="px-4 py-3 font-medium text-gray-800">{item.item_name}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full text-xs">
+                            {Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(2)} pcs
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="px-6 py-8 text-center text-gray-400 text-sm">No items found</div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     );

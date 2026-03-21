@@ -158,7 +158,7 @@ export default function TrayAssignmentPage() {
     if (!q.trim()) { setTraySearchResults([]); return; }
     setSearchingTrays(true);
     try {
-      const res = await searchTrays(q, invoiceNo);
+      const res = await searchTrays(q, invoiceNo, 100);
       setTraySearchResults(res.data?.data || []);
     } catch { setTraySearchResults([]); }
     finally { setSearchingTrays(false); }
@@ -706,7 +706,7 @@ export default function TrayAssignmentPage() {
                     <div className="animate-spin h-5 w-5 border-2 border-teal-500 border-t-transparent rounded-full"></div>
                   </div>
                 ) : traySearchResults.length > 0 ? (
-                  <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden max-h-64 overflow-y-auto">
                     {traySearchResults.map(t => (
                       <button key={t.tray_id} onClick={() => handleSelectTray(t)}
                         disabled={t.in_use}
