@@ -8,9 +8,13 @@ function GroupedPackingInfo({ currentInvoiceNo, boxingGroupId }) {
 
   useEffect(() => {
     if (!boxingGroupId) return;
+    // Strip the preferred invoice suffix if present (format: groupId|preferredInvoiceNo)
+    const baseGroupId = boxingGroupId.split("|")[0];
+    const preferredInvoiceNo = boxingGroupId.split("|")[1] || null;
+
     import("../services/api").then(({ default: api }) => {
       api.get("/sales/packing/history/", {
-        params: { boxing_group_id: boxingGroupId, page_size: 50 }
+        params: { boxing_group_id: baseGroupId, page_size: 50 }
       })
         .then(res => {
           const results = res.data?.results || res.data || [];

@@ -168,6 +168,14 @@ export default function PackingHistory() {
 
   const hasActiveFilters = search || filterStatus || filterDate;
 
+  const getPreferredInvoiceFromGroupId = (boxing_group_id, rows) => {
+    if (!boxing_group_id) return null;
+    const parts = boxing_group_id.split("|");
+    if (parts.length < 2) return null;
+    const preferredNo = parts[1];
+    return rows.find(r => r.invoice_no === preferredNo) || null;
+  };
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
@@ -275,6 +283,19 @@ export default function PackingHistory() {
                     const first = rows[0];
 
                     if (isGroup) {
+                      // ADD THIS TEMPORARILY
+                      const _gid = first.boxing_group_id;
+                      const _nos = rows.map(r => r.invoice_no).sort().join(",");
+                      const _byGroup = JSON.parse(localStorage.getItem("packing.groupAddressByGroupId") || "{}");
+                      const _byInv = JSON.parse(localStorage.getItem("packing.groupAddressByInvoices") || "{}");
+                      console.log("🔍 GROUP DEBUG", {
+                        boxing_group_id: _gid,
+                        invoiceSetKey: _nos,
+                        byGroupKeys: Object.keys(_byGroup),
+                        byInvoicesKeys: Object.keys(_byInv),
+                        matchByGroup: _byGroup[_gid],
+                        matchByInvoices: _byInv[_nos],
+                      });
                       return (
                         <React.Fragment key={groupKey}>
                           {/* Group header — top + left + right border, rounded top */}
@@ -291,6 +312,15 @@ export default function PackingHistory() {
                                     Consolidated · {rows.length} invoices
                                     {first.courier_name && <span className="ml-2 text-teal-700">· {first.courier_name}</span>}
                                     {first.label_count != null && <span className="ml-2 text-teal-600">· {first.label_count} box(es)</span>}
+                                    {(() => {
+                                      const preferred = getPreferredInvoiceFromGroupId(first.boxing_group_id, rows);
+                                      if (!preferred) return null;
+                                      return (
+                                        <span className="ml-2 px-2 py-0.5 bg-teal-100 text-teal-800 rounded-full text-[10px] font-bold">
+                                          📦 Address: {preferred.customer_name}
+                                        </span>
+                                      );
+                                    })()}
                                   </span>
                                 </div>
                               </div>

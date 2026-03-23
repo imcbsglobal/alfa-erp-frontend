@@ -186,6 +186,14 @@ export default function PackingInvoiceReportPage() {
     });
   };
 
+  const getPreferredInvoiceFromGroupId = (boxing_group_id, rows) => {
+    if (!boxing_group_id) return null;
+    const parts = boxing_group_id.split("|");
+    if (parts.length < 2) return null;
+    const preferredNo = parts[1];
+    return rows.find(r => r.invoice_no === preferredNo) || null;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -302,6 +310,15 @@ export default function PackingInvoiceReportPage() {
                                         Consolidated · {rows.length} invoices
                                         {first.courier_name && <span className="ml-2 text-teal-700">· {first.courier_name}</span>}
                                         {first.label_count != null && <span className="ml-2 text-teal-600">· {first.label_count} box(es)</span>}
+                                        {(() => {
+                                          const preferred = getPreferredInvoiceFromGroupId(first.boxing_group_id, rows);
+                                          if (!preferred) return null;
+                                          return (
+                                            <span className="ml-2 px-2 py-0.5 bg-teal-100 text-teal-800 rounded-full text-[10px] font-bold">
+                                              📦 Address: {preferred.customer_name}
+                                            </span>
+                                          );
+                                        })()}
                                       </span>
                                     </div>
                                   </div>

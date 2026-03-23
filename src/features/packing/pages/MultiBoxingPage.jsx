@@ -283,8 +283,8 @@ export default function MultiBoxingPage() {
     try {
       setCompleting(true);
       // Generate a unique boxing group ID for this multi-boxing session
-      const boxingGroupId = `BOX-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const preferredInvoiceNo = allData[selectedAddressIndex]?.no || invoiceNos[selectedAddressIndex] || invoiceNos[0] || "";
+      const boxingGroupId = `BOX-${Date.now()}-${Math.random().toString(36).substr(2, 9)}|${preferredInvoiceNo}`;
       
       await Promise.all(
         invoiceNos.map(invoiceNo =>
