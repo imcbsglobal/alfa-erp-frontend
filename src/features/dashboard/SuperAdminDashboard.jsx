@@ -5,7 +5,7 @@ import { getUsers } from '../../services/auth';
 import {
   getPickingHistory,
   getPackingHistory,
-  getInvoices,
+  getDeliveryHistory,
 } from '../../services/sales';
 import { getStatusBreakdown, getDashboardStats } from '../../services/analytics';
 import toast from 'react-hot-toast';
@@ -92,9 +92,8 @@ export default function SuperAdminDashboard() {
             fetchBreakdown();
           }
 
-          // Also handle packing/picking/delivery events that don't include aggregated stats
-          // e.g. events like 'packing_started', 'packing_completed', or payloads containing
-          // `packing_status` / `status` fields. Refresh breakdown and recent activity.
+          // Also handle workflow events that don't include aggregated stats.
+          // Refresh dashboard + recent activity for packing and delivery updates.
           const isPackingEvent = () => {
             try {
               if (!data) return false;
@@ -104,6 +103,21 @@ export default function SuperAdminDashboard() {
               const sVal = (data.status || '').toString().toUpperCase();
               const packingStatuses = ['PICKED','PACKED','PACKING','PREPARING','IN_PROGRESS'];
               if (packingStatuses.includes(sVal)) return true;
+            } catch (e) {
+              return false;
+            }
+            return false;
+          };
+
+          const isDeliveryEvent = () => {
+            try {
+              if (!data) return false;
+              const t = (data.type || '').toString().toLowerCase();
+              if (t.includes('deliver') || t.includes('delivery')) return true;
+              if (data.delivery_status) return true;
+              const sVal = (data.status || '').toString().toUpperCase();
+              const deliveryStatuses = ['TO_CONSIDER', 'IN_TRANSIT', 'DELIVERED'];
+              if (deliveryStatuses.includes(sVal)) return true;
             } catch (e) {
               return false;
             }
@@ -156,6 +170,14 @@ export default function SuperAdminDashboard() {
             // Also refresh recent activity list
             try { fetchRecentActivity(); } catch (e) { /* fetchRecentActivity defined later in effect but will exist when this runs */ }
           }
+
+          if (isDeliveryEvent()) {
+            fetchAllStats();
+            fetchTodayStats();
+            fetchBreakdown();
+            setSseLastUpdated(new Date());
+            try { fetchRecentActivity(); } catch (e) {}
+          }
         } catch (error) {
           console.error('❌ Error parsing SSE data:', error);
         }
@@ -176,9 +198,10 @@ export default function SuperAdminDashboard() {
 
     const fetchRecentActivity = async () => {
       try {
-        const [pickingHistoryRes, packingHistoryRes] = await Promise.allSettled([
+        const [pickingHistoryRes, packingHistoryRes, deliveryHistoryRes] = await Promise.allSettled([
           getPickingHistory({ page_size: 5, ordering: '-created_at' }),
           getPackingHistory({ page_size: 5, ordering: '-created_at' }),
+          getDeliveryHistory({ page_size: 5, ordering: '-created_at' }),
         ]);
 
         const activities = [];
@@ -205,6 +228,27 @@ export default function SuperAdminDashboard() {
               action: session.packing_status === 'PACKED' ? 'Completed packing' : 'Started packing',
               time: session.end_time || session.start_time || session.created_at,
               status: session.packing_status,
+            });
+          });
+        }
+
+        if (deliveryHistoryRes.status === 'fulfilled') {
+          const sessions = deliveryHistoryRes.value?.data?.results || [];
+          sessions.forEach(session => {
+            // Show only company delivery activity done by a person.
+            const isCompanyDelivery = session.delivery_type === 'INTERNAL';
+            const actorName = session.delivery_user_name || session.delivery_info?.delivery_user_name || null;
+            const actorEmail = session.delivery_user_email || session.delivery_info?.delivery_user_email || session.delivery_info?.email || null;
+            if (!isCompanyDelivery || (!actorName && !actorEmail)) return;
+
+            const status = session.delivery_status || 'UNKNOWN';
+            const isDelivered = status === 'DELIVERED';
+            activities.push({
+              type: 'delivery',
+              user: actorName || actorEmail,
+              action: isDelivered ? 'Completed delivery' : 'Started delivery',
+              time: session.end_time || session.start_time || session.created_at,
+              status,
             });
           });
         }
@@ -427,6 +471,7 @@ export default function SuperAdminDashboard() {
         </svg>
       ),
       gradient: 'from-pink-500 to-rose-600',
+      onClick: () => navigate('/history/delivery-report'),
     },
   ];
 
@@ -586,7 +631,13 @@ export default function SuperAdminDashboard() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-800 truncate flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${activity.type === 'picking' ? 'bg-blue-500' : 'bg-purple-500'}`} />
+                            <span className={`w-2 h-2 rounded-full ${
+                              activity.type === 'picking'
+                                ? 'bg-blue-500'
+                                : activity.type === 'packing'
+                                ? 'bg-purple-500'
+                                : 'bg-green-500'
+                            }`} />
                             {activity.user}
                           </p>
                           <p className="text-xs text-gray-600 mt-1">{activity.action}</p>
@@ -600,8 +651,18 @@ export default function SuperAdminDashboard() {
                             }`}>
                               {activity.status ? activity.status.replace(/_/g, ' ') : 'Unknown'}
                             </span>
-                            <span className={`text-xs px-2 py-0.5 rounded ${activity.type === 'picking' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                              {activity.type === 'picking' ? '📦 Pick' : '🎁 Pack'}
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              activity.type === 'picking'
+                                ? 'bg-blue-50 text-blue-600'
+                                : activity.type === 'packing'
+                                ? 'bg-purple-50 text-purple-600'
+                                : 'bg-green-50 text-green-600'
+                            }`}>
+                              {activity.type === 'picking'
+                                ? '📦 Pick'
+                                : activity.type === 'packing'
+                                ? '🎁 Pack'
+                                : '🚚 Delivery'}
                             </span>
                           </div>
                         </div>

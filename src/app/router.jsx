@@ -61,6 +61,8 @@ const PickingUserSummaryPage = lazy(() => import("../features/reports/pages/Pick
 
 const PackingInvoiceReportPage = lazy(() => import("../features/reports/pages/Packinginvoicereportpage"));
 const PackingUserSummaryPage = lazy(() => import("../features/reports/pages/Packingusersummarypage"));
+const DeliveryReportPage = lazy(() => import("../features/reports/pages/Deliveryreportpage"));
+const DeliveryUserSummaryPage = lazy(() => import("../features/reports/pages/Deliveryusersummarypage"));
 
 function RouteFallback() {
   return (
@@ -161,6 +163,8 @@ export default function AppRouter() {
           <Route path="/history/picking-user-summary" element={<PickingUserSummaryPage />} />
           <Route path="/history/packing-report" element={<PackingInvoiceReportPage />} />
           <Route path="/history/packing-user-summary" element={<PackingUserSummaryPage />} />
+          <Route path="/history/delivery-report" element={<DeliveryReportPage />} />
+          <Route path="/history/delivery-user-summary" element={<DeliveryUserSummaryPage />} />
 
           {/* Developer Options - SUPERADMIN ONLY */}
           <Route 

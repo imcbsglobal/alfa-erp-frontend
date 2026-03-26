@@ -384,7 +384,7 @@ export default function TrayAssignmentPage() {
         navigate(getPath(`/packing/boxing/${invoiceNo}`));
       } else {
         toast.success("Tray packing done! Invoice moved to Boxing Queue.");
-        navigate(getPath("/packing/boxing"));
+        navigate(getPath("/packing/invoices"));
       }
     } catch (err) {
       const msg = err.response?.data?.message || "Failed to complete tray packing";

@@ -507,10 +507,25 @@ export default function MyPackingListPage() {
       try { customerNameML = await transliterateToMalayalam(customerName); } catch { customerNameML = ''; }
     }
 
-    const groupedInvoicesParam = encodeURIComponent(groupedInvoiceNos.join(','));
-    const qrUrl = groupedInvoiceCount > 1
-      ? `${window.location.origin}/invoice/${invoiceNo}?invoices=${groupedInvoicesParam}`
-      : `${window.location.origin}/invoice/${invoiceNo}`;
+    const boxingGroupId = fullBill?.boxing_group_id || fullBill?.packer_info?.boxing_group_id || '';
+    const buildQrText = (boxIndex) => {
+      const params = new URLSearchParams();
+      params.set('type', groupedInvoiceCount > 1 ? 'MULTI_BOX' : 'SINGLE_BOX');
+      params.set('box', String(boxIndex + 1));
+      params.set('total_boxes', String(labelCount));
+
+      if (groupedInvoiceCount > 1 && groupedInvoiceNos.length > 0) {
+        params.set('invoices', groupedInvoiceNos.join(','));
+      }
+      if (boxingGroupId) {
+        params.set('group_id', boxingGroupId);
+      }
+
+      return `${window.location.origin}/invoice/${invoiceNo}?${params.toString()}`;
+    };
+
+    const escapeForSingleQuotedJs = (value) =>
+      String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -574,15 +589,18 @@ export default function MyPackingListPage() {
       </div>
     `).join('');
 
-    const qrScripts = Array.from({ length: labelCount }).map((_, idx) => `
+    const qrScripts = Array.from({ length: labelCount }).map((_, idx) => {
+      const qrText = escapeForSingleQuotedJs(buildQrText(idx));
+      return `
       new QRCode(document.getElementById('qrcode-${idx}'), {
-        text: '${qrUrl}',
+        text: '${qrText}',
         width: 95,
         height: 95,
         colorDark: '#000000', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.H
       });
-    `).join('\n');
+    `;
+    }).join('\n');
 
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
     iframeDoc.write(`

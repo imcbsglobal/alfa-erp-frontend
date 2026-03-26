@@ -130,6 +130,7 @@ export const completeBoxing = (data) => api.post("/sales/packing/complete-boxing
 
 // Delivery
 export const assignDelivery = (data) => api.post("/sales/delivery/assign/", data);
+export const getEligibleDeliveryStaff = () => api.get("/sales/delivery/eligible-staff/");
 export const uploadDeliverySlip = (formData) =>
   api.post("/sales/delivery/upload-slip/", formData, {
     headers: { "Content-Type": "multipart/form-data" },

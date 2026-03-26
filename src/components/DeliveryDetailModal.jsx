@@ -79,6 +79,7 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
   };
 
   const hasLocation = deliveryData.delivery_latitude && deliveryData.delivery_longitude;
+  const pickupDisplayName = deliveryData.pickup_person_name || deliveryData.customer_name || deliveryData.temp_name || "—";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -155,7 +156,7 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                           <>
                             <div>
                               <p className="text-xs text-gray-500">Patient Name</p>
-                              <p className="text-sm font-medium text-gray-900">{deliveryData.pickup_person_name || "—"}</p>
+                              <p className="text-sm font-medium text-gray-900">{pickupDisplayName}</p>
                             </div>
                             <div>
                               <p className="text-xs text-gray-500">Patient Phone</p>
@@ -176,7 +177,7 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                             </div>
                             <div>
                               <p className="text-xs text-gray-500">Contact Person</p>
-                              <p className="text-sm font-medium text-gray-900">{deliveryData.pickup_person_name || "—"}</p>
+                              <p className="text-sm font-medium text-gray-900">{pickupDisplayName}</p>
                             </div>
                             <div>
                               <p className="text-xs text-gray-500">Contact Phone</p>

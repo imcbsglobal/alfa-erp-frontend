@@ -1,114 +1,215 @@
-import React, { useState, useEffect } from 'react';
-import { X, Truck, Package, User, Phone, Building, Hash, Mail } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Truck, Package, User, Phone, Building, Hash, Mail, Layers, CheckCircle, Search } from 'lucide-react';
 import { formatAmount, formatItemCount } from '../../../utils/formatters';
+import { getEligibleDeliveryStaff } from '../../../services/sales';
 
-const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
-  const [step, setStep] = useState(1);
-  const [deliveryType, setDeliveryType] = useState(null);
-  const [subType, setSubType] = useState(null);
-  
-  // Form states
-  const [pickupPersonUsername, setPickupPersonUsername] = useState('');
-  const [pickupPersonName, setPickupPersonName] = useState('');
-  const [pickupPersonPhone, setPickupPersonPhone] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [companyId, setCompanyId] = useState('');
-  const [notes, setNotes] = useState('');
-  
-  // For Courier Delivery
-  const [couriers, setCouriers] = useState([]);
-  const [selectedCourier, setSelectedCourier] = useState('');
-  const [selectedCourierName, setSelectedCourierName] = useState('');
-  const [courierSearch, setCourierSearch] = useState('');
-  const [loadingCouriers, setLoadingCouriers] = useState(false);
-  const [showCourierDropdown, setShowCourierDropdown] = useState(false);
-  
-  // For Company Delivery
-  const [staffEmail, setStaffEmail] = useState('');
-  const [staffName, setStaffName] = useState('');
+/**
+ * CourierDropdown
+ * Renders via React Portal so it escapes the modal's overflow-y-auto clipping.
+ */
+const CourierDropdown = ({ anchorRef, isOpen, loading, couriers, selected, onSelect, onClose }) => {
+  const [rect, setRect] = useState(null);
 
-  // Load couriers when modal opens
   useEffect(() => {
-    if (isOpen && deliveryType === 'COURIER') {
-      loadCouriers();
-    }
+    if (!isOpen || !anchorRef.current) return;
+
+    const update = () => {
+      const r = anchorRef.current?.getBoundingClientRect();
+      if (r) setRect(r);
+    };
+
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [isOpen, anchorRef]);
+
+  if (!isOpen || !rect) return null;
+
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+  const dropdownHeight = Math.min(260, couriers.length * 60 + 16);
+  const openUpward = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+
+  const style = {
+    position: 'fixed',
+    left: rect.left,
+    width: rect.width,
+    zIndex: 9999,
+    ...(openUpward
+      ? { bottom: window.innerHeight - rect.top + 4, maxHeight: Math.min(spaceAbove - 8, 260) }
+      : { top: rect.bottom + 4, maxHeight: Math.min(spaceBelow - 8, 260) }),
+  };
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[9998]" onClick={onClose} />
+      <div
+        style={style}
+        className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-y-auto z-[9999]"
+      >
+        {loading ? (
+          <div className="flex items-center justify-center py-8 text-gray-400 text-sm gap-2">
+            <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+            Loading couriers...
+          </div>
+        ) : couriers.length === 0 ? (
+          <div className="py-8 text-center text-gray-400 text-sm">No couriers found</div>
+        ) : (
+          couriers.map((courier, idx) => (
+            <button
+              key={courier.courier_id}
+              onClick={() => onSelect(courier)}
+              className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors
+                ${idx !== couriers.length - 1 ? 'border-b border-gray-100' : ''}
+                ${selected === courier.courier_id
+                  ? 'bg-teal-50 text-teal-800'
+                  : 'hover:bg-gray-50 text-gray-800'
+                }`}
+            >
+              <div>
+                <p className="font-medium text-sm">{courier.courier_name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{courier.courier_code}</p>
+              </div>
+              {selected === courier.courier_id && (
+                <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0" />
+              )}
+            </button>
+          ))
+        )}
+      </div>
+    </>,
+    document.body
+  );
+};
+
+/**
+ * DeliveryModal
+ *
+ * Patient pickup  → requires: pickup_person_phone (+ optional notes)
+ * Company pickup  → requires: pickup_person_name, pickup_person_phone,
+ *                              pickup_company_name, pickup_company_id (+ optional notes)
+ *
+ * `invoice` prop can be:
+ *   - A single bill object  → normal single-invoice dispatch
+ *   - An array of bill objects → group dispatch
+ */
+const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initialMode = null }) => {
+  const isGroup    = Array.isArray(invoice);
+  const invoiceArr = isGroup ? invoice : (invoice ? [invoice] : []);
+  const repInvoice = invoiceArr[0] ?? null;
+
+  const [step, setStep]                 = useState(1);
+  const [deliveryType, setDeliveryType] = useState(null);
+  const [subType, setSubType]           = useState(null);
+
+  // ── Counter Pickup fields ──────────────────────────────────────────────────
+  // REMOVED: pickupPersonUsername (not required by backend for either sub-mode)
+  const [pickupPersonName, setPickupPersonName]   = useState('');  // company only
+  const [pickupPersonPhone, setPickupPersonPhone] = useState('');  // both modes
+  const [companyName, setCompanyName]             = useState('');  // company only
+  const [companyId, setCompanyId]                 = useState('');  // company only
+  const [notes, setNotes]                         = useState('');  // both modes (optional)
+
+  // ── Courier ───────────────────────────────────────────────────────────────
+  const [couriers, setCouriers]                       = useState([]);
+  const [selectedCourier, setSelectedCourier]         = useState('');
+  const [selectedCourierName, setSelectedCourierName] = useState('');
+  const [courierSearch, setCourierSearch]             = useState('');
+  const [loadingCouriers, setLoadingCouriers]         = useState(false);
+  const [showCourierDropdown, setShowCourierDropdown] = useState(false);
+  const courierInputRef = useRef(null);
+
+  // ── Company Delivery ──────────────────────────────────────────────────────
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffOptions, setStaffOptions] = useState([]);
+  const [loadingStaffOptions, setLoadingStaffOptions] = useState(false);
+
+  // ── Load couriers ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isOpen && deliveryType === 'COURIER') loadCouriers();
   }, [isOpen, deliveryType]);
+
+  // ── Load assignable delivery staff (users with My Assigned Delivery access) ──
+  useEffect(() => {
+    if (!isOpen || deliveryType !== 'COMPANY_DELIVERY') return;
+
+    const loadAssignableStaff = async () => {
+      setLoadingStaffOptions(true);
+      try {
+        const res = await getEligibleDeliveryStaff();
+        const allowedStaff = (res?.data?.data?.results || [])
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        setStaffOptions(allowedStaff);
+
+        if (staffEmail && !allowedStaff.some((s) => s.email === staffEmail)) {
+          setStaffEmail('');
+        }
+      } catch {
+        setStaffOptions([]);
+      } finally {
+        setLoadingStaffOptions(false);
+      }
+    };
+
+    loadAssignableStaff();
+  }, [isOpen, deliveryType]);
+
+  // ── Initialise step from parent mode ──────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    if (initialMode === 'COUNTER_PICKUP')   { setDeliveryType('COUNTER_PICKUP');   setStep(2); return; }
+    if (initialMode === 'COURIER')          { setDeliveryType('COURIER');          setStep(4); return; }
+    if (initialMode === 'COMPANY_DELIVERY') { setDeliveryType('COMPANY_DELIVERY'); setStep(5); return; }
+    setStep(1);
+    setDeliveryType(null);
+  }, [isOpen, initialMode]);
 
   const loadCouriers = async () => {
     setLoadingCouriers(true);
     try {
       const { getCouriers } = await import('../../../services/sales');
       const response = await getCouriers();
-      let courierArray = [];
-      const apiData = response?.data;
-
-      if (Array.isArray(apiData?.data)) {
-        courierArray = apiData.data;
-      } else {
-        courierArray = [];
-      }
-
-      const activeCouriers = courierArray.filter(c => c.status === 'ACTIVE');
-      setCouriers(activeCouriers);
-    } catch (error) {
-      console.error('Failed to load couriers:', error);
-      setCouriers([]);
-    } finally {
-      setLoadingCouriers(false);
-    }
+      const apiData  = response?.data;
+      const arr      = Array.isArray(apiData?.data) ? apiData.data : [];
+      setCouriers(arr.filter(c => c.status === 'ACTIVE'));
+    } catch { setCouriers([]); }
+    finally { setLoadingCouriers(false); }
   };
 
   const resetForm = () => {
-    setStep(1);
-    setDeliveryType(null);
-    setSubType(null);
-    setPickupPersonUsername('');
-    setPickupPersonName('');
-    setPickupPersonPhone('');
-    setCompanyName('');
-    setCompanyId('');
-    setNotes('');
-    setSelectedCourier('');
-    setSelectedCourierName('');
-    setCourierSearch('');
+    setStep(1); setDeliveryType(null); setSubType(null);
+    // REMOVED: setPickupPersonUsername('')
+    setPickupPersonName(''); setPickupPersonPhone('');
+    setCompanyName(''); setCompanyId(''); setNotes('');
+    setSelectedCourier(''); setSelectedCourierName(''); setCourierSearch('');
     setStaffEmail('');
-    setStaffName('');
     setShowCourierDropdown(false);
   };
 
-  const handleClose = () => {
-    resetForm();
-    onClose();
-  };
+  const handleClose = () => { resetForm(); onClose(); };
 
   const handleTypeSelect = (type) => {
     setDeliveryType(type);
-    if (type === 'COUNTER_PICKUP') {
-      setStep(2);
-    } else if (type === 'COURIER') {
-      setStep(4);
-    } else if (type === 'COMPANY_DELIVERY') {
-      setStep(5);
-    }
+    if (type === 'COUNTER_PICKUP')       setStep(2);
+    else if (type === 'COURIER')         setStep(4);
+    else if (type === 'COMPANY_DELIVERY') setStep(5);
   };
 
-  const handleSubTypeSelect = (sub) => {
-    setSubType(sub);
-    setStep(3);
-  };
+  const handleSubTypeSelect = (sub) => { setSubType(sub); setStep(3); };
 
   const handleBack = () => {
-    if (step === 3 && deliveryType === 'COUNTER_PICKUP') {
-      setStep(2);
-      setSubType(null);
-    } else if (step === 2 || step === 4 || step === 5) {
-      setStep(1);
-      setDeliveryType(null);
-      setSubType(null);
-      setSelectedCourier('');
-      setSelectedCourierName('');
+    if (step === 3 && deliveryType === 'COUNTER_PICKUP') { setStep(2); setSubType(null); }
+    else if (initialMode) { handleClose(); }
+    else if ([2, 4, 5].includes(step)) {
+      setStep(1); setDeliveryType(null); setSubType(null);
+      setSelectedCourier(''); setSelectedCourierName('');
       setStaffEmail('');
-      setStaffName('');
       setShowCourierDropdown(false);
     }
   };
@@ -120,588 +221,579 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting }) => {
     setShowCourierDropdown(false);
   };
 
-  const handleSubmit = () => {
-    let payload = {
-      invoice_no: invoice.invoice_no,
-      notes: notes || ''
-    };
-
-    if (deliveryType === 'COUNTER_PICKUP') {
-      payload.delivery_type = 'DIRECT';
-
-      if (!/^\d{10}$/.test(pickupPersonPhone)) {
-        alert("Enter valid 10 digit phone number");
-        return;
-      }
-
-      if (subType === 'PATIENT') {
-        if (!pickupPersonUsername.trim() || !pickupPersonName.trim() || !pickupPersonPhone.trim()) {
-          alert('Please fill all required fields');
-          return;
-        }
-        payload.counter_sub_mode = 'patient';
-        payload.pickup_person_username = pickupPersonUsername.trim();
-        payload.pickup_person_name = pickupPersonName.trim();
-        payload.pickup_person_phone = pickupPersonPhone.trim();
-      } else if (subType === 'COMPANY') {
-        if (!pickupPersonUsername.trim() || !pickupPersonName.trim() || 
-            !pickupPersonPhone.trim() || !companyName.trim() || !companyId.trim()) {
-          alert('Please fill all company details');
-          return;
-        }
-        payload.counter_sub_mode = 'company';
-        payload.pickup_person_username = pickupPersonUsername.trim();
-        payload.pickup_person_name = pickupPersonName.trim();
-        payload.pickup_person_phone = pickupPersonPhone.trim();
-        payload.pickup_company_name = companyName.trim();
-        payload.pickup_company_id = companyId.trim();
-      }
-    } else if (deliveryType === 'COURIER') {
-      if (!selectedCourier) {
-        alert('Please select a courier');
-        return;
-      }
-      payload.delivery_type = 'COURIER';
-      payload.courier_id = selectedCourier;
-    } else if (deliveryType === 'COMPANY_DELIVERY') {
-      if (!staffEmail.trim() || !staffName.trim()) {
-        alert('Please enter staff email and name');
-        return;
-      }
-      payload.delivery_type = 'INTERNAL';
-      payload.user_email = staffEmail.trim();
-      if (staffName.trim()) {
-        payload.user_name = staffName.trim();
-      }
-    }
-
-    onConfirm(payload);
+  const handleClearCourier = () => {
+    setSelectedCourier('');
+    setSelectedCourierName('');
+    setCourierSearch('');
+    setShowCourierDropdown(false);
   };
 
+  const selectedStaff = staffOptions.find((s) => s.email === staffEmail) || null;
+
+  const handleSubmit = () => {
+    // ── base payload (single or group) ──────────────────────────────────────
+    const basePayload = isGroup
+      ? { invoice_nos: invoiceArr.map(b => b.invoice_no), notes: notes || '' }
+      : { invoice_no: repInvoice?.invoice_no, notes: notes || '' };
+
+    if (deliveryType === 'COUNTER_PICKUP') {
+
+      // ── PATIENT pickup ─────────────────────────────────────────────────────
+      // Required: pickup_person_phone
+      // Optional: notes
+      if (subType === 'PATIENT') {
+        if (!pickupPersonName.trim()) {
+          alert('Please enter person name');
+          return;
+        }
+        if (!/^\d{10}$/.test(pickupPersonPhone)) {
+          alert('Enter a valid 10-digit phone number');
+          return;
+        }
+        onConfirm({
+          ...basePayload,
+          delivery_type:       'DIRECT',
+          counter_sub_mode:    'patient',
+          pickup_person_name:  pickupPersonName.trim(),
+          pickup_person_phone: pickupPersonPhone.trim(),
+        });
+
+      // ── COMPANY pickup ─────────────────────────────────────────────────────
+      // Required: pickup_person_name, pickup_person_phone, pickup_company_name, pickup_company_id
+      // Optional: notes
+      } else if (subType === 'COMPANY') {
+        if (!/^\d{10}$/.test(pickupPersonPhone)) {
+          alert('Enter a valid 10-digit phone number');
+          return;
+        }
+        if (
+          !pickupPersonName.trim() ||
+          !pickupPersonPhone.trim() ||
+          !companyName.trim() ||
+          !companyId.trim()
+        ) {
+          alert('Please fill all required company fields');
+          return;
+        }
+        onConfirm({
+          ...basePayload,
+          delivery_type:        'DIRECT',
+          counter_sub_mode:     'company',
+          pickup_person_name:   pickupPersonName.trim(),
+          pickup_person_phone:  pickupPersonPhone.trim(),
+          pickup_company_name:  companyName.trim(),
+          pickup_company_id:    companyId.trim(),
+          // pickup_person_username intentionally omitted
+        });
+      }
+
+    } else if (deliveryType === 'COURIER') {
+      if (!selectedCourier) { alert('Please select a courier'); return; }
+      onConfirm({ ...basePayload, delivery_type: 'COURIER', courier_id: selectedCourier });
+
+    } else if (deliveryType === 'COMPANY_DELIVERY') {
+      if (!staffEmail.trim()) { alert('Please enter staff email'); return; }
+      onConfirm({ ...basePayload, delivery_type: 'INTERNAL', user_email: staffEmail.trim() });
+    }
+  };
+
+  // ── Form validation ────────────────────────────────────────────────────────
   const isFormValid = () => {
     if (deliveryType === 'COUNTER_PICKUP') {
       if (subType === 'PATIENT') {
-        return pickupPersonUsername.trim() && pickupPersonName.trim() && pickupPersonPhone.trim();
-      } else if (subType === 'COMPANY') {
-        return pickupPersonUsername.trim() && pickupPersonName.trim() && 
-               pickupPersonPhone.trim() && companyName.trim() && companyId.trim();
+        // Only phone required
+        return pickupPersonName.trim() !== '' && /^\d{10}$/.test(pickupPersonPhone);
       }
-    } else if (deliveryType === 'COURIER') {
-      return selectedCourier !== '';
-    } else if (deliveryType === 'COMPANY_DELIVERY') {
-      return staffEmail.trim() !== '';
+      if (subType === 'COMPANY') {
+        // Name + phone + company name + company ID required
+        return (
+          pickupPersonName.trim() !== '' &&
+          /^\d{10}$/.test(pickupPersonPhone) &&
+          companyName.trim() !== '' &&
+          companyId.trim() !== ''
+        );
+      }
     }
+    if (deliveryType === 'COURIER')          return !!selectedCourier;
+    if (deliveryType === 'COMPANY_DELIVERY') return staffEmail.trim() !== '';
     return true;
   };
 
-  const filteredCouriers = couriers.filter(courier => 
-    courier.courier_name.toLowerCase().includes(courierSearch.toLowerCase()) ||
-    courier.courier_code.toLowerCase().includes(courierSearch.toLowerCase())
+  const filteredCouriers = couriers.filter(c =>
+    c.courier_name.toLowerCase().includes(courierSearch.toLowerCase()) ||
+    c.courier_code.toLowerCase().includes(courierSearch.toLowerCase())
   );
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-          <div>
-            <h3 className="font-bold text-gray-900">Start Delivery Process</h3>
-            <p className="text-sm text-gray-600">Invoice: {invoice?.invoice_no}</p>
+  // ── Shared sub-components ──────────────────────────────────────────────────
+
+  const GroupSummaryStrip = () => {
+    if (!isGroup || invoiceArr.length === 0) return null;
+    const totalItems = invoiceArr.reduce((s, b) => s + (b.items?.length || 0), 0);
+    return (
+      <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-7 h-7 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Layers className="w-4 h-4 text-teal-600" />
           </div>
-          <button
-            onClick={handleClose}
-            disabled={submitting}
-            className="text-gray-400 hover:text-gray-600"
-          >
+          <span className="text-sm font-bold text-teal-700">
+            Group Dispatch — {invoiceArr.length} invoices · {totalItems} items
+          </span>
+        </div>
+        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+          {invoiceArr.map(b => (
+            <div key={b.id}
+              className="flex items-center justify-between text-xs bg-white rounded-lg px-3 py-2
+                         border border-teal-100 shadow-sm">
+              <span className="font-semibold text-gray-800">{b.invoice_no}</span>
+              <span className="text-teal-600 truncate ml-2 max-w-[160px]">
+                {b.customer?.name || b.temp_name || '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-teal-600 mt-2.5 font-medium">
+          All invoices above will be assigned together.
+        </p>
+      </div>
+    );
+  };
+
+  const SingleSummaryStrip = () => {
+    if (isGroup) return null;
+    return (
+      <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 mb-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900">{repInvoice?.invoice_no}</p>
+            <p className="text-sm text-gray-500 mt-0.5 truncate">{repInvoice?.customer?.name}</p>
+          </div>
+          <div className="text-right flex-shrink-0 ml-3">
+            <p className="font-semibold text-gray-900">{formatAmount(repInvoice?.Total)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{formatItemCount(repInvoice?.items?.length)}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const BackButton = () => (
+    <button onClick={handleBack}
+      className="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 mb-3 font-medium">
+      ← Back
+    </button>
+  );
+
+  const ActionButtons = ({ confirmLabel, confirmDisabled }) => (
+    <div className="flex gap-3 pt-4 border-t border-gray-100 mt-2">
+      <button onClick={handleBack} disabled={submitting}
+        className="flex-1 py-2.5 px-4 border border-gray-200 text-gray-600 rounded-xl
+                   hover:bg-gray-50 disabled:opacity-50 font-medium text-sm transition-colors">
+        Back
+      </button>
+      <button onClick={handleSubmit} disabled={submitting || confirmDisabled}
+        className="flex-1 py-2.5 px-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white
+                   rounded-xl hover:from-teal-600 hover:to-cyan-700 disabled:opacity-50
+                   disabled:cursor-not-allowed font-semibold text-sm transition-all shadow-sm">
+        {submitting ? (
+          <span className="flex items-center justify-center gap-2">
+            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Processing...
+          </span>
+        ) : confirmLabel}
+      </button>
+    </div>
+  );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h3 className="font-bold text-gray-900 text-base">Start Delivery Process</h3>
+            {isGroup ? (
+              <p className="text-sm text-teal-600 font-medium flex items-center gap-1 mt-0.5">
+                <Layers className="w-3.5 h-3.5" />
+                Group of {invoiceArr.length} invoices
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400 mt-0.5">Invoice: {repInvoice?.invoice_no}</p>
+            )}
+          </div>
+          <button onClick={handleClose} disabled={submitting}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6">
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 px-6 py-5">
+
+          {/* ── Step 1 — delivery type ── */}
           {step === 1 && (
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">Select Delivery Type</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => handleTypeSelect('COUNTER_PICKUP')}
-                  className="p-6 border-2 border-gray-300 rounded-lg hover:border-teal-500 hover:bg-teal-50 transition-all group"
-                >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center group-hover:bg-teal-200">
-                      <User className="w-8 h-8 text-teal-600" />
+            <div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+                Select Delivery Type
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { type: 'COUNTER_PICKUP',   label: 'Counter Pickup',   sub: 'Direct patient or company', Icon: User,    border: 'hover:border-teal-400',   bg: 'hover:bg-teal-50',   iconBg: 'bg-teal-100',   iconClr: 'text-teal-600'   },
+                  { type: 'COURIER',           label: 'Courier Delivery', sub: 'Send via courier service',  Icon: Truck,   border: 'hover:border-orange-400', bg: 'hover:bg-orange-50', iconBg: 'bg-orange-100', iconClr: 'text-orange-600' },
+                  { type: 'COMPANY_DELIVERY',  label: 'Company Delivery', sub: 'Internal delivery staff',   Icon: Package, border: 'hover:border-blue-400',   bg: 'hover:bg-blue-50',   iconBg: 'bg-blue-100',   iconClr: 'text-blue-600'   },
+                ].map(({ type, label, sub, Icon, border, bg, iconBg, iconClr }) => (
+                  <button key={type} onClick={() => handleTypeSelect(type)}
+                    className={`p-5 border-2 border-gray-200 rounded-xl transition-all group ${border} ${bg}`}>
+                    <div className="flex flex-col items-center text-center gap-3">
+                      <div className={`w-14 h-14 ${iconBg} rounded-full flex items-center justify-center`}>
+                        <Icon className={`w-7 h-7 ${iconClr}`} />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">{label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h5 className="font-semibold text-gray-900">Counter Pickup</h5>
-                      <p className="text-xs text-gray-600 mt-1">Direct patient or company pickup</p>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleTypeSelect('COURIER')}
-                  className="p-6 border-2 border-gray-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all group"
-                >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center group-hover:bg-orange-200">
-                      <Truck className="w-8 h-8 text-orange-600" />
-                    </div>
-                    <div>
-                      <h5 className="font-semibold text-gray-900">Courier Delivery</h5>
-                      <p className="text-xs text-gray-600 mt-1">Send via courier service</p>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleTypeSelect('COMPANY_DELIVERY')}
-                  className="p-6 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all group"
-                >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200">
-                      <Package className="w-8 h-8 text-blue-600" />
-                    </div>
-                    <div>
-                      <h5 className="font-semibold text-gray-900">Company Delivery</h5>
-                      <p className="text-xs text-gray-600 mt-1">Internal delivery staff</p>
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
+          {/* ── Step 2 — counter pickup sub-type ── */}
           {step === 2 && deliveryType === 'COUNTER_PICKUP' && (
-            <div className="space-y-4">
-              <button
-                onClick={handleBack}
-                className="text-sm text-teal-600 hover:text-teal-700 mb-2"
-              >
-                ← Back
-              </button>
-              
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">Select Pickup Type</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={() => handleSubTypeSelect('PATIENT')}
-                  className="p-6 border-2 border-gray-300 rounded-lg hover:border-teal-500 hover:bg-teal-50 transition-all group"
-                >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center group-hover:bg-teal-200">
-                      <User className="w-8 h-8 text-teal-600" />
+            <div>
+              <BackButton />
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Select Pickup Type</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { sub: 'PATIENT', label: 'Direct Patient',  sub2: 'Customer picks up directly',         Icon: User     },
+                  { sub: 'COMPANY', label: 'Direct Company',  sub2: 'Company representative pickup',      Icon: Building },
+                ].map(({ sub, label, sub2, Icon }) => (
+                  <button key={sub} onClick={() => handleSubTypeSelect(sub)}
+                    className="p-6 border-2 border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition-all group">
+                    <div className="flex flex-col items-center text-center gap-3">
+                      <div className="w-14 h-14 bg-teal-100 rounded-full flex items-center justify-center group-hover:bg-teal-200 transition-colors">
+                        <Icon className="w-7 h-7 text-teal-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">{label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{sub2}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h5 className="font-semibold text-gray-900">Direct Patient</h5>
-                      <p className="text-xs text-gray-600 mt-1">Customer picks up directly</p>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleSubTypeSelect('COMPANY')}
-                  className="p-6 border-2 border-gray-300 rounded-lg hover:border-teal-500 hover:bg-teal-50 transition-all group"
-                >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center group-hover:bg-teal-200">
-                      <Building className="w-8 h-8 text-teal-600" />
-                    </div>
-                    <div>
-                      <h5 className="font-semibold text-gray-900">Direct Company</h5>
-                      <p className="text-xs text-gray-600 mt-1">Company representative pickup</p>
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
+          {/* ── Step 3 — counter pickup form ── */}
           {step === 3 && deliveryType === 'COUNTER_PICKUP' && (
-            <div className="space-y-4">
-              <button
-                onClick={handleBack}
-                className="text-sm text-teal-600 hover:text-teal-700 mb-2"
-              >
-                ← Back
-              </button>
-              
-              {subType === 'PATIENT' && (
-                <>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Direct Patient Pickup</h4>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <User className="inline w-4 h-4 mr-1" />
-                        Username/ID <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={pickupPersonUsername}
-                        onChange={(e) => setPickupPersonUsername(e.target.value)}
-                        placeholder="Enter username or ID"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
+            <div>
+              <BackButton />
+              <p className="font-semibold text-gray-800 mb-4">
+                {subType === 'PATIENT' ? 'Direct Patient Pickup' : 'Direct Company Pickup'}
+              </p>
 
+              <div className="space-y-4">
+
+                {/* ── PATIENT: only Phone + Notes ─────────────────────────── */}
+                {subType === 'PATIENT' && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <User className="inline w-4 h-4 mr-1" />
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                         Person Name <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={pickupPersonName}
-                        onChange={(e) => setPickupPersonName(e.target.value)}
-                        placeholder="Enter person name"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Phone className="inline w-4 h-4 mr-1" />
-                        Phone Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        value={pickupPersonPhone}
-                        onChange={(e) => setPickupPersonPhone(e.target.value)}
-                        placeholder="Enter phone number"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Notes (Optional)
-                      </label>
-                      <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Add any additional notes..."
-                        rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {subType === 'COMPANY' && (
-                <>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Direct Company Pickup</h4>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <User className="inline w-4 h-4 mr-1" />
-                        Username/ID <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={pickupPersonUsername}
-                        onChange={(e) => setPickupPersonUsername(e.target.value)}
-                        placeholder="Enter username or ID"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <User className="inline w-4 h-4 mr-1" />
-                          Person Name <span className="text-red-500">*</span>
-                        </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                         <input
                           type="text"
                           value={pickupPersonName}
-                          onChange={(e) => setPickupPersonName(e.target.value)}
+                          onChange={e => setPickupPersonName(e.target.value)}
                           placeholder="Enter person name"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Phone className="inline w-4 h-4 mr-1" />
-                          Person Phone <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="tel"
-                          value={pickupPersonPhone}
-                          onChange={(e) => setPickupPersonPhone(e.target.value)}
-                          placeholder="Enter phone number"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Building className="inline w-4 h-4 mr-1" />
-                          Company Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
-                          placeholder="Enter company name"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Hash className="inline w-4 h-4 mr-1" />
-                          Company ID <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={companyId}
-                          onChange={(e) => setCompanyId(e.target.value)}
-                          placeholder="Enter company ID"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                                    focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Notes (Optional)
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        Phone Number <span className="text-red-500">*</span>
                       </label>
-                      <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Add any additional notes..."
-                        rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      />
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                          type="tel"
+                          value={pickupPersonPhone}
+                          onChange={e => setPickupPersonPhone(e.target.value)}
+                          placeholder="10-digit phone number"
+                          maxLength={10}
+                          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                                    focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        />
+                      </div>
+                      {pickupPersonPhone && !/^\d{10}$/.test(pickupPersonPhone) && (
+                        <p className="text-xs text-red-500 mt-1">Enter a valid 10-digit phone number</p>
+                      )}
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Notes <span className="text-gray-400">(Optional)</span>
+                    </label>
+                    <textarea
+                      value={notes}
+                      onChange={e => setNotes(e.target.value)}
+                      placeholder="Add any additional notes..."
+                      rows={2}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none
+                                focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
                   </div>
                 </>
               )}
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleBack}
-                  disabled={submitting}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting || !isFormValid()}
-                  className="flex-1 py-2 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submitting ? 'Processing...' : 'Complete Delivery'}
-                </button>
+                {/* ── COMPANY: Name + Phone + Company Name + Company ID + Notes ── */}
+                {subType === 'COMPANY' && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Person Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={pickupPersonName}
+                            onChange={e => setPickupPersonName(e.target.value)}
+                            placeholder="Enter person name"
+                            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                                       focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Phone Number <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                          <input
+                            type="tel"
+                            value={pickupPersonPhone}
+                            onChange={e => setPickupPersonPhone(e.target.value)}
+                            placeholder="10-digit phone number"
+                            maxLength={10}
+                            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                                       focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          />
+                        </div>
+                        {pickupPersonPhone && !/^\d{10}$/.test(pickupPersonPhone) && (
+                          <p className="text-xs text-red-500 mt-1">Enter a valid 10-digit phone number</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Company Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={companyName}
+                            onChange={e => setCompanyName(e.target.value)}
+                            placeholder="Enter company name"
+                            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                                       focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Company ID <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={companyId}
+                            onChange={e => setCompanyId(e.target.value)}
+                            placeholder="Enter company ID"
+                            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                                       focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        Notes <span className="text-gray-400">(Optional)</span>
+                      </label>
+                      <textarea
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        placeholder="Add any additional notes..."
+                        rows={2}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none
+                                   focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      />
+                    </div>
+                  </>
+                )}
+
               </div>
+
+              <ActionButtons confirmLabel="Complete Pickup" confirmDisabled={!isFormValid()} />
             </div>
           )}
 
+          {/* ── Step 4 — courier selection ── */}
           {step === 4 && deliveryType === 'COURIER' && (
-            <div className="space-y-4">
-              <button
-                onClick={handleBack}
-                className="text-sm text-teal-600 hover:text-teal-700 mb-2"
-              >
-                ← Back
-              </button>
-              
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">Assign Courier</h4>
-              
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{invoice?.invoice_no}</p>
-                    <p className="text-sm text-gray-600 mt-0.5">{invoice?.customer?.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">{formatAmount(invoice?.total_amount)}</p>
-                    <p className="text-xs text-gray-500">{formatItemCount(invoice?.items?.length)}</p>
-                  </div>
-                </div>
-              </div>
+            <div>
+              <BackButton />
+              <p className="font-semibold text-gray-800 mb-4">Assign Courier</p>
+
+              {isGroup ? <GroupSummaryStrip /> : <SingleSummaryStrip />}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Truck className="inline w-4 h-4 mr-1" />
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Select Courier <span className="text-red-500">*</span>
                 </label>
-                
-                <div className="relative">
+
+                <div className="relative" ref={courierInputRef}>
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
                     value={courierSearch}
-                    onChange={(e) => {
+                    onChange={e => {
                       setCourierSearch(e.target.value);
                       setShowCourierDropdown(true);
+                      setSelectedCourier('');
+                      setSelectedCourierName('');
                     }}
                     onFocus={() => setShowCourierDropdown(true)}
-                    placeholder="Search courier..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder="Search by name or code..."
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                               focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
-
-                  {showCourierDropdown && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setShowCourierDropdown(false)}
-                      />
-                      
-                      <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                        {loadingCouriers ? (
-                          <div className="text-center py-4 text-gray-500">Loading couriers...</div>
-                        ) : filteredCouriers.length === 0 ? (
-                          <div className="text-center py-4 text-gray-500">No couriers found</div>
-                        ) : (
-                          <>
-                            {filteredCouriers.map((courier) => (
-                              <button
-                                key={courier.courier_id}
-                                onClick={() => handleCourierSelect(courier)}
-                                className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition border-b border-gray-200 last:border-b-0 ${
-                                  selectedCourier === courier.courier_id ? 'bg-teal-50' : ''
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="font-medium text-gray-900">{courier.courier_name}</p>
-                                    <p className="text-xs text-gray-500">{courier.courier_code}</p>
-                                  </div>
-                                  {selectedCourier === courier.courier_id && (
-                                    <div className="w-5 h-5 bg-teal-600 rounded-full flex items-center justify-center">
-                                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    </div>
-                                  )}
-                                </div>
-                              </button>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                    </>
-                  )}
                 </div>
 
-                {selectedCourier && (
-                  <div className="mt-2 p-2 bg-teal-50 border border-teal-200 rounded-lg flex items-center justify-between">
-                    <span className="text-sm text-teal-700">Selected: {selectedCourierName}</span>
-                    <button
-                      onClick={() => {
-                        setSelectedCourier('');
-                        setSelectedCourierName('');
-                        setCourierSearch('');
-                      }}
-                      className="text-teal-600 hover:text-teal-800"
-                    >
+                <CourierDropdown
+                  anchorRef={courierInputRef}
+                  isOpen={showCourierDropdown}
+                  loading={loadingCouriers}
+                  couriers={filteredCouriers}
+                  selected={selectedCourier}
+                  onSelect={handleCourierSelect}
+                  onClose={() => setShowCourierDropdown(false)}
+                />
+
+                {selectedCourier && !showCourierDropdown && (
+                  <div className="mt-2 flex items-center justify-between bg-teal-50 border border-teal-200
+                                  rounded-xl px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-teal-800">{selectedCourierName}</p>
+                        <p className="text-xs text-teal-600">Courier selected</p>
+                      </div>
+                    </div>
+                    <button onClick={handleClearCourier}
+                      className="text-teal-400 hover:text-teal-600 p-1 rounded-lg hover:bg-teal-100 transition-colors">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleBack}
-                  disabled={submitting}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting || !isFormValid()}
-                  className="flex-1 py-2 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submitting ? 'Assigning...' : 'Assign Courier'}
-                </button>
-              </div>
+
+              <ActionButtons
+                confirmLabel={isGroup ? `Assign Courier to ${invoiceArr.length} Invoices` : 'Assign Courier'}
+                confirmDisabled={!isFormValid()}
+              />
             </div>
           )}
 
+          {/* ── Step 5 — company delivery ── */}
           {step === 5 && deliveryType === 'COMPANY_DELIVERY' && (
-            <div className="space-y-4">
-              <button
-                onClick={handleBack}
-                className="text-sm text-teal-600 hover:text-teal-700 mb-2"
-              >
-                ← Back
-              </button>
-              
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">Assign Delivery Staff</h4>
-              
-              <div className="bg-teal-50 p-4 rounded-lg border border-teal-200 mb-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Package className="w-4 h-4 text-teal-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{invoice?.invoice_no}</p>
-                    <p className="text-sm text-gray-600 mt-1">{invoice?.customer?.name}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <p className="text-xs text-gray-500">{formatItemCount(invoice?.items?.length)}</p>
-                      <p className="font-semibold text-gray-900">{formatAmount(invoice?.Total)}</p>
+            <div>
+              <BackButton />
+              <p className="font-semibold text-gray-800 mb-4">Assign Delivery Staff</p>
+
+              {isGroup ? <GroupSummaryStrip /> : (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Package className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900">{repInvoice?.invoice_no}</p>
+                      <p className="text-sm text-gray-500 mt-0.5 truncate">{repInvoice?.customer?.name}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-gray-400">{formatItemCount(repInvoice?.items?.length)}</p>
+                        <p className="font-semibold text-gray-900 text-sm">{formatAmount(repInvoice?.Total)}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="inline w-4 h-4 mr-1" />
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Staff Email <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="email"
-                  value={staffEmail}
-                  onChange={(e) => setStaffEmail(e.target.value)}
-                  placeholder="Enter staff email"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  The invoice will be assigned to this staff member for delivery
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={staffEmail}
+                    onChange={e => setStaffEmail(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm appearance-none bg-white
+                               focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  >
+                    <option value="">
+                      {loadingStaffOptions
+                        ? 'Loading staff...'
+                        : staffOptions.length > 0
+                        ? 'Select delivery staff'
+                        : 'No eligible staff found'}
+                    </option>
+                    {staffOptions.map((staff) => (
+                      <option key={staff.id} value={staff.email}>
+                        {staff.name} ({staff.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedStaff && (
+                  <p className="text-xs text-teal-600 mt-1.5">
+                    Selected: {selectedStaff.name}
+                  </p>
+                )}
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {isGroup
+                    ? `All ${invoiceArr.length} invoices will be assigned to this staff member.`
+                    : 'The invoice will be assigned to this staff member for delivery.'}
                 </p>
               </div>
 
-              {/* ADD THIS RIGHT BELOW */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <User className="inline w-4 h-4 mr-1" />
-                  Staff Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={staffName}
-                  onChange={(e) => setStaffName(e.target.value)}
-                  placeholder="Enter staff name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleBack}
-                  disabled={submitting}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting || !isFormValid()}
-                  className="flex-1 py-2 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-                >
-                  {submitting ? 'Assigning...' : 'Assign to Staff'}
-                </button>
-              </div>
+              <ActionButtons
+                confirmLabel={isGroup ? `Assign ${invoiceArr.length} Invoices to Staff` : 'Assign to Staff'}
+                confirmDisabled={!isFormValid()}
+              />
             </div>
           )}
+
         </div>
       </div>
     </div>

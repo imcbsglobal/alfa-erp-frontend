@@ -190,6 +190,11 @@ export const MENU_CONFIG = [
         icon: Box,
         path: "/history/packing-report",
       },
+      {
+        label: "Delivery Reports",
+        icon: Truck,
+        path: "/history/delivery-report",
+      },
       // ── NEW: User Summary nested dropdown ──────────────
       {
         label: "User Summary",
@@ -211,6 +216,11 @@ export const MENU_CONFIG = [
             label: "Packing",
             icon: Box,
             path: "/history/packing-user-summary",
+          },
+          {
+            label: "Delivery",
+            icon: Truck,
+            path: "/history/delivery-user-summary",
           },
         ],
       },
@@ -332,6 +342,8 @@ export const PAGE_TITLES = {
   "/history/picking-user-summary": "Picking User Summary",
   "/history/packing-report": "Packing Report",
   "/history/packing-user-summary": "Packing User Summary",
+  "/history/delivery-report": "Delivery Report",
+  "/history/delivery-user-summary": "Delivery User Summary",
   "/developer/settings": "Developer Options",
   "/admin/privilege": "Advanced Control",
 };

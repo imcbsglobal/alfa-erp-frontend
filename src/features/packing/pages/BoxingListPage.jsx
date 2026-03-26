@@ -164,7 +164,7 @@ export default function BoxingListPage() {
                       <p className="text-xs font-semibold text-gray-800 truncate">{inv.customer_name || inv.customer?.name}</p>
                       {(inv.customer?.address1 || inv.temp_name) && (
                         <p className="text-[10px] text-gray-400 truncate mt-0.5">
-                          {inv.customer?.address1 || inv.temp_name}
+                          {inv.customer?.area || inv.customer?.address1 || inv.temp_name}
                         </p>
                       )}
                     </div>

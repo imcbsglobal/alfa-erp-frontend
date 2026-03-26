@@ -23,7 +23,9 @@ export default function MultiBoxingPage() {
   const navigate = useNavigate();
   const { user, menus } = useAuth();
 
-  const invoiceNos = searchParams.get("invoices")?.split(",").filter(Boolean) || [];
+  const invoiceNos = Array.from(
+    new Set((searchParams.get("invoices") || "").split(",").map((v) => v.trim()).filter(Boolean))
+  );
   const groupedInvoiceCount = invoiceNos.length;
 
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,18 @@ export default function MultiBoxingPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (invoiceNos.length === 0) {
+        toast.error("No invoices selected for boxing");
+        navigate(getPath("/packing/boxing"), { replace: true });
+        return;
+      }
+
+      if (invoiceNos.length === 1) {
+        toast("Only one bill selected, opening single boxing", { icon: "ℹ️" });
+        navigate(getPath(`/packing/boxing/${invoiceNos[0]}`), { replace: true });
+        return;
+      }
+
       try {
         setLoading(true);
         const results = await Promise.all(
@@ -77,8 +91,8 @@ export default function MultiBoxingPage() {
         navigate(getPath("/packing/boxing"));
       } finally { setLoading(false); }
     };
-    if (invoiceNos.length > 0) load();
-  }, []);
+    load();
+  }, [searchParams]);
 
   useEffect(() => {
     getCouriers({ status: "ACTIVE" })
@@ -108,8 +122,19 @@ export default function MultiBoxingPage() {
       const customerPincode = customer.pincode || "";
       const customerPhone1 = customer.phone1 || invoice?.customer_phone || "";
       const customerPhone2 = customer.phone2 || "";
-      const groupedInvoicesParam = encodeURIComponent(invoiceNos.join(","));
-      const qrUrl = `${window.location.origin}/invoice/${invoiceNo}?invoices=${groupedInvoicesParam}`;
+      const boxingGroupId = searchParams.get("group_id") || "";
+      const buildQrText = (boxIndex) => {
+        const params = new URLSearchParams();
+        params.set("type", groupedInvoiceCount > 1 ? "MULTI_BOX" : "SINGLE_BOX");
+        params.set("box", String(boxIndex + 1));
+        params.set("total_boxes", String(labelCount));
+        if (invoiceNos.length > 0) params.set("invoices", invoiceNos.join(","));
+        if (boxingGroupId) params.set("group_id", boxingGroupId);
+        return `${window.location.origin}/invoice/${invoiceNo}?${params.toString()}`;
+      };
+
+      const escapeForSingleQuotedJs = (value) =>
+        String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
       let customerNameML = "";
       if (customerName) {
@@ -175,9 +200,10 @@ export default function MultiBoxingPage() {
             </div>
           </div>
         `);
+        const qrText = escapeForSingleQuotedJs(buildQrText(idx));
         qrScriptParts.push(`
           new QRCode(document.getElementById('qrcode-${idx}'), {
-            text: '${qrUrl}',
+            text: '${qrText}',
             width: 95,
             height: 95,
             colorDark: '#000000',
@@ -280,6 +306,16 @@ export default function MultiBoxingPage() {
   };
 
   const handleCompleteBoxing = async () => {
+    if (invoiceNos.length < 2) {
+      const fallbackInvoiceNo = invoiceNos[0];
+      if (fallbackInvoiceNo) {
+        navigate(getPath(`/packing/boxing/${fallbackInvoiceNo}`), { replace: true });
+      } else {
+        navigate(getPath("/packing/boxing"), { replace: true });
+      }
+      return;
+    }
+
     try {
       setCompleting(true);
       // Generate a unique boxing group ID for this multi-boxing session
