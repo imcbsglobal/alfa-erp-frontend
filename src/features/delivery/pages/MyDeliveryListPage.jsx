@@ -30,6 +30,7 @@ export default function MyDeliveryListPage() {
   const [completedDeliveries, setCompletedDeliveries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedDelivery, setExpandedDelivery] = useState(null);
+  const [activeTab, setActiveTab] = useState("pending");
   const [completeModal, setCompleteModal] = useState({ open: false, delivery: null, deliveries: null });
   const [deliveryStatus, setDeliveryStatus] = useState("DELIVERED");
   const [notes, setNotes] = useState("");
@@ -729,8 +730,37 @@ export default function MyDeliveryListPage() {
           <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-800">My Delivery Tasks</h1>
         </div>
 
+        {/* Delivery Tabs */}
+        <div className="mb-3 rounded-lg border border-gray-200 bg-white p-1.5 shadow-sm">
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab("pending")}
+              className={`rounded-md px-3 py-2 text-xs sm:text-sm font-semibold transition-all ${
+                activeTab === "pending"
+                  ? "bg-teal-600 text-white shadow"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Pending Deliveries ({pendingRows.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("active")}
+              className={`rounded-md px-3 py-2 text-xs sm:text-sm font-semibold transition-all ${
+                activeTab === "active"
+                  ? "bg-blue-600 text-white shadow"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Active Deliveries ({activeRows.length})
+            </button>
+          </div>
+        </div>
+
         {/* Pending Deliveries Section */}
-        {pendingRows.length > 0 && (
+        {activeTab === "pending" && (
+          pendingRows.length > 0 ? (
           <div className="mb-3">
             <div className="mb-1.5 flex items-center gap-1.5">
               <Package className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
@@ -858,10 +888,17 @@ export default function MyDeliveryListPage() {
               })}
             </div>
           </div>
+          ) : (
+            <div className="mb-3 bg-white rounded-lg shadow p-8 text-center border border-gray-200">
+              <Package className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+              <p className="text-sm sm:text-base font-semibold text-gray-600">No pending deliveries</p>
+            </div>
+          )
         )}
 
         {/* Active Delivery Section */}
-        {activeRows.length > 0 && (
+        {activeTab === "active" && (
+          activeRows.length > 0 ? (
           <div className="mb-3">
             <div className="mb-1.5 flex items-center gap-1.5">
               <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
@@ -1022,6 +1059,12 @@ export default function MyDeliveryListPage() {
               );})}
             </div>
           </div>
+          ) : (
+            <div className="mb-3 bg-white rounded-lg shadow p-8 text-center border border-gray-200">
+              <Truck className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+              <p className="text-sm sm:text-base font-semibold text-gray-600">No active deliveries</p>
+            </div>
+          )
         )}
 
         {/* Completed Deliveries Section */}

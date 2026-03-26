@@ -53,6 +53,15 @@ const normalizeCourierDelivery = (row) => {
   };
 };
 
+const getDeliveryStatus = (row) =>
+  row?.delivery_info?.delivery_status || row?.delivery_status || '';
+
+const shouldShowInCourierConsiderList = (row) => {
+  const status = getDeliveryStatus(row);
+  const hasSlip = Boolean(row?.courier_slip_url || row?.courier_slip || row?.pod_uploaded);
+  return status === 'TO_CONSIDER' && !hasSlip;
+};
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const buildTableRows = (deliveries) => {
   const groupMap = {};
@@ -378,7 +387,9 @@ const CourierDeliveryListPage = () => {
       let nextUrl = '/sales/delivery/consider-list/?delivery_type=COURIER&status=TO_CONSIDER&page_size=100';
       while (nextUrl) {
         const res = await getByUrl(nextUrl);
-        all = [...all, ...(res.data.results || []).map(normalizeCourierDelivery)];
+        all = [...all, ...(res.data.results || [])
+          .map(normalizeCourierDelivery)
+          .filter((row) => shouldShowInCourierConsiderList(row))];
         nextUrl = res.data.next;
         if (nextUrl) {
           const u = new URL(nextUrl, window.location.origin);
@@ -394,7 +405,7 @@ const CourierDeliveryListPage = () => {
       });
       const historyRows = (historyRes.data?.results || [])
         .map(normalizeCourierDelivery)
-        .filter((row) => row?.invoice_no);
+        .filter((row) => row?.invoice_no && shouldShowInCourierConsiderList(row));
 
       const mergedByInvoice = new Map();
       [...all, ...historyRows].forEach((row) => {
@@ -459,6 +470,14 @@ const CourierDeliveryListPage = () => {
       formData.append('courier_slip', uploadedFile);
       formData.append('delivery_type', 'COURIER');
       await uploadDeliverySlip(formData);
+
+      const completedInvoiceNos = (uploadModal.invoiceNos || []).length > 0
+        ? uploadModal.invoiceNos
+        : [uploadModal.delivery?.invoice_no].filter(Boolean);
+
+      // Remove uploaded invoices immediately to avoid stale rows while API caches catch up.
+      setDeliveries((prev) => prev.filter((d) => !completedInvoiceNos.includes(d.invoice_no)));
+
       toast.success('Courier slip uploaded! Delivery marked as completed.');
       setUploadModal({ open: false, delivery: null, invoiceNos: [], boxingGroupId: '' });
       setUploadedFile(null); setPreviewUrl('');
