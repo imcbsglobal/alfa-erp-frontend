@@ -12,17 +12,13 @@ export default function AddCourierPage() {
   const [formData, setFormData] = useState({
     courier_code: "",
     courier_name: "",
+    courier_logo: null,
     type: "EXTERNAL",
     contact_person: "",
     phone: "",
     alt_phone: "",
     email: "",
     address: "",
-    service_area: "",
-    rate_type: "FLAT",
-    base_rate: "",
-    vehicle_type: "",
-    max_weight: "",
     cod_supported: false,
     status: "ACTIVE",
     remarks: "",
@@ -30,6 +26,7 @@ export default function AddCourierPage() {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState("");
 
   const canManageCouriers =
     currentUser?.role === "SUPERADMIN" || currentUser?.role === "ADMIN";
@@ -40,6 +37,14 @@ export default function AddCourierPage() {
       navigate("/master/courier");
     }
   }, [canManageCouriers, navigate]);
+
+  useEffect(() => {
+    return () => {
+      if (logoPreview) {
+        URL.revokeObjectURL(logoPreview);
+      }
+    };
+  }, [logoPreview]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -62,6 +67,38 @@ export default function AddCourierPage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) {
+      setFormData((prev) => ({ ...prev, courier_logo: null }));
+      if (logoPreview) {
+        URL.revokeObjectURL(logoPreview);
+        setLogoPreview("");
+      }
+      if (errors.courier_logo) {
+        setErrors((prev) => ({ ...prev, courier_logo: "" }));
+      }
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setErrors((prev) => ({ ...prev, courier_logo: "Please select an image file." }));
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, courier_logo: "Image must be 5MB or smaller." }));
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, courier_logo: file }));
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    setLogoPreview(URL.createObjectURL(file));
+    if (errors.courier_logo) {
+      setErrors((prev) => ({ ...prev, courier_logo: "" }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -71,8 +108,6 @@ export default function AddCourierPage() {
     try {
       const payload = {
         ...formData,
-        base_rate: formData.base_rate ? parseFloat(formData.base_rate) : 0,
-        max_weight: formData.max_weight ? parseFloat(formData.max_weight) : null,
       };
 
       await createCourier(payload);
@@ -82,21 +117,21 @@ export default function AddCourierPage() {
       setFormData({
         courier_code: "",
         courier_name: "",
+        courier_logo: null,
         type: "EXTERNAL",
         contact_person: "",
         phone: "",
         alt_phone: "",
         email: "",
         address: "",
-        service_area: "",
-        rate_type: "FLAT",
-        base_rate: "",
-        vehicle_type: "",
-        max_weight: "",
         cod_supported: false,
         status: "ACTIVE",
         remarks: "",
       });
+      if (logoPreview) {
+        URL.revokeObjectURL(logoPreview);
+        setLogoPreview("");
+      }
 
       navigate("/master/courier");
     } catch (error) {
@@ -194,6 +229,27 @@ export default function AddCourierPage() {
                     <option value="INTERNAL">Internal</option>
                   </select>
                 </div>
+
+                <div className="md:col-span-3">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Courier Logo</label>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      className="w-full sm:w-auto text-sm text-gray-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                    />
+                    {formData.courier_logo && (
+                      <img
+                        src={logoPreview}
+                        alt="Courier logo preview"
+                        className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                      />
+                    )}
+                  </div>
+                  {errors.courier_logo && <p className="mt-1 text-xs text-red-600">{errors.courier_logo}</p>}
+                  <p className="mt-1 text-xs text-gray-400">Optional. JPG, PNG, WEBP up to 5MB.</p>
+                </div>
               </div>
             </div>
 
@@ -265,82 +321,6 @@ export default function AddCourierPage() {
               </div>
             </div>
 
-            {/* Service Details */}
-            <div>
-              <h3 className="text-base font-semibold text-gray-800 mb-3 pb-2 border-b">Service Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Service Area</label>
-                  <input
-                    type="text"
-                    name="service_area"
-                    value={formData.service_area}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    placeholder="e.g., National, Regional"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Vehicle Type</label>
-                  <input
-                    type="text"
-                    name="vehicle_type"
-                    value={formData.vehicle_type}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    placeholder="e.g., Van, Truck"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Max Weight (kg)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="max_weight"
-                    value={formData.max_weight}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    placeholder="Maximum weight"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Pricing */}
-            <div>
-              <h3 className="text-base font-semibold text-gray-800 mb-3 pb-2 border-b">Pricing</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Rate Type</label>
-                  <select
-                    name="rate_type"
-                    value={formData.rate_type}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                  >
-                    <option value="FLAT">Flat Rate</option>
-                    <option value="WEIGHT">Per Weight</option>
-                    <option value="DISTANCE">Per Distance</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Base Rate</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="base_rate"
-                    value={formData.base_rate}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                    placeholder="Base rate"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Additional Options */}
             <div>
               <h3 className="text-base font-semibold text-gray-800 mb-3 pb-2 border-b">Additional Options</h3>
@@ -394,21 +374,21 @@ export default function AddCourierPage() {
                   setFormData({
                     courier_code: "",
                     courier_name: "",
+                    courier_logo: null,
                     type: "EXTERNAL",
                     contact_person: "",
                     phone: "",
                     alt_phone: "",
                     email: "",
                     address: "",
-                    service_area: "",
-                    rate_type: "FLAT",
-                    base_rate: "",
-                    vehicle_type: "",
-                    max_weight: "",
                     cod_supported: false,
                     status: "ACTIVE",
                     remarks: "",
                   });
+                  if (logoPreview) {
+                    URL.revokeObjectURL(logoPreview);
+                    setLogoPreview("");
+                  }
                   setErrors({});
                 }}
                 className="sm:flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold text-sm"

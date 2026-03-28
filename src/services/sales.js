@@ -51,7 +51,11 @@ export const startAssignedDelivery = (data) => {
 
 // Complete delivery
 export const completeDelivery = (data) => {
-  return api.post("/sales/delivery/complete/", data);
+  return api.post("/sales/delivery/complete/", data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 };
 
 // Get consider list (invoices waiting for staff action)
@@ -67,12 +71,45 @@ export const getCourierById = (id) => {
   return api.get(`/sales/couriers/${id}/`);
 };
 
+const toCourierFormData = (courierData = {}) => {
+  if (courierData instanceof FormData) return courierData;
+
+  const formData = new FormData();
+  const entries = Object.entries(courierData);
+
+  entries.forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    if (key === "courier_logo") {
+      if (value instanceof File || value instanceof Blob) {
+        formData.append(key, value);
+      }
+      return;
+    }
+
+    if (typeof value === "boolean") {
+      formData.append(key, value ? "true" : "false");
+      return;
+    }
+
+    formData.append(key, value);
+  });
+
+  return formData;
+};
+
 export const createCourier = async (courierData) => {
-  return api.post("/sales/couriers/", courierData);
+  const payload = toCourierFormData(courierData);
+  return api.post("/sales/couriers/", payload, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 };
 
 export const updateCourier = (id, courierData) => {
-  return api.patch(`/sales/couriers/${id}/`, courierData);
+  const payload = toCourierFormData(courierData);
+  return api.patch(`/sales/couriers/${id}/`, payload, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 };
 
 export const deleteCourier = async (id) => {

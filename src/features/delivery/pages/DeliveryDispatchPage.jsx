@@ -16,6 +16,7 @@ import { useAuth } from '../../auth/AuthContext';
 import toast from 'react-hot-toast';
 import Pagination from '../../../components/Pagination';
 import { formatDate, formatTime } from '../../../utils/formatters';
+import { resolveMediaUrl } from '../../../utils/media';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -86,6 +87,28 @@ const normalizeGroupToken = (value = '') => (
     .replace(/\s+/g, '')
     .toUpperCase()
 );
+
+const CourierAvatar = ({ courier, size = 'w-8 h-8' }) => {
+  const logo = resolveMediaUrl(courier?.courier_logo_url || courier?.courier_logo);
+
+  if (logo) {
+    return (
+      <img
+        src={logo}
+        alt={`${courier?.courier_name || 'Courier'} logo`}
+        className={`${size} rounded-lg object-cover border border-gray-200 bg-white flex-shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0`}>
+      <span className="text-xs font-semibold text-gray-500">
+        {(courier?.courier_name || 'C').charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
+};
 
 // ─── SingleRow ────────────────────────────────────────────────────────────────
 const SingleRow = ({ bill, onDispatch, onView, batchMode, onAddToBatch, batchIds, batchDisabled }) => {
@@ -361,9 +384,12 @@ const CourierBatchPanel = ({
           >
             <Truck className={`w-4 h-4 flex-shrink-0 ${selectedCourier ? 'text-teal-500' : 'text-gray-400'}`} />
             {selectedCourier ? (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-teal-700 truncate">{selectedCourier.courier_name}</p>
-                <p className="text-xs text-teal-500">{selectedCourier.courier_code}</p>
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <CourierAvatar courier={selectedCourier} />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-teal-700 truncate">{selectedCourier.courier_name}</p>
+                  <p className="text-xs text-teal-500">{selectedCourier.courier_code}</p>
+                </div>
               </div>
             ) : (
               <p className="flex-1 text-sm text-gray-400">
@@ -411,9 +437,12 @@ const CourierBatchPanel = ({
                       ${idx !== filtered.length - 1 ? 'border-b border-gray-50' : ''}
                       hover:bg-teal-50`}
                   >
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{c.courier_name}</p>
-                      <p className="text-xs text-gray-400">{c.courier_code}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <CourierAvatar courier={c} size="w-9 h-9" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{c.courier_name}</p>
+                        <p className="text-xs text-gray-400">{c.courier_code}</p>
+                      </div>
                     </div>
                     {selectedCourier?.courier_id === c.courier_id && (
                       <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0" />

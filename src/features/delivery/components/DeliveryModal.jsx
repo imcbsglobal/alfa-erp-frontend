@@ -3,6 +3,29 @@ import { createPortal } from 'react-dom';
 import { X, Truck, Package, User, Phone, Building, Hash, Mail, Layers, CheckCircle, Search } from 'lucide-react';
 import { formatAmount, formatItemCount } from '../../../utils/formatters';
 import { getEligibleDeliveryStaff } from '../../../services/sales';
+import { resolveMediaUrl } from '../../../utils/media';
+
+const CourierAvatar = ({ courier, size = 'w-8 h-8' }) => {
+  const logo = resolveMediaUrl(courier?.courier_logo_url || courier?.courier_logo);
+
+  if (logo) {
+    return (
+      <img
+        src={logo}
+        alt={`${courier?.courier_name || 'Courier'} logo`}
+        className={`${size} rounded-lg object-cover border border-gray-200 bg-white flex-shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0`}>
+      <span className="text-xs font-semibold text-gray-500">
+        {(courier?.courier_name || 'C').charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
+};
 
 /**
  * CourierDropdown
@@ -71,9 +94,12 @@ const CourierDropdown = ({ anchorRef, isOpen, loading, couriers, selected, onSel
                   : 'hover:bg-gray-50 text-gray-800'
                 }`}
             >
-              <div>
-                <p className="font-medium text-sm">{courier.courier_name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{courier.courier_code}</p>
+              <div className="flex items-center gap-2 min-w-0">
+                <CourierAvatar courier={courier} size="w-9 h-9" />
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{courier.courier_name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{courier.courier_code}</p>
+                </div>
               </div>
               {selected === courier.courier_id && (
                 <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0" />
@@ -119,6 +145,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   const [couriers, setCouriers]                       = useState([]);
   const [selectedCourier, setSelectedCourier]         = useState('');
   const [selectedCourierName, setSelectedCourierName] = useState('');
+  const [selectedCourierData, setSelectedCourierData] = useState(null);
   const [courierSearch, setCourierSearch]             = useState('');
   const [loadingCouriers, setLoadingCouriers]         = useState(false);
   const [showCourierDropdown, setShowCourierDropdown] = useState(false);
@@ -188,6 +215,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
     setPickupPersonName(''); setPickupPersonPhone('');
     setCompanyName(''); setCompanyId(''); setNotes('');
     setSelectedCourier(''); setSelectedCourierName(''); setCourierSearch('');
+    setSelectedCourierData(null);
     setStaffEmail('');
     setShowCourierDropdown(false);
   };
@@ -217,6 +245,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   const handleCourierSelect = (courier) => {
     setSelectedCourier(courier.courier_id);
     setSelectedCourierName(courier.courier_name);
+    setSelectedCourierData(courier);
     setCourierSearch(courier.courier_name);
     setShowCourierDropdown(false);
   };
@@ -224,6 +253,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   const handleClearCourier = () => {
     setSelectedCourier('');
     setSelectedCourierName('');
+    setSelectedCourierData(null);
     setCourierSearch('');
     setShowCourierDropdown(false);
   };
@@ -704,7 +734,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
                   <div className="mt-2 flex items-center justify-between bg-teal-50 border border-teal-200
                                   rounded-xl px-4 py-2.5">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                      <CourierAvatar courier={selectedCourierData} size="w-9 h-9" />
                       <div>
                         <p className="text-sm font-semibold text-teal-800">{selectedCourierName}</p>
                         <p className="text-xs text-teal-600">Courier selected</p>

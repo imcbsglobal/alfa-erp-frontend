@@ -6,6 +6,29 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
 import { getCouriers, updateCourier, deleteCourier } from "../../../services/sales";
 import Pagination from "../../../components/Pagination";
+import { resolveMediaUrl } from "../../../utils/media";
+
+function CourierLogo({ courier, size = "w-9 h-9" }) {
+  const logoSrc = resolveMediaUrl(courier?.courier_logo_url || courier?.courier_logo);
+
+  if (logoSrc) {
+    return (
+      <img
+        src={logoSrc}
+        alt={`${courier?.courier_name || "Courier"} logo`}
+        className={`${size} rounded-lg object-cover border border-gray-200 bg-white`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center`}>
+      <span className="text-xs font-semibold text-gray-500">
+        {(courier?.courier_name || "C").charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
+}
 
 export default function CourierListPage() {
   const navigate = useNavigate();
@@ -249,6 +272,7 @@ export default function CourierListPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                     <tr>
+                      <th className="px-3 py-2 text-left font-semibold">Logo</th>
                       <th className="px-3 py-2 text-left font-semibold">Code</th>
                       <th className="px-3 py-2 text-left font-semibold">Name</th>
                       <th className="px-3 py-2 text-left font-semibold">Type</th>
@@ -261,6 +285,9 @@ export default function CourierListPage() {
                   <tbody className="divide-y divide-gray-200">
                     {currentPageItems.map((c) => (
                       <tr key={c.courier_id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2">
+                          <CourierLogo courier={c} />
+                        </td>
                         <td className="px-3 py-2 font-medium text-gray-900">{c.courier_code}</td>
                         <td className="px-3 py-2 text-gray-900">{c.courier_name}</td>
                         <td className="px-3 py-2">
@@ -318,25 +345,70 @@ export default function CourierListPage() {
 }
 
 function EditCourierSlideOver({ courier, onClose, onSave }) {
+  const [logoPreview, setLogoPreview] = useState(
+    resolveMediaUrl(courier?.courier_logo_url || courier?.courier_logo || "")
+  );
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [formData, setFormData] = useState({
     courier_code: courier.courier_code || "",
     courier_name: courier.courier_name || "",
+    courier_logo: null,
     type: courier.type || "EXTERNAL",
     contact_person: courier.contact_person || "",
     phone: courier.phone || "",
     alt_phone: courier.alt_phone || "",
     email: courier.email || "",
     address: courier.address || "",
-    service_area: courier.service_area || "",
-    rate_type: courier.rate_type || "FLAT",
-    base_rate: courier.base_rate || "",
-    vehicle_type: courier.vehicle_type || "",
-    max_weight: courier.max_weight || "",
     cod_supported: courier.cod_supported || false,
     status: courier.status || "ACTIVE",
     remarks: courier.remarks || "",
   });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (logoPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(logoPreview);
+      }
+    };
+  }, [logoPreview]);
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) {
+      setFormData((prev) => ({ ...prev, courier_logo: null }));
+      setLogoPreview(resolveMediaUrl(courier?.courier_logo_url || courier?.courier_logo || ""));
+      setRemoveLogo(false);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be 5MB or smaller");
+      return;
+    }
+
+    if (logoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(logoPreview);
+    }
+
+    setFormData((prev) => ({ ...prev, courier_logo: file }));
+    setLogoPreview(URL.createObjectURL(file));
+    setRemoveLogo(false);
+  };
+
+  const handleRemoveLogo = () => {
+    if (logoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(logoPreview);
+    }
+    setLogoPreview("");
+    setFormData((prev) => ({ ...prev, courier_logo: null }));
+    setRemoveLogo(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -346,7 +418,10 @@ function EditCourierSlideOver({ courier, onClose, onSave }) {
     }
     setSaving(true);
     try {
-      await onSave(formData);
+      await onSave({
+        ...formData,
+        remove_courier_logo: removeLogo,
+      });
     } finally {
       setSaving(false);
     }
@@ -366,6 +441,40 @@ function EditCourierSlideOver({ courier, onClose, onSave }) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Courier Logo</label>
+            <div className="flex items-center gap-3">
+              <CourierLogo
+                courier={{
+                  courier_name: formData.courier_name || courier.courier_name,
+                  courier_logo_url: logoPreview,
+                }}
+                size="w-12 h-12"
+              />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  className="text-sm text-gray-700 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                />
+                {(logoPreview || courier?.courier_logo || courier?.courier_logo_url) && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-xs font-semibold"
+                  >
+                    Remove Logo
+                  </button>
+                )}
+              </div>
+            </div>
+            {removeLogo && (
+              <p className="mt-1 text-xs text-red-600">Logo will be removed when you save.</p>
+            )}
+            <p className="mt-1 text-xs text-gray-400">Optional. JPG, PNG, WEBP up to 5MB.</p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Code</label>
@@ -462,62 +571,6 @@ function EditCourierSlideOver({ courier, onClose, onSave }) {
               onChange={(e) => setFormData({...formData, address: e.target.value})}
               className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-teal-500"
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Service Area</label>
-              <input
-                type="text"
-                value={formData.service_area}
-                onChange={(e) => setFormData({...formData, service_area: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-teal-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Vehicle Type</label>
-              <input
-                type="text"
-                value={formData.vehicle_type}
-                onChange={(e) => setFormData({...formData, vehicle_type: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-teal-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Rate Type</label>
-              <select
-                value={formData.rate_type}
-                onChange={(e) => setFormData({...formData, rate_type: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-teal-500"
-              >
-                <option value="FLAT">Flat</option>
-                <option value="WEIGHT">Weight</option>
-                <option value="DISTANCE">Distance</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Base Rate</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.base_rate}
-                onChange={(e) => setFormData({...formData, base_rate: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-teal-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Max Weight</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.max_weight}
-                onChange={(e) => setFormData({...formData, max_weight: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-teal-500"
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-4">

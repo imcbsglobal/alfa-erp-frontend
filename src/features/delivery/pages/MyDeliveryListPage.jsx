@@ -40,6 +40,8 @@ export default function MyDeliveryListPage() {
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const [locationData, setLocationData] = useState(null);
   const [cancelModal, setCancelModal] = useState({ open: false, delivery: null, deliveries: null });
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentPreview, setAttachmentPreview] = useState(null);
 
   const { user } = useAuth();
 
@@ -108,6 +110,19 @@ export default function MyDeliveryListPage() {
         maximumAge: 0
       }
     );
+  };
+
+  const handleAttachmentChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAttachmentFile(file);
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setAttachmentPreview({ type: "image", url: ev.target.result });
+      reader.readAsDataURL(file);
+    } else if (file.type === "application/pdf") {
+      setAttachmentPreview({ type: "pdf", name: file.name });
+    }
   };
 
   useEffect(() => {
@@ -347,6 +362,8 @@ export default function MyDeliveryListPage() {
     setCourierName("");
     setTrackingNo("");
     setLocationData(null);
+    setAttachmentFile(null);
+    setAttachmentPreview(null);
   };
 
   const handleCompleteDelivery = async () => {
@@ -377,28 +394,32 @@ export default function MyDeliveryListPage() {
     setSubmitting(true);
     try {
       const buildPayload = (delivery) => {
-        const payload = {
-          invoice_no: delivery.invoice_no,
-          user_email: user.email,
-          delivery_status: deliveryStatus,
-          notes: notes || "Delivery completed"
-        };
+        const formData = new FormData();
+        formData.append('invoice_no', delivery.invoice_no);
+        formData.append('user_email', user.email);
+        formData.append('delivery_status', deliveryStatus);
+        formData.append('notes', notes || "Delivery completed");
 
         if (delivery.delivery_type === 'COURIER') {
-          payload.courier_name = courierName.trim();
+          formData.append('courier_name', courierName.trim());
           if (trackingNo.trim()) {
-            payload.tracking_no = trackingNo.trim();
+            formData.append('tracking_no', trackingNo.trim());
           }
         }
 
         if (delivery.delivery_type === 'INTERNAL' && locationData) {
-          payload.delivery_latitude = parseFloat(locationData.latitude.toFixed(6));
-          payload.delivery_longitude = parseFloat(locationData.longitude.toFixed(6));
-          payload.delivery_location_address = locationData.address;
-          payload.delivery_location_accuracy = Math.round(locationData.accuracy);
+          formData.append('delivery_latitude', parseFloat(locationData.latitude.toFixed(6)));
+          formData.append('delivery_longitude', parseFloat(locationData.longitude.toFixed(6)));
+          formData.append('delivery_location_address', locationData.address);
+          formData.append('delivery_location_accuracy', Math.round(locationData.accuracy));
         }
 
-        return payload;
+        // THIS IS THE KEY FIX - attach the file
+        if (attachmentFile) {
+          formData.append('attachment', attachmentFile);
+        }
+
+        return formData;
       };
 
       const results = await Promise.allSettled(
@@ -1301,6 +1322,53 @@ export default function MyDeliveryListPage() {
                   rows={3}
                   className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 />
+
+                <div className="mt-2">
+                  <label
+                    htmlFor="delivery-attachment"
+                    className="flex items-center gap-2 cursor-pointer px-3 py-2 border border-dashed border-gray-300 rounded-lg hover:border-teal-400 hover:bg-teal-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    <span className="text-xs text-gray-500">
+                      {attachmentFile ? attachmentFile.name : "Attach photo or PDF (optional)"}
+                    </span>
+                  </label>
+                  <input
+                    id="delivery-attachment"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={handleAttachmentChange}
+                  />
+                </div>
+
+                {attachmentPreview && (
+                  <div className="mt-2 relative">
+                    {attachmentPreview.type === "image" ? (
+                      <img
+                        src={attachmentPreview.url}
+                        alt="attachment preview"
+                        className="w-full max-h-40 object-contain rounded-lg border border-gray-200"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                        <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-xs text-red-700 truncate">{attachmentPreview.name}</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setAttachmentFile(null); setAttachmentPreview(null); }}
+                      className="absolute top-1 right-1 w-5 h-5 bg-gray-800 bg-opacity-60 text-white rounded-full flex items-center justify-center text-xs hover:bg-opacity-80"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

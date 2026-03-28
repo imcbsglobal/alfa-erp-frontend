@@ -34,7 +34,7 @@ export default function DeliveryHistory() {
   const [history, setHistory] = useState([]);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
 
@@ -46,14 +46,15 @@ export default function DeliveryHistory() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState(null);
 
+  // Attachment viewer state
+  const [attachmentModal, setAttachmentModal] = useState({ open: false, url: '', type: '' });
+
   useEffect(() => {
     load();
 
-    // Listen for data clear events from developer settings
     const handleDataCleared = (event) => {
       const { tableName } = event.detail;
       if (tableName === 'all' || tableName === 'delivery_sessions') {
-        console.log('🔄 Data cleared - reloading delivery history...');
         load();
       }
     };
@@ -65,10 +66,7 @@ export default function DeliveryHistory() {
   const load = async () => {
     setLoading(true);
     try {
-      const params = {
-        page_size: 10000,
-      };
-
+      const params = { page_size: 10000 };
       if (filterType) params.delivery_type = filterType;
 
       const response = await getDeliveryHistory(params);
@@ -123,64 +121,35 @@ export default function DeliveryHistory() {
   };
 
   const getStatusMessage = (status, notes) => {
-    // Handle special admin override cases - always show these
-    if (notes && notes.includes('[ADMIN OVERRIDE]')) {
-      return notes;
-    }
-    
-    // If there are no notes, show status-based message
+    if (notes && notes.includes('[ADMIN OVERRIDE]')) return notes;
     if (!notes || !notes.trim()) {
       switch (status) {
-        case 'DELIVERED':
-          return 'Delivery completed';
-        case 'IN_TRANSIT':
-          return 'Delivery started';
-        case 'PENDING':
-          return 'Delivery pending';
-        default:
-          return 'Delivery in progress';
+        case 'DELIVERED': return 'Delivery completed';
+        case 'IN_TRANSIT': return 'Delivery started';
+        case 'PENDING': return 'Delivery pending';
+        default: return 'Delivery in progress';
       }
     }
-    
-    // Normalize notes for comparison
     const normalizedNote = notes.toLowerCase().trim();
-    
-    // Only filter out truly generic auto-generated status messages
     const genericMessages = [
-      'delivery started',
-      'delivery complete', 
-      'delivery completed',
-      'bulk delivery started',
-      'bulk delivery completed',
-      'starting delivery'
+      'delivery started', 'delivery complete', 'delivery completed',
+      'bulk delivery started', 'bulk delivery completed', 'starting delivery'
     ];
-    
-    // Check if this is an exact match for generic status messages
     const isGenericStatus = genericMessages.some(msg => normalizedNote === msg);
-    
-    // If it's a generic status message, show status-based message instead
     if (isGenericStatus) {
       switch (status) {
-        case 'DELIVERED':
-          return 'Delivery completed';
-        case 'IN_TRANSIT':
-          return 'Delivery started';
-        case 'PENDING':
-          return 'Delivery pending';
-        default:
-          return 'Delivery in progress';
+        case 'DELIVERED': return 'Delivery completed';
+        case 'IN_TRANSIT': return 'Delivery started';
+        case 'PENDING': return 'Delivery pending';
+        default: return 'Delivery in progress';
       }
     }
-    
-    // Show all other notes (including reasons, manual notes, etc.)
     return notes;
   };
 
   const getShortLocation = (address) => {
     if (!address) return "No location";
-    // Extract city/area name from address (first meaningful part)
     const parts = address.split(',').map(p => p.trim());
-    // Return first 2-3 parts or first 30 characters
     const shortAddr = parts.slice(0, 2).join(', ');
     return shortAddr.length > 30 ? shortAddr.substring(0, 30) + '...' : shortAddr;
   };
@@ -191,13 +160,11 @@ export default function DeliveryHistory() {
       COURIER: "bg-purple-100 text-purple-700 border-purple-200",
       INTERNAL: "bg-green-100 text-green-700 border-green-200",
     };
-
     const labels = {
       DIRECT: "Counter Pickup",
       COURIER: "Courier",
       INTERNAL: "Company Delivery",
     };
-
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-bold border ${styles[type] || "bg-gray-100 text-gray-700"}`}>
         {labels[type] || type}
@@ -211,13 +178,11 @@ export default function DeliveryHistory() {
       IN_TRANSIT: "bg-yellow-100 text-yellow-700 border-yellow-200",
       DELIVERED: "bg-green-100 text-green-700 border-green-200",
     };
-
     const labels = {
       PENDING: "Pending",
       IN_TRANSIT: "In Transit",
       DELIVERED: "Delivered",
     };
-
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium border ${styles[status] || "bg-gray-100 text-gray-700"}`}>
         {labels[status] || status}
@@ -232,7 +197,7 @@ export default function DeliveryHistory() {
   const handleClearFilters = () => {
     setSearch("");
     setFilterType("");
-    setFilterDate(new Date().toISOString().split('T')[0]); // Reset to today
+    setFilterDate(new Date().toISOString().split('T')[0]);
     setCurrentPage(1);
   };
 
@@ -250,6 +215,31 @@ export default function DeliveryHistory() {
     return row?.pickup_person_name || row?.customer_name || row?.temp_name || "-";
   };
 
+  // Attachment link renderer
+  const renderAttachmentLink = (row) => {
+    const url = row?.attachment_url;
+    if (!url) return <span className="text-gray-400 text-xs">No attachment</span>;
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isImage) {
+            setAttachmentModal({ open: true, url, type: 'image' });
+          } else {
+            window.open(url, '_blank');
+          }
+        }}
+        className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800 font-medium hover:underline"
+      >
+        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+        </svg>
+        View Attachment
+      </button>
+    );
+  };
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
@@ -263,18 +253,12 @@ export default function DeliveryHistory() {
                 type="text"
                 placeholder="Search invoice or details..."
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentPage(1);
-                }}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                 className="px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all w-full"
               />
               {search && (
                 <button
-                  onClick={() => {
-                    setSearch('');
-                    setCurrentPage(1);
-                  }}
+                  onClick={() => { setSearch(''); setCurrentPage(1); }}
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   title="Clear search"
                 >
@@ -285,10 +269,7 @@ export default function DeliveryHistory() {
 
             <select
               value={filterType}
-              onChange={(e) => {
-                setFilterType(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all min-w-[350px]"
             >
               <option value="">All Types</option>
@@ -299,12 +280,8 @@ export default function DeliveryHistory() {
 
             <input
               type="date"
-              placeholder="Filter by date"
               value={filterDate}
-              onChange={(e) => {
-                setFilterDate(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => { setFilterDate(e.target.value); setCurrentPage(1); }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all min-w-[350px]"
             />
 
@@ -329,12 +306,12 @@ export default function DeliveryHistory() {
               <table className="w-full" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
                   <col style={{ width: '14%' }} />
-                  <col style={{ width: '26%' }} />
-                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '22%' }} />
                   <col style={{ width: '12%' }} />
                   <col style={{ width: '12%' }} />
                   <col style={{ width: '10%' }} />
-                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '20%' }} />
                 </colgroup>
                 <thead>
                   <tr className="bg-gradient-to-r from-teal-500 to-cyan-600">
@@ -344,7 +321,7 @@ export default function DeliveryHistory() {
                     <th className="px-6 py-4 text-white text-left">Details</th>
                     <th className="px-6 py-4 text-white text-left">Status</th>
                     <th className="px-6 py-4 text-white text-left">Duration</th>
-                    <th className="px-6 py-4 text-white text-left">Notes</th>
+                    <th className="px-6 py-4 text-white text-left">Notes & Attachment</th>
                   </tr>
                 </thead>
 
@@ -368,7 +345,6 @@ export default function DeliveryHistory() {
                                 <p className="text-xs text-gray-500">Phone: {h.pickup_person_phone || "-"}</p>
                               </>
                             )}
-
                             {h.counter_sub_mode === "company" && (
                               <>
                                 <p className="font-medium">Direct Company</p>
@@ -383,15 +359,9 @@ export default function DeliveryHistory() {
                           </>
                         );
                       }
-
                       if (h.delivery_type === "COURIER") {
-                        return (
-                          <>
-                            <p className="font-medium">{h.courier_name}</p>
-                          </>
-                        );
+                        return <p className="font-medium">{h.courier_name}</p>;
                       }
-
                       if (h.delivery_type === "INTERNAL") {
                         return (
                           <>
@@ -406,7 +376,6 @@ export default function DeliveryHistory() {
                           </>
                         );
                       }
-
                       return null;
                     };
 
@@ -453,12 +422,12 @@ export default function DeliveryHistory() {
                                       <table className="w-full" style={{ tableLayout: 'fixed' }}>
                                         <colgroup>
                                           <col style={{ width: '14%' }} />
-                                          <col style={{ width: '26%' }} />
-                                          <col style={{ width: '12%' }} />
+                                          <col style={{ width: '22%' }} />
                                           <col style={{ width: '12%' }} />
                                           <col style={{ width: '12%' }} />
                                           <col style={{ width: '10%' }} />
-                                          <col style={{ width: '14%' }} />
+                                          <col style={{ width: '10%' }} />
+                                          <col style={{ width: '20%' }} />
                                         </colgroup>
                                         <tbody>
                                           <tr className={`${!isLast ? 'border-b border-teal-100' : ''}`}>
@@ -485,7 +454,7 @@ export default function DeliveryHistory() {
                                               )}
                                             </td>
                                             <td className="px-6 py-2">
-                                              <div className="max-w-xs">
+                                              <div className="space-y-1">
                                                 <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
                                                   {h.notes && h.notes.includes('[ADMIN OVERRIDE]') ? (
                                                     <span className="text-orange-600 font-semibold">{h.notes}</span>
@@ -493,6 +462,7 @@ export default function DeliveryHistory() {
                                                     <span className="text-gray-700">{getStatusMessage(h.delivery_status, h.notes)}</span>
                                                   )}
                                                 </p>
+                                                {renderAttachmentLink(h)}
                                               </div>
                                             </td>
                                           </tr>
@@ -521,12 +491,10 @@ export default function DeliveryHistory() {
                               {first.invoice_no}
                             </button>
                           </td>
-
                           <td className="px-6 py-3">
                             <p className="font-medium">{first.customer_name}</p>
                             <p className="text-xs text-gray-500">{first.customer_area || first.customer_address || first.temp_name || "—"}</p>
                           </td>
-
                           <td className="px-6 py-3">{typeBadge(first.delivery_type)}</td>
                           <td className="px-6 py-3 text-gray-700">{renderDetails(first)}</td>
                           <td className="px-6 py-3">{statusBadge(first.delivery_status)}</td>
@@ -538,7 +506,7 @@ export default function DeliveryHistory() {
                             )}
                           </td>
                           <td className="px-6 py-3">
-                            <div className="max-w-xs">
+                            <div className="space-y-1">
                               <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
                                 {first.notes && first.notes.includes('[ADMIN OVERRIDE]') ? (
                                   <span className="text-orange-600 font-semibold">{first.notes}</span>
@@ -546,6 +514,7 @@ export default function DeliveryHistory() {
                                   <span className="text-gray-700">{getStatusMessage(first.delivery_status, first.notes)}</span>
                                 )}
                               </p>
+                              {renderAttachmentLink(first)}
                             </div>
                           </td>
                         </tr>
@@ -568,17 +537,11 @@ export default function DeliveryHistory() {
             <div className="lg:hidden space-y-4">
               {history.map((h) => (
                 <div key={h.id} className="bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div
-                    className="p-4 cursor-pointer"
-                    onClick={() => handleRowClick(h)}
-                  >
+                  <div className="p-4 cursor-pointer" onClick={() => handleRowClick(h)}>
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewInvoice(h.invoice_no, e);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); handleViewInvoice(h.invoice_no, e); }}
                           className="font-bold text-teal-600 hover:underline"
                         >
                           {h.invoice_no}
@@ -604,6 +567,11 @@ export default function DeliveryHistory() {
                       )}
                     </div>
 
+                    {/* Attachment on mobile */}
+                    <div className="mt-2" onClick={e => e.stopPropagation()}>
+                      {renderAttachmentLink(h)}
+                    </div>
+
                     <div className="mt-2 text-center text-gray-400 text-xs">
                       Tap to view details
                     </div>
@@ -620,7 +588,6 @@ export default function DeliveryHistory() {
           </>
         )}
 
-        {/* Pagination */}
         <Pagination
           currentPage={currentPage}
           totalItems={totalCount}
@@ -636,6 +603,50 @@ export default function DeliveryHistory() {
         onClose={() => setModalOpen(false)}
         deliveryData={selectedDelivery}
       />
+
+      {/* ATTACHMENT VIEWER MODAL */}
+      {attachmentModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70"
+          onClick={() => setAttachmentModal({ open: false, url: '', type: '' })}
+        >
+          <div
+            className="relative bg-white rounded-xl shadow-2xl max-w-3xl w-full mx-4 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <p className="text-sm font-semibold text-gray-700">Delivery Attachment</p>
+              <div className="flex items-center gap-3">
+                <a
+                  href={attachmentModal.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-teal-600 hover:text-teal-800 font-medium hover:underline"
+                >
+                  Open in new tab
+                </a>
+                <button
+                  onClick={() => setAttachmentModal({ open: false, url: '', type: '' })}
+                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            {/* Image preview */}
+            <div className="p-4 flex items-center justify-center bg-gray-50 min-h-[300px]">
+              <img
+                src={attachmentModal.url}
+                alt="Delivery attachment"
+                className="max-w-full max-h-[70vh] object-contain rounded"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

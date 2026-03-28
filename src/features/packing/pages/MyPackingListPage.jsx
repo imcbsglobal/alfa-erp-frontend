@@ -548,11 +548,11 @@ export default function MyPackingListPage() {
               ${(customerPhone1 || customerPhone2) ? `<p class="customer-contact">${[customerPhone1, customerPhone2].filter(Boolean).join(' &nbsp;|&nbsp; ')}</p>` : ''}
               ${courierName ? `<p class="courier-line">Courier: ${courierName}</p>` : ''}
             </div>
-            <div class="qr-bottom-row">
+            <div class="qr-side-column">          <!-- fixed right column -->
               <div class="qr-block">
-                <p class="inv-no-label">${groupedInvoiceCount > 1 ? `INVOICES: ${groupedInvoiceCount}` : `INV: ${invoiceNo}`}</p>
+                <p class="inv-no-label">INV: ${invoiceNo}</p>
                 <div class="qr-container"><div id="qrcode-${idx}"></div></div>
-                <p class="label-count-text">BOX: ${idx + 1}/${labelCount}</p>
+                <p class="label-count-text">BOX: ${idx+1}/${labelCount}</p>
               </div>
             </div>
           </div>
@@ -618,7 +618,7 @@ export default function MyPackingListPage() {
             .customer-qr-section { 
               flex: 1 1 0%;
               display: flex;
-              flex-direction: column;
+              flex-direction: row;
               border-right: 1.5px solid #000;
               overflow: hidden;
               position: relative;
@@ -627,21 +627,31 @@ export default function MyPackingListPage() {
             .customer-info {
               flex: 1 1 auto;
               min-height: 0;
-              padding: 10px 14px 4px 14px; padding-right: 140px;
+              padding: 10px 14px 4px 14px;
               display: flex;
               flex-direction: column;
               justify-content: flex-start;
               gap: 1px;
               overflow: auto;
+              position: relative;
             }
+            .qr-side-column {
+              width: 120px;
+              flex-shrink: 0;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: flex-end;
+              padding: 6px 8px;
+            }  
             .to-label { font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; letter-spacing: 1px; margin-bottom: 4px; }
             .customer-name { font-weight: bold; font-size: 20px; text-transform: uppercase; color: #000; line-height: 1.2; word-wrap: break-word; }
             .customer-name-ml { font-size: 18px; font-weight: bold; color: #000; line-height: 1.4; margin-top: 2px; word-wrap: break-word; }
             .customer-area { font-size: 13px; color: #000; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; word-wrap: break-word; }
             .customer-addr { font-size: 13px; color: #000; line-height: 1.5; word-wrap: break-word; }
             .customer-contact { font-size: 13px; font-weight: bold; color: #000; margin-top: 4px; word-wrap: break-word; }
-            .courier-line { font-size: 11px; font-weight: bold; color: #000; margin-top: 5px; padding: 2px 6px; background: #f0f0f0; border-radius: 3px; display: inline-block; text-transform: uppercase; letter-spacing: 0.4px; }
-            .qr-bottom-row { position: absolute; right: 12px; bottom: 8px; background: white; }
+            .courier-line { margin-top: auto; font-size: 11px; font-weight: bold; color: #000; padding: 2px 6px; background: #f0f0f0; border-radius: 3px; display: inline-block; text-transform: uppercase; letter-spacing: 0.4px; }
+            .qr-bottom-row { right: 12px; bottom: 8px; background: white; }
             .qr-block { display: flex; flex-direction: column; align-items: center; gap: 3px; }
             .inv-no-label { font-size: 12px; font-weight: bold; color: #000; text-align: center; text-transform: uppercase; letter-spacing: 0.4px; }
             .inv-sub-label { font-size: 9px; font-weight: bold; color: #333; text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
