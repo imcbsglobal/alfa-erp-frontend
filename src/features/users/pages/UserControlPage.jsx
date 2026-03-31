@@ -181,7 +181,18 @@ export default function UserControlPage() {
   const fetchAllMenus = async () => {
     try {
       const res = await getAllMenusApi();
-      setAvailableMenus(res.data.data.menus || []);
+      const menus = res.data.data.menus || [];
+
+      // Get IDs of menus hidden from access control (e.g. "orders"/"Entries")
+      const hiddenIds = MENU_CONFIG
+        .filter(m => m.showInAccessControl === false)
+        .map(m => m.id);
+
+      const filtered = menus.filter(
+        m => !hiddenIds.includes(m.code) && !hiddenIds.includes(m.id)
+      );
+
+      setAvailableMenus(filtered);
     } catch (err) {
       console.error("Failed to fetch menus", err);
       setAvailableMenus([]);

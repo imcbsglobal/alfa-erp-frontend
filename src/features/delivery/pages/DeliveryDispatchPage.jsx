@@ -10,6 +10,7 @@ import {
   getDeliveryHistory,
   startDelivery,
   getCouriers,
+  getEligibleDeliveryStaff,
 } from '../../../services/sales';
 import DeliveryModal from '../components/DeliveryModal';
 import { useAuth } from '../../auth/AuthContext';
@@ -105,6 +106,28 @@ const CourierAvatar = ({ courier, size = 'w-8 h-8' }) => {
     <div className={`${size} rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0`}>
       <span className="text-xs font-semibold text-gray-500">
         {(courier?.courier_name || 'C').charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
+};
+
+const StaffAvatar = ({ staff, size = 'w-8 h-8' }) => {
+  const avatar = resolveMediaUrl(staff?.avatar);
+
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt={staff?.name || 'Staff'}
+        className={`${size} rounded-full object-cover border border-gray-200 bg-white flex-shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center flex-shrink-0`}>
+      <span className="text-xs font-semibold text-blue-600">
+        {(staff?.name || 'S').charAt(0).toUpperCase()}
       </span>
     </div>
   );
@@ -534,6 +557,196 @@ const CourierBatchPanel = ({
   );
 };
 
+// ─── CompanyDeliveryBatchPanel ─────────────────────────────────────────────────
+const CompanyDeliveryBatchPanel = ({
+  staff, loadingStaff, selectedStaff, onSelectStaff,
+  batchBills, onDispatchBatch, submitting, singleBillsCount, multiBillsCount,
+}) => {
+  const [staffSearch, setStaffSearch] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const filtered = useMemo(() =>
+    staff.filter(s =>
+      s.name?.toLowerCase().includes(staffSearch.toLowerCase()) ||
+      s.email?.toLowerCase().includes(staffSearch.toLowerCase())
+    ), [staff, staffSearch]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const canDispatch = selectedStaff && batchBills.length > 0 && !submitting;
+
+  return (
+    <div className="flex flex-col gap-4">
+
+      {/* Step 1 */}
+      <div className="bg-white rounded-xl shadow p-5">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          Step 1 — Select Staff Member
+        </p>
+
+        <div className="relative" ref={dropdownRef}>
+          <div
+            className={`w-full flex items-center gap-2 px-3 py-2.5 border-2 rounded-xl cursor-pointer transition-all
+              ${selectedStaff ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'}`}
+            onClick={() => setDropdownOpen(v => !v)}
+          >
+            <Package className={`w-4 h-4 flex-shrink-0 ${selectedStaff ? 'text-blue-500' : 'text-gray-400'}`} />
+            {selectedStaff ? (
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <StaffAvatar staff={selectedStaff} />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-blue-700 truncate">{selectedStaff.name}</p>
+                  <p className="text-xs text-blue-500">{selectedStaff.email}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="flex-1 text-sm text-gray-400">
+                {loadingStaff ? 'Loading staff...' : 'Choose a staff member...'}
+              </p>
+            )}
+            {selectedStaff ? (
+              <button
+                className="p-0.5 text-blue-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+                onClick={(e) => { e.stopPropagation(); onSelectStaff(null); setStaffSearch(''); }}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            )}
+          </div>
+
+          {dropdownOpen && (
+            <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+              <div className="p-2 border-b border-gray-100">
+                <div className="relative">
+                  <ScanLine className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={staffSearch}
+                    onChange={e => setStaffSearch(e.target.value)}
+                    placeholder="Search staff..."
+                    autoFocus
+                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg
+                               focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="max-h-52 overflow-y-auto">
+                {loadingStaff ? (
+                  <div className="py-6 text-center text-gray-400 text-sm">Loading...</div>
+                ) : filtered.length === 0 ? (
+                  <div className="py-6 text-center text-gray-400 text-sm">No staff found</div>
+                ) : filtered.map((s, idx) => (
+                  <button
+                    key={s.email}
+                    onClick={() => { onSelectStaff(s); setDropdownOpen(false); setStaffSearch(''); }}
+                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors
+                      ${idx !== filtered.length - 1 ? 'border-b border-gray-50' : ''}
+                      hover:bg-blue-50`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <StaffAvatar staff={s} size="w-9 h-9" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{s.name}</p>
+                        <p className="text-xs text-gray-400">{s.email}</p>
+                      </div>
+                    </div>
+                    {selectedStaff?.email === s.email && (
+                      <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Step 2 */}
+      <div className="bg-white rounded-xl shadow p-5">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Step 2 — Assign Bills
+          </p>
+          {batchBills.length > 0 && (
+            <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full">
+              {batchBills.length} bill{batchBills.length !== 1 ? 's' : ''} selected
+            </span>
+          )}
+        </div>
+
+        {canDispatch ? (
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
+              <p className="text-xs text-blue-700">
+                <span className="font-semibold">{batchBills.length} bill{batchBills.length !== 1 ? 's' : ''}</span>
+                {' '}will be assigned to{' '}
+                <span className="font-semibold">{selectedStaff.name}</span>
+              </p>
+            </div>
+            <button
+              onClick={onDispatchBatch}
+              disabled={submitting}
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white
+                         rounded-xl font-semibold text-sm hover:from-blue-600 hover:to-indigo-700
+                         disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow
+                         flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Dispatching...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Assign to {selectedStaff.name}
+                </>
+              )}
+            </button>
+          </div>
+        ) : !batchBills.length ? (
+          <p className="text-sm text-gray-400 text-center py-2">
+            {!selectedStaff ? 'Select a staff member first, then add bills →' : 'Click Add on bills in the table →'}
+          </p>
+        ) : null}
+      </div>
+
+      {/* Queue summary */}
+      <div className="bg-white rounded-xl shadow p-5">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Queue Summary</p>
+        <div className="space-y-3">
+          {[
+            { label: 'Single Packed', count: singleBillsCount },
+            { label: 'Multi Packed',  count: multiBillsCount  },
+          ].map(row => (
+            <div key={row.label} className="flex justify-between items-center">
+              <span className="text-base text-gray-600">{row.label}</span>
+              <span className="text-base font-bold bg-gray-100 text-gray-700 px-3 py-0.5 rounded-full">
+                {row.count}
+              </span>
+            </div>
+          ))}
+          <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
+            <span className="text-base font-semibold text-gray-700">Total</span>
+            <span className="text-base font-bold bg-blue-50 text-blue-700 px-3 py-0.5 rounded-full">
+              {singleBillsCount + multiBillsCount}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── DefaultLeftPanel ─────────────────────────────────────────────────────────
 const DefaultLeftPanel = ({ singleBillsCount, multiBillsCount, totalCount }) => (
   <div className="bg-white rounded-xl shadow p-5">
@@ -589,6 +802,12 @@ const DeliveryDispatchPage = () => {
   const [batchBills, setBatchBills]           = useState([]);
   const batchIds = useMemo(() => new Set(batchBills.map(b => b.id)), [batchBills]);
 
+  // ── Company delivery state ────────────────────────────────────────────────
+  const [deliveryStaff, setDeliveryStaff]         = useState([]);
+  const [loadingStaff, setLoadingStaff]           = useState(false);
+  const [selectedStaff, setSelectedStaff]         = useState(null);
+  const [companyBatchBills, setCompanyBatchBills] = useState([]);
+  const companyBatchIds = useMemo(() => new Set(companyBatchBills.map(b => b.id)), [companyBatchBills]);
   // Load couriers when COURIER mode selected
   useEffect(() => {
     if (activeMode !== 'COURIER' || couriers.length > 0) return;
@@ -607,6 +826,25 @@ const DeliveryDispatchPage = () => {
   // Reset courier batch when mode changes
   useEffect(() => {
     if (activeMode !== 'COURIER') { setSelectedCourier(null); setBatchBills([]); }
+  }, [activeMode]);
+
+  // Load delivery staff when COMPANY_DELIVERY mode selected
+  useEffect(() => {
+    if (activeMode !== 'COMPANY_DELIVERY' || deliveryStaff.length > 0) return;
+    const load = async () => {
+      setLoadingStaff(true);
+      try {
+        const res = await getEligibleDeliveryStaff();
+        setDeliveryStaff(res?.data?.data?.results || []);
+      } catch { setDeliveryStaff([]); }
+      finally { setLoadingStaff(false); }
+    };
+    load();
+  }, [activeMode]);
+
+  // Reset company delivery batch when mode changes
+  useEffect(() => {
+    if (activeMode !== 'COMPANY_DELIVERY') { setSelectedStaff(null); setCompanyBatchBills([]); }
   }, [activeMode]);
 
   // ── data loading ──────────────────────────────────────────────────────────
@@ -866,6 +1104,26 @@ const DeliveryDispatchPage = () => {
     } finally { setSubmitting(false); }
   };
 
+  const handleDispatchCompanyBatch = async () => {
+    if (!selectedStaff || companyBatchBills.length === 0) return;
+    setSubmitting(true);
+    try {
+      const response = await startDelivery({
+        invoice_nos: companyBatchBills.map(b => b.invoice_no),
+        delivery_type: 'INTERNAL',
+        user_email: selectedStaff.email,
+      });
+      if (response.data.success) {
+        const count = companyBatchBills.length;
+        toast.success(`${count} bill${count !== 1 ? 's' : ''} assigned to ${selectedStaff.name}`);
+        setCompanyBatchBills([]);
+        loadPackedInvoices();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.response?.data?.detail || 'Failed to dispatch');
+    } finally { setSubmitting(false); }
+  };
+
   const handleViewInvoice = (billId) => {
     if (user?.role === 'DELIVERY') { navigate(`/ops/delivery/invoices/view/${billId}`); return; }
     navigate(`/delivery/invoices/view/${billId}/delivery`);
@@ -878,8 +1136,10 @@ const DeliveryDispatchPage = () => {
   const pagedSingle = useMemo(() => singleBills.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [singleBills, currentPage]);
   const pagedGroups = useMemo(() => groups.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [groups, currentPage]);
 
-  const activeModeObj      = MODES.find(m => m.key === activeMode);
-  const isCourierBatchMode = activeMode === 'COURIER';
+  const activeModeObj        = MODES.find(m => m.key === activeMode);
+  const isCourierBatchMode   = activeMode === 'COURIER';
+  const isCompanyBatchMode   = activeMode === 'COMPANY_DELIVERY';
+  const isBatchMode          = isCourierBatchMode || isCompanyBatchMode;
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -912,9 +1172,20 @@ const DeliveryDispatchPage = () => {
           <div className="xl:basis-1/3 xl:max-w-[34%] flex flex-col gap-4">
             {/* Mode selector */}
             <div className="bg-white rounded-xl shadow p-5">
-              <p className="text-base font-bold text-gray-700 mb-4">Select Delivery Mode</p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-base font-bold text-gray-700">Select Delivery Mode</p>
+                {activeMode && (
+                  <button
+                    onClick={() => { setActiveMode(null); setScanError(''); setScanInput(''); }}
+                    className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Change
+                  </button>
+                )}
+              </div>
               <div className="flex flex-col gap-3">
-                {MODES.map((mode) => {
+                {MODES.filter(mode => !activeMode || mode.key === activeMode).map((mode) => {
                   const Icon   = mode.icon;
                   const active = activeMode === mode.key;
                   return (
@@ -949,6 +1220,18 @@ const DeliveryDispatchPage = () => {
                 onSelectCourier={setSelectedCourier}
                 batchBills={batchBills}
                 onDispatchBatch={handleDispatchBatch}
+                submitting={submitting}
+                singleBillsCount={singleBills.length}
+                multiBillsCount={multiBills.length}
+              />
+            ) : activeMode === 'COMPANY_DELIVERY' ? (
+              <CompanyDeliveryBatchPanel
+                staff={deliveryStaff}
+                loadingStaff={loadingStaff}
+                selectedStaff={selectedStaff}
+                onSelectStaff={setSelectedStaff}
+                batchBills={companyBatchBills}
+                onDispatchBatch={handleDispatchCompanyBatch}
                 submitting={submitting}
                 singleBillsCount={singleBills.length}
                 multiBillsCount={multiBills.length}
@@ -1003,7 +1286,9 @@ const DeliveryDispatchPage = () => {
                         placeholder={
                           isCourierBatchMode
                             ? selectedCourier ? `Scan to add to ${selectedCourier.courier_name} batch...` : 'Select a courier first...'
-                            : 'Scan QR or type invoice / group id...'
+                            : isCompanyBatchMode
+                              ? selectedStaff ? `Scan to add to ${selectedStaff.name} batch...` : 'Select a staff member first...'
+                              : 'Scan QR or type invoice / group id...'
                         }
                         className="w-full pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-sm
                                    focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -1020,7 +1305,7 @@ const DeliveryDispatchPage = () => {
                       className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white
                                  rounded-lg text-sm font-semibold hover:from-teal-600 hover:to-cyan-700 transition-all"
                     >
-                      {isCourierBatchMode ? 'Add' : 'Scan'}
+                      {isBatchMode ? 'Add' : 'Scan'}
                     </button>
                   </div>
 
@@ -1035,19 +1320,32 @@ const DeliveryDispatchPage = () => {
                         {batchBills.length} in batch
                       </span>
                     )}
+                    {isCompanyBatchMode && companyBatchBills.length > 0 && (
+                      <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {companyBatchBills.length} in batch
+                      </span>
+                    )}
                   </div>
                   {scanError && <p className="text-red-500 text-xs mt-1.5">⚠️ {scanError}</p>}
                 </div>
               </div>
 
               {/* courier hint banner — updated: no longer requires courier first */}
-              {isCourierBatchMode && (
-                <div className="mx-4 mt-3 px-3 py-2 bg-teal-50 border border-teal-200 rounded-lg flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-teal-500 flex-shrink-0" />
-                  <p className="text-xs text-teal-700">
-                    {selectedCourier
-                      ? <>Click <span className="font-semibold">Add</span> on bills to add them to the <span className="font-semibold">{selectedCourier.courier_name}</span> batch, then dispatch from the left panel.</>
-                      : <>Select a courier first, then click <span className="font-semibold">Add</span> on bills to queue them for dispatch.</>
+              {isBatchMode && (
+                <div className={`mx-4 mt-3 px-3 py-2 border rounded-lg flex items-center gap-2
+                  ${isCourierBatchMode ? 'bg-teal-50 border-teal-200' : 'bg-blue-50 border-blue-200'}`}>
+                  {isCourierBatchMode
+                    ? <Truck className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                    : <Package className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  }
+                  <p className={`text-xs ${isCourierBatchMode ? 'text-teal-700' : 'text-blue-700'}`}>
+                    {isCourierBatchMode
+                      ? selectedCourier
+                        ? <>Click <span className="font-semibold">Add</span> to add bills to the <span className="font-semibold">{selectedCourier.courier_name}</span> batch.</>
+                        : <>Select a courier first, then click <span className="font-semibold">Add</span> on bills.</>
+                      : selectedStaff
+                        ? <>Click <span className="font-semibold">Add</span> to assign bills to <span className="font-semibold">{selectedStaff.name}</span>.</>
+                        : <>Select a staff member first, then click <span className="font-semibold">Add</span> on bills.</>
                     }
                   </p>
                 </div>
@@ -1080,10 +1378,13 @@ const DeliveryDispatchPage = () => {
                               bill={bill}
                               onDispatch={handleOpenDispatch}
                               onView={handleViewInvoice}
-                              batchMode={isCourierBatchMode}
-                              onAddToBatch={(b) => handleAddToBatchGroupAware([b], bills)}
-                              batchIds={batchIds}
-                              batchDisabled={!selectedCourier}
+                              batchMode={isBatchMode}
+                              onAddToBatch={(b) => {
+                                if (isCourierBatchMode) handleAddToBatchGroupAware([b], bills);
+                                else setCompanyBatchBills(prev => prev.find(x => x.id === b.id) ? prev.filter(x => x.id !== b.id) : [...prev, b]);
+                              }}
+                              batchIds={isCourierBatchMode ? batchIds : companyBatchIds}
+                              batchDisabled={isCourierBatchMode ? !selectedCourier : !selectedStaff}
                             />
                           ))}
                         </tbody>
@@ -1120,10 +1421,17 @@ const DeliveryDispatchPage = () => {
                         onDispatchGroup={handleOpenGroupDispatch}
                         onView={handleViewInvoice}
                         openRequest={groupOpenRequest}
-                        batchMode={isCourierBatchMode}
-                        onAddGroupToBatch={(bs) => handleAddToBatchGroupAware(bs, bills)}
-                        batchIds={batchIds}
-                        batchDisabled={!selectedCourier}
+                        batchMode={isBatchMode}
+                        onAddGroupToBatch={(bs) => {
+                          if (isCourierBatchMode) handleAddToBatchGroupAware(bs, bills);
+                          else setCompanyBatchBills(prev => {
+                            const ids = new Set(prev.map(b => b.id));
+                            const allIn = bs.every(b => ids.has(b.id));
+                            return allIn ? prev.filter(b => !bs.find(x => x.id === b.id)) : [...prev, ...bs.filter(b => !ids.has(b.id))];
+                          });
+                        }}
+                        batchIds={isCourierBatchMode ? batchIds : companyBatchIds}
+                        batchDisabled={isCourierBatchMode ? !selectedCourier : !selectedStaff}
                       />
                     ))}
                     <Pagination

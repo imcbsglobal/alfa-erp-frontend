@@ -45,7 +45,8 @@ export const MENU_CONFIG = [
   },
   {
     id: "orders",
-    label: "Orders",
+    label: "Entries",
+    showInAccessControl: false,
     icon: Pill,
     type: "dropdown",
     hasAccess: (user) => 

@@ -95,6 +95,9 @@ export default function AppRouter() {
       {/* ADMIN / SUPERADMIN / USER */}
       <Route element={<ProtectedRoute allowedRoles={["SUPERADMIN", "ADMIN", "USER"]} />}>
         <Route element={<MainLayout />}>
+          {/* Enteries dropdown fallback - redirects to first submenu item */}
+          <Route path="/orders" element={<Navigate to="/billing/invoices" replace />} />
+          
           <Route
             path="/dashboard"
             element={
