@@ -217,6 +217,12 @@ export default function UserControlPage() {
       res.data.data.assignments.forEach((assignment) => {
         permissions[assignment.menu] = true;
       });
+      
+      // Auto-check Dashboard for admins
+      if (selectedUser?.role === "ADMIN" || selectedUser?.role === "SUPERADMIN") {
+        permissions["dashboard"] = true;
+      }
+      
       setUserPermissions(permissions);
     } catch (err) {
       console.error("Failed to fetch user menus", err);
