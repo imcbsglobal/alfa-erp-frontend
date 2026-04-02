@@ -10,6 +10,35 @@ import {
 import { getStatusBreakdown, getDashboardStats } from '../../services/analytics';
 import toast from 'react-hot-toast';
 
+// ── Validation utility to ensure data consistency ──────────────────────────
+const validateAndSanitizeStats = (rawStats) => {
+  if (!rawStats) return null;
+
+  const stats = {
+    totalInvoices:         Math.max(rawStats.totalInvoices || 0, 0),
+    completedPicking:      Math.max(rawStats.completedPicking || 0, 0),
+    completedPacking:      Math.max(rawStats.completedPacking || 0, 0),
+    completedDelivery:     Math.max(rawStats.completedDelivery || 0, 0),
+    holdInvoices:          Math.max(rawStats.holdInvoices || 0, 0),
+    completedHoldInvoices: Math.max(rawStats.completedHoldInvoices || 0, 0),
+    pendingInvoices:       Math.max(rawStats.pendingInvoices || 0, 0),
+  };
+
+  // ── CRITICAL: completedHoldInvoices must NOT exceed holdInvoices ────────
+  if (stats.completedHoldInvoices > stats.holdInvoices) {
+    console.warn(
+      `⚠️ Data Inconsistency Detected: completedHoldInvoices (${stats.completedHoldInvoices}) > holdInvoices (${stats.holdInvoices}). Capping completedHoldInvoices.`
+    );
+    toast.error('Hold invoices data inconsistency detected. Please refresh.', { 
+      id: 'hold-invoice-error',
+      duration: 3000 
+    });
+    stats.completedHoldInvoices = stats.holdInvoices;
+  }
+
+  return stats;
+};
+
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -72,16 +101,21 @@ export default function SuperAdminDashboard() {
           if (data.stats) {
             const s = data.stats;
 
-            // ── Update Session Overview cards live ───────────────────────
-            setTodayStats({
-              totalInvoices:         s.totalInvoices         || 0,
-              completedPicking:      s.completedPicking      || 0,
-              completedPacking:      s.completedPacking      || 0,
-              completedDelivery:     s.completedDelivery     || 0,
-              holdInvoices:          s.holdInvoices          || 0,
-              completedHoldInvoices: s.completedHoldInvoices || 0,
-              pendingInvoices:       s.pendingInvoices       || 0,
+            // ── Validate and sanitize stats before updating state ────────
+            const validatedStats = validateAndSanitizeStats({
+              totalInvoices:         s.totalInvoices,
+              completedPicking:      s.completedPicking,
+              completedPacking:      s.completedPacking,
+              completedDelivery:     s.completedDelivery,
+              holdInvoices:          s.holdInvoices,
+              completedHoldInvoices: s.completedHoldInvoices,
+              pendingInvoices:       s.pendingInvoices,
             });
+
+            // ── Update Session Overview cards live ───────────────────────
+            if (validatedStats) {
+              setTodayStats(validatedStats);
+            }
 
             // ── Ensure loading never blocks the live values ──────────────
             setLoading(false);
@@ -140,17 +174,17 @@ export default function SuperAdminDashboard() {
                 const isCancelled = (t.includes('cancel') || pstatus === 'CANCELLED');
 
                 if (incPreparing) {
-                  pk.preparing = (pk.preparing || 0) + 1;
+                  pk.preparing = Math.max((pk.preparing || 0) + 1, 0);
                   pk.pending = Math.max((pk.pending || 0) - 1, 0);
                 } else if (incCompleted) {
                   // a packing finished: move one from preparing -> completed
-                  pk.completed = (pk.completed || 0) + 1;
+                  pk.completed = Math.max((pk.completed || 0) + 1, 0);
                   pk.preparing = Math.max((pk.preparing || 0) - 1, 0);
                 } else if (isCancelled) {
                   // cancelled: move from preparing back to pending if possible
                   if ((pk.preparing || 0) > 0) {
                     pk.preparing = Math.max(pk.preparing - 1, 0);
-                    pk.pending = (pk.pending || 0) + 1;
+                    pk.pending = Math.max((pk.pending || 0) + 1, 0);
                   }
                 }
 
@@ -284,7 +318,28 @@ export default function SuperAdminDashboard() {
     try {
       const response = await getStatusBreakdown();
       if (response.data.success && response.data.breakdown) {
-        setBreakdown(response.data.breakdown);
+        const bd = response.data.breakdown;
+        
+        // ── Validate breakdown data to prevent negative/invalid values ────
+        const safeBreakdown = {
+          picking: {
+            completed: Math.max(bd.picking?.completed || 0, 0),
+            preparing: Math.max(bd.picking?.preparing || 0, 0),
+            pending: Math.max(bd.picking?.pending || 0, 0),
+          },
+          packing: {
+            completed: Math.max(bd.packing?.completed || 0, 0),
+            preparing: Math.max(bd.packing?.preparing || 0, 0),
+            pending: Math.max(bd.packing?.pending || 0, 0),
+          },
+          delivery: {
+            completed: Math.max(bd.delivery?.completed || 0, 0),
+            preparing: Math.max(bd.delivery?.preparing || 0, 0),
+            pending: Math.max(bd.delivery?.pending || 0, 0),
+          },
+        };
+        
+        setBreakdown(safeBreakdown);
       }
     } catch (error) {
       console.error('❌ Error fetching breakdown:', error);
@@ -295,19 +350,18 @@ export default function SuperAdminDashboard() {
     try {
       const response = await getDashboardStats();
       if (response.data.success && response.data.stats) {
-        const s = response.data.stats;
-        setTodayStats({
-          totalInvoices:         s.totalInvoices         || 0,
-          completedPicking:      s.completedPicking      || 0,
-          completedPacking:      s.completedPacking      || 0,
-          completedDelivery:     s.completedDelivery     || 0,
-          holdInvoices:          s.holdInvoices          || 0,
-          completedHoldInvoices: s.completedHoldInvoices || 0,
-          pendingInvoices:       s.pendingInvoices       || 0,
-        });
+        // ── Validate and sanitize stats from API ────────────────────────
+        const validatedStats = validateAndSanitizeStats(response.data.stats);
+        if (validatedStats) {
+          setTodayStats(validatedStats);
+        } else {
+          console.error('Invalid stats object received from API:', response.data.stats);
+          toast.error('Failed to load dashboard statistics', { duration: 3000 });
+        }
       }
     } catch (error) {
       console.error("❌ Error fetching today's stats:", error);
+      toast.error("Error loading dashboard stats", { duration: 3000 });
     }
   };
 
@@ -413,14 +467,29 @@ export default function SuperAdminDashboard() {
     );
   };
 
+  // ── Safely format hold invoices display with validation ────────────────
+  const getHoldInvoicesLabel = () => {
+    const completed = todayStats.completedHoldInvoices;
+    const total = todayStats.holdInvoices;
+    
+    // Ensure completed never exceeds total (defensive check)
+    const safeCompleted = Math.min(completed, total);
+    
+    if (loading) return null;
+    
+    if (total === 0) {
+      return 'No hold invoices';
+    }
+    
+    return `${safeCompleted} / ${total} completed`;
+  };
+
   // ── Overview Cards ─────────────────────────────────────────────────────────
   const overviewCards = [
     {
       title: 'HOLD INVOICES',
       value: loading ? '...' : todayStats.holdInvoices,
-      subLabel: loading
-        ? null
-        : `${todayStats.completedHoldInvoices} / ${todayStats.holdInvoices} completed`,
+      subLabel: getHoldInvoicesLabel(),
       icon: (
         <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
