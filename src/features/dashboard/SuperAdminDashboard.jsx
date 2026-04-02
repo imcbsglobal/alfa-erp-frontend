@@ -25,16 +25,23 @@ const validateAndSanitizeStats = (rawStats) => {
   };
 
   // ── CRITICAL: completedHoldInvoices must NOT exceed holdInvoices ────────
-  // if (stats.completedHoldInvoices > stats.holdInvoices) {
-  //   console.warn(
-  //     `⚠️ Data Inconsistency Detected: completedHoldInvoices (${stats.completedHoldInvoices}) > holdInvoices (${stats.holdInvoices}). Capping completedHoldInvoices.`
-  //   );
-  //   toast.error('Hold invoices data inconsistency detected. Please refresh.', { 
-  //     id: 'hold-invoice-error',
-  //     duration: 3000 
-  //   });
-  //   stats.completedHoldInvoices = stats.holdInvoices;
-  // }
+  if (stats.completedHoldInvoices > stats.holdInvoices) {
+    console.error(
+      `❌ CRITICAL DATA INCONSISTENCY: completedHoldInvoices (${stats.completedHoldInvoices}) > holdInvoices (${stats.holdInvoices}). This means pending invoices exist but aren't counted correctly.`
+    );
+    toast.error('Hold invoices calculation error! Backend may need sync refresh.', { 
+      id: 'hold-invoice-error',
+      duration: 5000 
+    });
+    stats.completedHoldInvoices = stats.holdInvoices;
+  }
+
+  // ── Additional check: If completed = total but pending exist, this suggests stale data ────
+  if (stats.completedHoldInvoices === stats.holdInvoices && stats.holdInvoices > 0) {
+    console.warn(
+      `⚠️ WARNING: All hold invoices marked as completed (${stats.holdInvoices}). Verify against /invoices/pending page.`
+    );
+  }
 
   return stats;
 };
