@@ -293,7 +293,7 @@ export default function TrayListPage() {
                               </button>
                               <button
                                 onClick={() => openDeleteConfirm(tray)}
-                                className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg font-semibold shadow-lg hover:from-red-600 hover:to-pink-700 transition-all text-xs"
+                                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold shadow-lg hover:from-red-600 hover:to-pink-700 transition-all text-xs"
                               >
                                 Delete
                               </button>
@@ -389,7 +389,7 @@ export default function TrayListPage() {
                       </button>
                       <button
                         onClick={() => openDeleteConfirm(tray)}
-                        className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg font-semibold shadow-lg hover:from-red-600 hover:to-pink-700 transition-all text-xs text-center"
+                        className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold shadow-lg hover:from-red-600 hover:to-pink-700 transition-all text-xs text-center"
                       >
                         Delete
                       </button>
@@ -438,7 +438,6 @@ export default function TrayListPage() {
 function EditTraySlideOver({ tray, onClose, onSave }) {
   const [formData, setFormData] = useState({
     tray_code: tray.tray_code || "",
-    tray_name: tray.tray_name || "",
     description: tray.description || "",
     status: tray.status || "ACTIVE",
     remarks: tray.remarks || "",
