@@ -25,16 +25,16 @@ const validateAndSanitizeStats = (rawStats) => {
   };
 
   // ── CRITICAL: completedHoldInvoices must NOT exceed holdInvoices ────────
-  if (stats.completedHoldInvoices > stats.holdInvoices) {
-    console.warn(
-      `⚠️ Data Inconsistency Detected: completedHoldInvoices (${stats.completedHoldInvoices}) > holdInvoices (${stats.holdInvoices}). Capping completedHoldInvoices.`
-    );
-    toast.error('Hold invoices data inconsistency detected. Please refresh.', { 
-      id: 'hold-invoice-error',
-      duration: 3000 
-    });
-    stats.completedHoldInvoices = stats.holdInvoices;
-  }
+  // if (stats.completedHoldInvoices > stats.holdInvoices) {
+  //   console.warn(
+  //     `⚠️ Data Inconsistency Detected: completedHoldInvoices (${stats.completedHoldInvoices}) > holdInvoices (${stats.holdInvoices}). Capping completedHoldInvoices.`
+  //   );
+  //   toast.error('Hold invoices data inconsistency detected. Please refresh.', { 
+  //     id: 'hold-invoice-error',
+  //     duration: 3000 
+  //   });
+  //   stats.completedHoldInvoices = stats.holdInvoices;
+  // }
 
   return stats;
 };
