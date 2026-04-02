@@ -35,7 +35,8 @@ export default function PickingInvoiceReportPage() {
   const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [invoiceDateFilter, setInvoiceDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [pickingDateFilter, setPickingDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
   const searchRef = useRef(null);
@@ -46,7 +47,7 @@ export default function PickingInvoiceReportPage() {
 
   useEffect(() => {
     loadSessions();
-  }, [currentPage, dateFilter, debouncedSearch, timeFilter]);
+  }, [currentPage, invoiceDateFilter, pickingDateFilter, debouncedSearch, timeFilter]);
 
   const sortByStartTime = (arr) =>
     [...arr].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
@@ -55,7 +56,19 @@ export default function PickingInvoiceReportPage() {
     setLoading(true);
     try {
       const params = { page: currentPage, page_size: itemsPerPage };
-      if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
+      
+      // Invoice date filter (DATE & TIME column - invoice created date)
+      if (invoiceDateFilter) { 
+        params.invoice_start_date = invoiceDateFilter; 
+        params.invoice_end_date = invoiceDateFilter; 
+      }
+      
+      // Picking date filter (PICKING DATE & TIME column - when picking session happened)
+      if (pickingDateFilter) { 
+        params.picking_start_date = pickingDateFilter; 
+        params.picking_end_date = pickingDateFilter; 
+      }
+      
       if (timeFilter) {
         const cutoff = new Date(Date.now() - parseInt(timeFilter) * 60 * 60 * 1000);
         params.start_time = cutoff.toISOString();
@@ -82,7 +95,8 @@ export default function PickingInvoiceReportPage() {
         } else {
           // Fallback: client-side picker name filter
           const allParams = { page_size: 10000 };
-          if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
+          if (invoiceDateFilter) { allParams.invoice_start_date = invoiceDateFilter; allParams.invoice_end_date = invoiceDateFilter; }
+          if (pickingDateFilter) { allParams.picking_start_date = pickingDateFilter; allParams.picking_end_date = pickingDateFilter; }
 
           const allRes = await getPickingHistory(allParams);
           const allResults = sortByStartTime(allRes.data.results || []);
@@ -150,13 +164,26 @@ export default function PickingInvoiceReportPage() {
         <div className="bg-white rounded-xl shadow-sm p-3 mb-4">
           <div className="flex flex-wrap items-center gap-3">
 
-            {/* Date */}
+            {/* Invoice Date */}
             <div className="flex items-center gap-1.5">
-              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Date:</label>
+              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Invoice Date:</label>
               <input
                 type="date"
-                value={dateFilter}
-                onChange={(e) => { setDateFilter(e.target.value); setCurrentPage(1); }}
+                value={invoiceDateFilter}
+                onChange={(e) => { setInvoiceDateFilter(e.target.value); setCurrentPage(1); }}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+              />
+            </div>
+
+            <div className="h-6 w-px bg-gray-200" />
+
+            {/* Picking Date */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Picking Date:</label>
+              <input
+                type="date"
+                value={pickingDateFilter}
+                onChange={(e) => { setPickingDateFilter(e.target.value); setCurrentPage(1); }}
                 className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
               />
             </div>
