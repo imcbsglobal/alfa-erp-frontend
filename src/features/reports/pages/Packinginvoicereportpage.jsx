@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import { getPackingHistory, getPickingHistory } from "../../../services/sales";
+import { getPackingHistory } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X, Search } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
+import axios from "axios"; // or your existing API client
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -17,9 +18,6 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
-// Request cache to avoid duplicate API calls
-const pickingCache = new Map();
-
 const STATUS_BADGE = {
   PACKING:   "bg-blue-100 text-blue-700 border-blue-300",
   PACKED:    "bg-emerald-100 text-emerald-700 border-emerald-300",
@@ -28,11 +26,24 @@ const STATUS_BADGE = {
   CANCELLED: "bg-gray-100 text-gray-600 border-gray-300",
 };
 
+// Single batch fetch — replaces the old N+1 per-invoice approach
+const fetchPickingBatch = async (invoiceNos) => {
+  if (!invoiceNos.length) return {};
+  try {
+    // Replace with your actual API base URL / axios instance
+    const res = await axios.post("/api/sales/picking/batch-history/", {
+      invoice_nos: invoiceNos,
+    });
+    return res.data?.data || {};
+  } catch {
+    return {};
+  }
+};
+
 export default function PackingInvoiceReportPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [rawSessions, setRawSessions] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useUrlPage();
@@ -54,34 +65,17 @@ export default function PackingInvoiceReportPage() {
   const sortByStartTime = (arr) =>
     [...arr].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
-  // Batch fetch picking data with caching to avoid N+1 queries
-  const enrichWithPickingData = async (rows, maxConcurrent = 10) => {
-    const cache = pickingCache;
-    const uncachedInvoices = [...new Set(rows.map(r => r.invoice_no))].filter(inv => !cache.has(inv));
-    
-    // Fetch uncached invoices in batches
-    if (uncachedInvoices.length > 0) {
-      for (let i = 0; i < uncachedInvoices.length; i += maxConcurrent) {
-        const batch = uncachedInvoices.slice(i, i + maxConcurrent);
-        await Promise.all(batch.map(async (invoiceNo) => {
-          try {
-            const pickRes = await getPickingHistory({ search: invoiceNo, page_size: 1 });
-            const pick = (pickRes.data.results || []).find(r => r.invoice_no === invoiceNo);
-            cache.set(invoiceNo, pick || null);
-          } catch (e) {
-            cache.set(invoiceNo, null);
-          }
-        }));
-      }
-    }
-    
-    // Enrich rows with cached data
+  // ONE batch request replaces N individual picking history calls
+  const enrichWithPickingData = async (rows) => {
+    const invoiceNos = [...new Set(rows.map(r => r.invoice_no))];
+    const pickingMap = await fetchPickingBatch(invoiceNos);
+
     return rows.map(s => {
-      const pick = cache.get(s.invoice_no);
+      const pick = pickingMap[s.invoice_no];
       if (pick) {
         s.picking_start_time = pick.start_time;
         s.picking_end_time = pick.end_time;
-        s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
+        s.picking_date = pick.created_at;
       }
       return s;
     });
@@ -103,22 +97,19 @@ export default function PackingInvoiceReportPage() {
         const res = await getPackingHistory(params);
         const results = sortByStartTime(res.data.results || []);
         const enriched = await enrichWithPickingData(results);
-        setRawSessions(enriched);
         setSessions(enriched);
         setTotalCount(res.data.count || 0);
       } else {
-        // Try API search first
         const searchRes = await getPackingHistory({ ...params, search: debouncedSearch });
         const searchResults = searchRes.data.results || [];
 
         if (searchResults.length > 0) {
           const sorted = sortByStartTime(searchResults);
           const enriched = await enrichWithPickingData(sorted);
-          setRawSessions(enriched);
           setSessions(enriched);
           setTotalCount(searchRes.data.count || 0);
         } else {
-          // Fallback: client-side packer name filter (reduced from 10000 to 1000 for performance)
+          // Fallback: client-side packer name filter
           const allParams = { page_size: 1000 };
           if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
 
@@ -129,7 +120,6 @@ export default function PackingInvoiceReportPage() {
             (s.packer_name || '').toLowerCase().includes(q)
           );
           const enrichedMatches = await enrichWithPickingData(packerMatches);
-          setRawSessions(allResults);
           setSessions(enrichedMatches);
           setTotalCount(enrichedMatches.length);
         }
@@ -186,7 +176,6 @@ export default function PackingInvoiceReportPage() {
     return rows.find(r => r.invoice_no === preferredNo) || null;
   };
 
-  // Memoize grouped sessions to avoid recalculating on every render
   const groupedSessions = useMemo(() => {
     const grouped = {};
     sessions.forEach(s => {
@@ -209,8 +198,6 @@ export default function PackingInvoiceReportPage() {
         {/* Filter Bar */}
         <div className="bg-white rounded-xl shadow-sm p-3 mb-4">
           <div className="flex flex-wrap items-center gap-3">
-
-            {/* Date */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Date:</label>
               <input
@@ -223,7 +210,6 @@ export default function PackingInvoiceReportPage() {
 
             <div className="h-6 w-px bg-gray-200" />
 
-            {/* Unified Search */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Search:</label>
               <div className="relative">
@@ -284,174 +270,141 @@ export default function PackingInvoiceReportPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {(() => {
-                      return groupedSessions.map(([groupKey, rows]) => {
-                        const isGroup = rows.length > 1;
-                        const first = rows[0];
+                    {groupedSessions.map(([groupKey, rows]) => {
+                      const isGroup = rows.length > 1;
+                      const first = rows[0];
 
-                        if (isGroup) {
-                          return (
-                            <React.Fragment key={groupKey}>
-                              {/* Group header — top border + left/right border via outline trick */}
-                              <tr>
-                                <td colSpan="8" className="p-0">
-                                  <div className="mx-3 mt-2 rounded-t-lg border-2 border-b-0 border-teal-400 bg-teal-50 px-3 py-1.5">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-5 h-5 rounded bg-teal-600 flex items-center justify-center flex-shrink-0">
-                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                        </svg>
-                                      </div>
-                                      <span className="text-xs font-semibold text-teal-900">
-                                        Consolidated · {rows.length} invoices
-                                        {first.courier_name && <span className="ml-2 text-teal-700">· {first.courier_name}</span>}
-                                        {first.label_count != null && <span className="ml-2 text-teal-600">· {first.label_count} box(es)</span>}
-                                        {(() => {
-                                          const preferred = getPreferredInvoiceFromGroupId(first.boxing_group_id, rows);
-                                          if (!preferred) return null;
-                                          return (
-                                            <span className="ml-2 px-2 py-0.5 bg-teal-100 text-teal-800 rounded-full text-[10px] font-bold">
-                                              📦 Address: {preferred.customer_name}
-                                            </span>
-                                          );
-                                        })()}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-
-                              {/* Group rows */}
-                              {rows.map((session, idx) => {
-                                const isLast = idx === rows.length - 1;
-                                return (
-                                  <tr key={session.id} style={{ background: '#f7fdfb' }}>
-                                    <td colSpan="8" className="p-0">
-                                      <div className={`mx-3 border-l-2 border-r-2 border-teal-400 ${isLast ? 'border-b-2 rounded-b-lg mb-2' : ''} px-0`}>
-                                        <table className="w-full" style={{tableLayout:'fixed'}}>
-                                          <colgroup>
-                                            <col style={{width:'12%'}} />
-                                            <col style={{width:'16%'}} />
-                                            <col style={{width:'14%'}} />
-                                            <col style={{width:'10%'}} />
-                                            <col style={{width:'16%'}} />
-                                            <col style={{width:'8%'}} />
-                                            <col style={{width:'10%'}} />
-                                            <col style={{width:'8%'}} />
-                                          </colgroup>
-                                          <tbody>
-                                            <tr className={`${isLast ? '' : 'border-b border-teal-100'}`}>
-                                              <td className="px-4 py-2 pl-8 text-sm font-medium text-teal-700 w-[12%]">{session.invoice_no}</td>
-                                              <td className="px-4 py-2 text-sm text-gray-700">
-                                                <p>{session.customer_name || '—'}</p>
-                                                <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || '—'}</p>
-                                              </td>
-                                              <td className="px-4 py-2 text-sm text-gray-700">
-                                                {(() => {
-                                                  const pickDate = session.picking_date || session.invoice_created_at || session.invoice_date || session.created_at || '';
-                                                  const pickStart = session.picking_start_time;
-                                                  const pickEnd = session.picking_end_time;
-                                                  if (!pickDate && !pickStart && !pickEnd) return <span className="text-gray-400">—</span>;
-                                                  return (
-                                                    <>
-                                                      <p>{pickDate ? formatDateDDMMYYYY(pickDate) : formatDateDDMMYYYY(pickStart || pickEnd)}</p>
-                                                      <p className="text-xs text-gray-500">
-                                                        {pickStart ? formatTime(pickStart) : (pickDate ? formatTime(pickDate) : '')}
-                                                        {pickEnd ? ` → ${formatTime(pickEnd)}` : ''}
-                                                      </p>
-                                                    </>
-                                                  );
-                                                })()}
-                                              </td>
-                                              <td className="px-4 py-2 text-sm text-gray-700">{session.packer_name || '—'}</td>
-                                              <td className="px-4 py-2 text-sm text-gray-700">
-                                                <p>{formatDateDDMMYYYY(session.created_at)}</p>
-                                                <p className="text-xs text-gray-500">
-                                                  {formatTime(session.start_time)}{session.end_time ? ` → ${formatTime(session.end_time)}` : ''}
-                                                </p>
-                                              </td>
-                                              <td className="px-4 py-2 text-sm text-gray-700 text-center">
-                                                {session.packing_status === 'PACKED' && session.label_count != null
-                                                  ? <span className="font-semibold text-gray-800">{session.label_count}</span>
-                                                  : <span className="text-gray-400">—</span>}
-                                              </td>
-                                              <td className="px-4 py-2">
-                                                <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[session.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
-                                                  {session.packing_status || '—'}
-                                                </span>
-                                              </td>
-                                              <td className="px-4 py-2">
-                                                <button onClick={() => handleViewSession(session)} className="px-3 py-1.5 bg-teal-600 text-white rounded-lg font-semibold text-xs hover:bg-teal-700">
-                                                  View
-                                                </button>
-                                              </td>
-                                            </tr>
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </React.Fragment>
-                          );
-                        }
-
-                        // Single row — existing style unchanged
+                      if (isGroup) {
                         return (
-                          <tr key={first.id} className={`hover:bg-gray-50 transition-colors ${sessions.indexOf(first) % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{first.invoice_no}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              <p>{first.customer_name || '—'}</p>
-                              <p className="text-xs text-gray-500">{first.customer_area || first.customer_address || first.temp_name || '—'}</p>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              {(() => {
-                                const pickDate = first.picking_date || first.invoice_created_at || first.invoice_date || first.created_at || '';
-                                const pickStart = first.picking_start_time;
-                                const pickEnd = first.picking_end_time;
-                                if (!pickDate && !pickStart && !pickEnd) return <span className="text-gray-400">—</span>;
-                                return (
-                                  <>
-                                    <p>{pickDate ? formatDateDDMMYYYY(pickDate) : formatDateDDMMYYYY(pickStart || pickEnd)}</p>
-                                    <p className="text-xs text-gray-500">
-                                      {pickStart ? formatTime(pickStart) : (pickDate ? formatTime(pickDate) : '')}
-                                      {pickEnd ? ` → ${formatTime(pickEnd)}` : ''}
-                                    </p>
-                                  </>
-                                );
-                              })()}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">{first.packer_name || '—'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              <p>{formatDateDDMMYYYY(first.created_at)}</p>
-                              <p className="text-xs text-gray-500">
-                                {formatTime(first.start_time)}{first.end_time ? ` → ${formatTime(first.end_time)}` : ''}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              {first.packing_status === 'PACKED' ? (
-                                <div className="space-y-1">
-                                  {first.label_count != null && <p className="text-sm text-center font-semibold text-gray-800">{first.label_count}</p>}
-                                  {first.courier_name && <p className="text-xs text-center text-blue-700 font-medium">{first.courier_name}</p>}
-                                  {!first.label_count && !first.courier_name && <span className="text-gray-400">—</span>}
+                          <React.Fragment key={groupKey}>
+                            <tr>
+                              <td colSpan="8" className="p-0">
+                                <div className="mx-3 mt-2 rounded-t-lg border-2 border-b-0 border-teal-400 bg-teal-50 px-3 py-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 rounded bg-teal-600 flex items-center justify-center flex-shrink-0">
+                                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                      </svg>
+                                    </div>
+                                    <span className="text-xs font-semibold text-teal-900">
+                                      Consolidated · {rows.length} invoices
+                                      {first.courier_name && <span className="ml-2 text-teal-700">· {first.courier_name}</span>}
+                                      {first.label_count != null && <span className="ml-2 text-teal-600">· {first.label_count} box(es)</span>}
+                                      {(() => {
+                                        const preferred = getPreferredInvoiceFromGroupId(first.boxing_group_id, rows);
+                                        if (!preferred) return null;
+                                        return (
+                                          <span className="ml-2 px-2 py-0.5 bg-teal-100 text-teal-800 rounded-full text-[10px] font-bold">
+                                            📦 Address: {preferred.customer_name}
+                                          </span>
+                                        );
+                                      })()}
+                                    </span>
+                                  </div>
                                 </div>
-                              ) : <span className="text-gray-400">—</span>}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[first.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
-                                {first.packing_status || '—'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <button onClick={() => handleViewSession(first)} className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700">
-                                View
-                              </button>
-                            </td>
-                          </tr>
+                              </td>
+                            </tr>
+
+                            {rows.map((session, idx) => {
+                              const isLast = idx === rows.length - 1;
+                              return (
+                                <tr key={session.id} style={{ background: '#f7fdfb' }}>
+                                  <td colSpan="8" className="p-0">
+                                    <div className={`mx-3 border-l-2 border-r-2 border-teal-400 ${isLast ? 'border-b-2 rounded-b-lg mb-2' : ''} px-0`}>
+                                      <table className="w-full" style={{tableLayout:'fixed'}}>
+                                        <colgroup>
+                                          <col style={{width:'12%'}} />
+                                          <col style={{width:'16%'}} />
+                                          <col style={{width:'14%'}} />
+                                          <col style={{width:'10%'}} />
+                                          <col style={{width:'16%'}} />
+                                          <col style={{width:'8%'}} />
+                                          <col style={{width:'10%'}} />
+                                          <col style={{width:'8%'}} />
+                                        </colgroup>
+                                        <tbody>
+                                          <tr className={`${isLast ? '' : 'border-b border-teal-100'}`}>
+                                            <td className="px-4 py-2 pl-8 text-sm font-medium text-teal-700">{session.invoice_no}</td>
+                                            <td className="px-4 py-2 text-sm text-gray-700">
+                                              <p>{session.customer_name || '—'}</p>
+                                              <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || '—'}</p>
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-700">
+                                              <PickingTimeCell session={session} />
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-700">{session.packer_name || '—'}</td>
+                                            <td className="px-4 py-2 text-sm text-gray-700">
+                                              <p>{formatDateDDMMYYYY(session.created_at)}</p>
+                                              <p className="text-xs text-gray-500">
+                                                {formatTime(session.start_time)}{session.end_time ? ` → ${formatTime(session.end_time)}` : ''}
+                                              </p>
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-700 text-center">
+                                              {session.packing_status === 'PACKED' && session.label_count != null
+                                                ? <span className="font-semibold text-gray-800">{session.label_count}</span>
+                                                : <span className="text-gray-400">—</span>}
+                                            </td>
+                                            <td className="px-4 py-2">
+                                              <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[session.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                                                {session.packing_status || '—'}
+                                              </span>
+                                            </td>
+                                            <td className="px-4 py-2">
+                                              <button onClick={() => handleViewSession(session)} className="px-3 py-1.5 bg-teal-600 text-white rounded-lg font-semibold text-xs hover:bg-teal-700">
+                                                View
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
                         );
-                      });
-                    })()}
+                      }
+
+                      return (
+                        <tr key={first.id} className={`hover:bg-gray-50 transition-colors ${sessions.indexOf(first) % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{first.invoice_no}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            <p>{first.customer_name || '—'}</p>
+                            <p className="text-xs text-gray-500">{first.customer_area || first.customer_address || first.temp_name || '—'}</p>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            <PickingTimeCell session={first} />
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{first.packer_name || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            <p>{formatDateDDMMYYYY(first.created_at)}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatTime(first.start_time)}{first.end_time ? ` → ${formatTime(first.end_time)}` : ''}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {first.packing_status === 'PACKED' ? (
+                              <div className="space-y-1">
+                                {first.label_count != null && <p className="text-sm text-center font-semibold text-gray-800">{first.label_count}</p>}
+                                {first.courier_name && <p className="text-xs text-center text-blue-700 font-medium">{first.courier_name}</p>}
+                                {!first.label_count && !first.courier_name && <span className="text-gray-400">—</span>}
+                              </div>
+                            ) : <span className="text-gray-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[first.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                              {first.packing_status || '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => handleViewSession(first)} className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700">
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -468,5 +421,26 @@ export default function PackingInvoiceReportPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Extracted helper component to keep JSX clean
+function PickingTimeCell({ session }) {
+  const pickDate = session.picking_date || session.invoice_created_at || session.invoice_date || session.created_at || '';
+  const pickStart = session.picking_start_time;
+  const pickEnd = session.picking_end_time;
+
+  if (!pickDate && !pickStart && !pickEnd) {
+    return <span className="text-gray-400">—</span>;
+  }
+
+  return (
+    <>
+      <p>{pickDate ? formatDateDDMMYYYY(pickDate) : formatDateDDMMYYYY(pickStart || pickEnd)}</p>
+      <p className="text-xs text-gray-500">
+        {pickStart ? formatTime(pickStart) : (pickDate ? formatTime(pickDate) : '')}
+        {pickEnd ? ` → ${formatTime(pickEnd)}` : ''}
+      </p>
+    </>
   );
 }
