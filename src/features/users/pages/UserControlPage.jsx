@@ -500,13 +500,21 @@ export default function UserControlPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex-shrink-0 ${
+                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0 ${
                           u.role === "ADMIN"
                             ? "bg-purple-500"
                             : "bg-teal-500"
-                        } flex items-center justify-center text-white font-semibold text-xs sm:text-sm`}
+                        } flex items-center justify-center text-white font-semibold text-xs sm:text-sm overflow-hidden`}
                       >
-                        {userInitial}
+                        {u.avatar ? (
+                          <img
+                            src={u.avatar}
+                            className="w-full h-full object-cover"
+                            alt=""
+                          />
+                        ) : (
+                          userInitial
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -562,7 +570,6 @@ export default function UserControlPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1">Select a User</h3>
-                <p className="text-sm text-gray-500">Choose a user to manage permissions</p>
               </div>
             </div>
           ) : (
@@ -571,13 +578,21 @@ export default function UserControlPage() {
                 <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-10 h-10 rounded-full flex-shrink-0 ${
+                      className={`w-14 h-14 rounded-full flex-shrink-0 ${
                         selectedUser.role === "ADMIN"
                           ? "bg-purple-500"
                           : "bg-teal-500"
-                      } flex items-center justify-center text-white text-lg font-bold`}
+                      } flex items-center justify-center text-white text-lg font-bold overflow-hidden`}
                     >
-                      {(selectedUser.name || selectedUser.full_name || selectedUser.email || "U").charAt(0).toUpperCase()}
+                      {selectedUser.avatar ? (
+                        <img
+                          src={selectedUser.avatar}
+                          className="w-full h-full object-cover"
+                          alt=""
+                        />
+                      ) : (
+                        (selectedUser.name || selectedUser.full_name || selectedUser.email || "U").charAt(0).toUpperCase()
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">

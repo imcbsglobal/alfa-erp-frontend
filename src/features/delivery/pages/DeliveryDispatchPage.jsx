@@ -97,7 +97,7 @@ const CourierAvatar = ({ courier, size = 'w-8 h-8' }) => {
       <img
         src={logo}
         alt={`${courier?.courier_name || 'Courier'} logo`}
-        className={`${size} rounded-lg object-cover border border-gray-200 bg-white flex-shrink-0`}
+        className={`${size} rounded-lg object-contain border border-gray-200 bg-white flex-shrink-0 p-0.5`}
       />
     );
   }
@@ -119,7 +119,7 @@ const StaffAvatar = ({ staff, size = 'w-8 h-8' }) => {
       <img
         src={avatar}
         alt={staff?.name || 'Staff'}
-        className={`${size} rounded-full object-cover border border-gray-200 bg-white flex-shrink-0`}
+        className={`${size} rounded-full object-contain border border-gray-200 bg-white flex-shrink-0 p-0.5`}
       />
     );
   }
@@ -407,8 +407,8 @@ const CourierBatchPanel = ({
           >
             <Truck className={`w-4 h-4 flex-shrink-0 ${selectedCourier ? 'text-teal-500' : 'text-gray-400'}`} />
             {selectedCourier ? (
-              <div className="flex-1 min-w-0 flex items-center gap-2">
-                <CourierAvatar courier={selectedCourier} />
+              <div className="flex-1 min-w-0 flex items-center gap-3">
+                <CourierAvatar courier={selectedCourier} size="w-20 h-20" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-teal-700 truncate">{selectedCourier.courier_name}</p>
                   <p className="text-xs text-teal-500">{selectedCourier.courier_code}</p>
@@ -456,12 +456,12 @@ const CourierBatchPanel = ({
                   <button
                     key={c.courier_id}
                     onClick={() => { onSelectCourier(c); setDropdownOpen(false); setCourierSearch(''); }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors
+                    className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors
                       ${idx !== filtered.length - 1 ? 'border-b border-gray-50' : ''}
                       hover:bg-teal-50`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <CourierAvatar courier={c} size="w-9 h-9" />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <CourierAvatar courier={c} size="w-20 h-20" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{c.courier_name}</p>
                         <p className="text-xs text-gray-400">{c.courier_code}</p>
@@ -599,8 +599,8 @@ const CompanyDeliveryBatchPanel = ({
           >
             <Package className={`w-4 h-4 flex-shrink-0 ${selectedStaff ? 'text-blue-500' : 'text-gray-400'}`} />
             {selectedStaff ? (
-              <div className="flex-1 min-w-0 flex items-center gap-2">
-                <StaffAvatar staff={selectedStaff} />
+              <div className="flex-1 min-w-0 flex items-center gap-3">
+                <StaffAvatar staff={selectedStaff} size="w-20 h-20" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-blue-700 truncate">{selectedStaff.name}</p>
                   <p className="text-xs text-blue-500">{selectedStaff.email}</p>
@@ -648,12 +648,12 @@ const CompanyDeliveryBatchPanel = ({
                   <button
                     key={s.email}
                     onClick={() => { onSelectStaff(s); setDropdownOpen(false); setStaffSearch(''); }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors
+                    className={`w-full text-left px-4 py-4 flex items-center justify-between transition-colors
                       ${idx !== filtered.length - 1 ? 'border-b border-gray-50' : ''}
                       hover:bg-blue-50`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <StaffAvatar staff={s} size="w-9 h-9" />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <StaffAvatar staff={s} size="w-20 h-20" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{s.name}</p>
                         <p className="text-xs text-gray-400">{s.email}</p>

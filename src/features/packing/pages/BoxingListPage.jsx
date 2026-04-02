@@ -50,7 +50,6 @@ export default function BoxingListPage() {
       <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
         <div>
           <h1 className="text-base font-bold text-gray-800">Boxing Queue</h1>
-          <p className="text-xs text-gray-500">Invoices ready for address label printing</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => {

@@ -36,15 +36,123 @@ const getTimeSince = (dateString) => {
   return `${Math.floor(diffHours / 24)}d ago`;
 };
 
-// ─── GroupBlock ────────────────────────────────────────────────────────────────
-const GroupBlock = ({ groupId, items, onView }) => {
-  const repItem       = items[0];
+const StatusBadge = ({ delivery }) => {
+  const isInProgress = delivery.delivery_info?.start_time && !delivery.delivery_info?.end_time;
+  const isPending    = !delivery.delivery_info?.start_time;
+  if (isInProgress) return (
+    <span className="inline-flex items-center px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">In Progress</span>
+  );
+  if (isPending) return (
+    <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Pending</span>
+  );
+  return (
+    <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">Assigned</span>
+  );
+};
+
+// ─── Mobile Card ───────────────────────────────────────────────────────────────
+const MobileDeliveryCard = ({ delivery, onView, grouped }) => (
+  <div className={`bg-white rounded-xl border border-gray-200 p-4 shadow-sm ${grouped ? '' : 'mb-3'}`}>
+    <div className="flex items-start justify-between gap-2 mb-3">
+      <div>
+        <p className="font-bold text-gray-900 text-sm">{delivery.invoice_no}</p>
+        <p className="text-xs text-gray-400">{delivery.customer?.code}</p>
+      </div>
+      <StatusBadge delivery={delivery} />
+    </div>
+
+    <div className="mb-3">
+      <p className="font-semibold text-gray-800 text-sm">{delivery.customer?.name || delivery.temp_name || '—'}</p>
+      <p className="text-xs text-gray-500">{delivery.customer?.address1 || delivery.customer?.area || ''}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{delivery.customer?.phone1 || '—'}</p>
+    </div>
+
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <div>
+        <p className="text-xs text-gray-400">Amount</p>
+        <p className="font-bold text-gray-900 text-sm">{formatAmount(delivery.Total)}</p>
+        <p className="text-xs text-gray-400">{delivery.items?.length || 0} items</p>
+      </div>
+      <div className="text-right">
+        <p className="text-xs text-gray-400">Assigned Staff</p>
+        <p className="text-sm font-medium text-gray-800 truncate max-w-[140px]">
+          {delivery.delivery_info?.delivery_user_name || delivery.delivery_info?.name || 'Unassigned'}
+        </p>
+        <p className="text-xs text-gray-400 truncate max-w-[140px]">
+          {delivery.delivery_info?.delivery_user_email || delivery.delivery_info?.email || ''}
+        </p>
+      </div>
+    </div>
+
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xs text-gray-500">{formatDateTime(delivery.created_at)}</p>
+        <p className="text-xs text-gray-400">{getTimeSince(delivery.created_at)}</p>
+      </div>
+      <button
+        onClick={() => onView(delivery.id)}
+        className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white
+                   rounded-lg text-sm font-semibold flex items-center gap-1.5 shadow
+                   hover:from-teal-600 hover:to-cyan-700 transition-all active:scale-95"
+      >
+        <Eye className="w-3.5 h-3.5" />
+        View
+      </button>
+    </div>
+  </div>
+);
+
+// ─── Mobile Group Card ─────────────────────────────────────────────────────────
+const MobileGroupBlock = ({ groupId, items, onView }) => {
   const highPriority  = items.some((b) => b.priority === 'HIGH');
   const totalAmount   = items.reduce((sum, d) => sum + parseFloat(d.Total || 0), 0);
   const assignedNames = [...new Set(
-    items
-      .map((d) => d.delivery_info?.delivery_user_name || d.delivery_info?.name)
-      .filter(Boolean)
+    items.map((d) => d.delivery_info?.delivery_user_name || d.delivery_info?.name).filter(Boolean)
+  )];
+  const staffLabel = assignedNames.length > 0 ? assignedNames.join(', ') : 'Unassigned';
+
+  return (
+    <div className="mb-3 rounded-xl overflow-hidden border-2 border-teal-300 shadow-sm">
+      {/* Group header */}
+      <div className="bg-teal-50 px-4 py-2.5 flex items-center gap-2 flex-wrap">
+        <div className="w-6 h-6 rounded bg-teal-100 flex items-center justify-center flex-shrink-0">
+          <Layers className="w-3.5 h-3.5 text-teal-600" />
+        </div>
+        <span className="text-xs font-bold text-teal-700">
+          Consolidated · {items.length} invoice{items.length !== 1 ? 's' : ''}
+        </span>
+        {highPriority && (
+          <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
+            HIGH PRIORITY
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-gray-400 font-mono">{groupId.slice(-6).toUpperCase()}</span>
+          <span className="text-sm font-bold text-gray-800">{formatAmount(totalAmount)}</span>
+        </div>
+      </div>
+      <div className="text-xs text-gray-600 bg-teal-50/60 px-4 pb-2">
+        Assigned: {staffLabel}
+      </div>
+
+      {/* Individual invoices */}
+      <div className="divide-y divide-teal-100 bg-white">
+        {items.map((delivery) => (
+          <div key={delivery.id} className="p-4">
+            <MobileDeliveryCard delivery={delivery} onView={onView} grouped />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── Desktop GroupBlock ────────────────────────────────────────────────────────
+const GroupBlock = ({ groupId, items, onView }) => {
+  const highPriority  = items.some((b) => b.priority === 'HIGH');
+  const totalAmount   = items.reduce((sum, d) => sum + parseFloat(d.Total || 0), 0);
+  const assignedNames = [...new Set(
+    items.map((d) => d.delivery_info?.delivery_user_name || d.delivery_info?.name).filter(Boolean)
   )];
   const staffLabel = assignedNames.length > 0 ? assignedNames.join(', ') : 'Unassigned';
 
@@ -70,34 +178,21 @@ const GroupBlock = ({ groupId, items, onView }) => {
           }}
         >
           <div className="flex items-center gap-3 flex-wrap">
-            <div
-              className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
-              style={{ background: '#ccfbf1' }}
-            >
+            <div className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0" style={{ background: '#ccfbf1' }}>
               <Layers className="w-3.5 h-3.5" style={{ color: '#0d9488' }} />
             </div>
-
             <span className="text-xs font-bold" style={{ color: '#0f766e' }}>
               Consolidated · {items.length} invoice{items.length !== 1 ? 's' : ''}
             </span>
-
             {highPriority && (
-              <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
-                HIGH PRIORITY
-              </span>
+              <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">HIGH PRIORITY</span>
             )}
-
             <span className="text-xs text-gray-700 bg-white border border-teal-200 px-2 py-0.5 rounded-full">
               Assigned: {staffLabel}
             </span>
-
             <div className="ml-auto flex items-center gap-3">
-              <span className="text-xs text-gray-400 font-mono">
-                {groupId.slice(-6).toUpperCase()}
-              </span>
-              <span className="text-sm font-semibold text-gray-800">
-                {formatAmount(totalAmount)}
-              </span>
+              <span className="text-xs text-gray-400 font-mono">{groupId.slice(-6).toUpperCase()}</span>
+              <span className="text-sm font-semibold text-gray-800">{formatAmount(totalAmount)}</span>
             </div>
           </div>
         </td>
@@ -111,17 +206,11 @@ const GroupBlock = ({ groupId, items, onView }) => {
         return (
           <tr
             key={delivery.id}
-            className={`transition-colors ${
-              idx % 2 === 0
-                ? 'bg-white hover:bg-gray-50'
-                : 'bg-teal-50/20 hover:bg-teal-50/60'
-            }`}
+            className={`transition-colors ${idx % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-teal-50/20 hover:bg-teal-50/60'}`}
             style={{
               borderLeft: `2px solid ${borderColor}`,
               borderRight: `2px solid ${borderColor}`,
-              borderBottom: isLast
-                ? `2px solid ${borderColor}`
-                : `1px solid ${highPriority ? '#fee2e2' : '#ccfbf1'}`,
+              borderBottom: isLast ? `2px solid ${borderColor}` : `1px solid ${highPriority ? '#fee2e2' : '#ccfbf1'}`,
               borderRadius: isLast ? '0 0 10px 10px' : undefined,
             }}
           >
@@ -130,12 +219,8 @@ const GroupBlock = ({ groupId, items, onView }) => {
               <p className="text-xs text-gray-400">{delivery.customer?.code}</p>
             </td>
             <td className="px-4 py-3">
-              <p className="font-medium text-gray-900 text-sm">
-                {delivery.customer?.name || delivery.temp_name || '—'}
-              </p>
-              <p className="text-xs text-gray-400">
-                {delivery.customer?.address1 || delivery.customer?.area || ''}
-              </p>
+              <p className="font-medium text-gray-900 text-sm">{delivery.customer?.name || delivery.temp_name || '—'}</p>
+              <p className="text-xs text-gray-400">{delivery.customer?.address1 || delivery.customer?.area || ''}</p>
             </td>
             <td className="px-4 py-3">
               <p className="text-sm text-gray-700">{delivery.customer?.phone1 || '—'}</p>
@@ -154,17 +239,11 @@ const GroupBlock = ({ groupId, items, onView }) => {
             </td>
             <td className="px-4 py-3">
               {isInProgress ? (
-                <span className="inline-flex items-center px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-                  In Progress
-                </span>
+                <span className="inline-flex items-center px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">In Progress</span>
               ) : isPending ? (
-                <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                  Pending
-                </span>
+                <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Pending</span>
               ) : (
-                <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
-                  Assigned
-                </span>
+                <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">Assigned</span>
               )}
             </td>
             <td className="px-4 py-3">
@@ -193,7 +272,7 @@ const GroupBlock = ({ groupId, items, onView }) => {
   );
 };
 
-// ─── SingleRow ─────────────────────────────────────────────────────────────────
+// ─── Desktop SingleRow ─────────────────────────────────────────────────────────
 const SingleRow = ({ delivery, onView }) => {
   const isInProgress = delivery.delivery_info?.start_time && !delivery.delivery_info?.end_time;
   const isPending    = !delivery.delivery_info?.start_time;
@@ -205,9 +284,7 @@ const SingleRow = ({ delivery, onView }) => {
       </td>
       <td className="px-4 py-3">
         <p className="font-medium text-gray-900">{delivery.customer?.name || '—'}</p>
-        <p className="text-xs text-gray-500">
-          {delivery.customer?.address1 || delivery.temp_name || ''}
-        </p>
+        <p className="text-xs text-gray-500">{delivery.customer?.address1 || delivery.temp_name || ''}</p>
       </td>
       <td className="px-4 py-3">
         <p className="text-sm text-gray-900">{delivery.customer?.phone1 || '—'}</p>
@@ -263,10 +340,10 @@ const SingleRow = ({ delivery, onView }) => {
 
 // ─── main page ─────────────────────────────────────────────────────────────────
 const CompanyDeliveryListPage = () => {
-  const [deliveries, setDeliveries]         = useState([]);
-  const [loading, setLoading]               = useState(false);
-  const [searchTerm, setSearchTerm]         = useState('');
-  const [currentPage, setCurrentPage]       = useUrlPage();
+  const [deliveries, setDeliveries]   = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [searchTerm, setSearchTerm]   = useState('');
+  const [currentPage, setCurrentPage] = useUrlPage();
   const navigate     = useNavigate();
   const itemsPerPage = 10;
 
@@ -330,7 +407,6 @@ const CompanyDeliveryListPage = () => {
 
   const handleViewInvoice = (billId) => navigate(`/delivery/invoices/view/${billId}/company-delivery`);
 
-  // ── derived ──────────────────────────────────────────────────────────────────
   const matchesSearch = (d) => {
     if (!searchTerm.trim()) return true;
     const s = searchTerm.toLowerCase();
@@ -351,49 +427,49 @@ const CompanyDeliveryListPage = () => {
   const groupCount  = tableRows.filter(r => r.type === 'group').length;
   const singleCount = tableRows.filter(r => r.type === 'single').length;
 
-  // ── render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
       <div className="max-w-7xl mx-auto">
 
-        {/* header */}
-        <div className="mb-6 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Company Delivery - Consider List</h1>
-            {!loading && filtered.length > 0 && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                {groupCount > 0 && <span>{groupCount} group{groupCount !== 1 ? 's' : ''} · </span>}
-                {singleCount > 0 && <span>{singleCount} single order{singleCount !== 1 ? 's' : ''}</span>}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search invoice, customer, or staff..."
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="px-4 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none
-                           focus:ring-2 focus:ring-teal-500 w-full sm:w-64 text-sm"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                ><X className="w-4 h-4" /></button>
-              )}
+        {/* ── header ── */}
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+                Company Delivery - Consider List
+              </h1>
             </div>
+            {/* Refresh button — always visible top-right on mobile */}
             <button
               onClick={async () => { await loadCompanyDeliveries(); toast.success('Refreshed'); }}
               disabled={loading}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg
+              className="self-start sm:self-auto px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg
                          font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700
                          transition-all disabled:opacity-50 flex items-center gap-2"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+          </div>
+
+          {/* Search — full width on mobile */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search invoice, customer, or staff..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              className="w-full sm:w-72 px-4 pr-9 py-2.5 border border-gray-300 rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -404,7 +480,7 @@ const CompanyDeliveryListPage = () => {
               <p className="text-gray-500">Loading deliveries...</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-20 text-center text-gray-500">
+            <div className="py-20 text-center text-gray-500 px-4">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
               <p className="text-lg font-medium">No company deliveries in consider list</p>
               <p className="text-sm text-gray-400 mt-2">
@@ -413,7 +489,31 @@ const CompanyDeliveryListPage = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* ── Mobile card list (hidden on md+) ── */}
+              <div className="block md:hidden p-3 space-y-0">
+                {pagedRows.map((row) => {
+                  if (row.type === 'group') {
+                    return (
+                      <MobileGroupBlock
+                        key={row.groupId}
+                        groupId={row.groupId}
+                        items={row.items}
+                        onView={handleViewInvoice}
+                      />
+                    );
+                  }
+                  return (
+                    <MobileDeliveryCard
+                      key={row.delivery.id}
+                      delivery={row.delivery}
+                      onView={handleViewInvoice}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* ── Desktop table (hidden below md) ── */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full table-fixed">
                   <colgroup>
                     <col style={{ width: '10%' }} />

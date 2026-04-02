@@ -117,8 +117,8 @@ const CourierDropdown = ({ anchorRef, isOpen, loading, couriers, selected, onSel
  * DeliveryModal
  *
  * Patient pickup  → requires: pickup_person_phone (+ optional notes)
- * Company pickup  → requires: pickup_person_name, pickup_person_phone,
- *                              pickup_company_name, pickup_company_id (+ optional notes)
+ * Company pickup  → requires: pickup_person_name, pickup_person_phone, pickup_company_name
+ *                              (+ optional pickup_company_id, notes)
  *
  * `invoice` prop can be:
  *   - A single bill object  → normal single-invoice dispatch
@@ -289,8 +289,8 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
         });
 
       // ── COMPANY pickup ─────────────────────────────────────────────────────
-      // Required: pickup_person_name, pickup_person_phone, pickup_company_name, pickup_company_id
-      // Optional: notes
+      // Required: pickup_person_name, pickup_person_phone, pickup_company_name
+      // Optional: pickup_company_id, notes
       } else if (subType === 'COMPANY') {
         if (!/^\d{10}$/.test(pickupPersonPhone)) {
           alert('Enter a valid 10-digit phone number');
@@ -299,8 +299,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
         if (
           !pickupPersonName.trim() ||
           !pickupPersonPhone.trim() ||
-          !companyName.trim() ||
-          !companyId.trim()
+          !companyName.trim()
         ) {
           alert('Please fill all required company fields');
           return;
@@ -335,12 +334,11 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
         return pickupPersonName.trim() !== '' && /^\d{10}$/.test(pickupPersonPhone);
       }
       if (subType === 'COMPANY') {
-        // Name + phone + company name + company ID required
+        // Name + phone + company name required (company ID is optional)
         return (
           pickupPersonName.trim() !== '' &&
           /^\d{10}$/.test(pickupPersonPhone) &&
-          companyName.trim() !== '' &&
-          companyId.trim() !== ''
+          companyName.trim() !== ''
         );
       }
     }
@@ -651,7 +649,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
 
                       <div>
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                          Company ID <span className="text-red-500">*</span>
+                          Company ID <span className="text-gray-400">(Optional)</span>
                         </label>
                         <div className="relative">
                           <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />

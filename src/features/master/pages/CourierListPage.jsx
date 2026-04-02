@@ -8,7 +8,7 @@ import { getCouriers, updateCourier, deleteCourier } from "../../../services/sal
 import Pagination from "../../../components/Pagination";
 import { resolveMediaUrl } from "../../../utils/media";
 
-function CourierLogo({ courier, size = "w-9 h-9" }) {
+function CourierLogo({ courier, size = "w-16 h-16" }) {
   const logoSrc = resolveMediaUrl(courier?.courier_logo_url || courier?.courier_logo);
 
   if (logoSrc) {
@@ -16,7 +16,7 @@ function CourierLogo({ courier, size = "w-9 h-9" }) {
       <img
         src={logoSrc}
         alt={`${courier?.courier_name || "Courier"} logo`}
-        className={`${size} rounded-lg object-cover border border-gray-200 bg-white`}
+        className={`${size} rounded-lg object-contain border border-gray-200 bg-white p-1`}
       />
     );
   }

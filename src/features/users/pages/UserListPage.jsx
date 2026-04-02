@@ -540,8 +540,8 @@ export default function UserListPage() {
                     {paginatedUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50 transition">
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold overflow-hidden">
+                          <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0 text-lg">
                               {user.avatar ? (
                                 <img
                                   src={user.avatar}
@@ -611,8 +611,8 @@ export default function UserListPage() {
               <div className="lg:hidden divide-y divide-gray-200">
                 {paginatedUsers.map((user) => (
                   <div key={user.id} className="p-4 hover:bg-gray-50 transition">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
+                    <div className="flex items-start gap-4 mb-3">
+                      <div className="w-16 h-16 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0 text-lg">
                         {user.avatar ? (
                           <img
                             src={user.avatar}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
 import { getPackingHistory, getPickingHistory } from "../../../services/sales";
@@ -16,6 +16,9 @@ function useDebounce(value, delay) {
   }, [value, delay]);
   return debouncedValue;
 }
+
+// Request cache to avoid duplicate API calls
+const pickingCache = new Map();
 
 const STATUS_BADGE = {
   PACKING:   "bg-blue-100 text-blue-700 border-blue-300",
@@ -51,6 +54,39 @@ export default function PackingInvoiceReportPage() {
   const sortByStartTime = (arr) =>
     [...arr].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
+  // Batch fetch picking data with caching to avoid N+1 queries
+  const enrichWithPickingData = async (rows, maxConcurrent = 10) => {
+    const cache = pickingCache;
+    const uncachedInvoices = [...new Set(rows.map(r => r.invoice_no))].filter(inv => !cache.has(inv));
+    
+    // Fetch uncached invoices in batches
+    if (uncachedInvoices.length > 0) {
+      for (let i = 0; i < uncachedInvoices.length; i += maxConcurrent) {
+        const batch = uncachedInvoices.slice(i, i + maxConcurrent);
+        await Promise.all(batch.map(async (invoiceNo) => {
+          try {
+            const pickRes = await getPickingHistory({ search: invoiceNo, page_size: 1 });
+            const pick = (pickRes.data.results || []).find(r => r.invoice_no === invoiceNo);
+            cache.set(invoiceNo, pick || null);
+          } catch (e) {
+            cache.set(invoiceNo, null);
+          }
+        }));
+      }
+    }
+    
+    // Enrich rows with cached data
+    return rows.map(s => {
+      const pick = cache.get(s.invoice_no);
+      if (pick) {
+        s.picking_start_time = pick.start_time;
+        s.picking_end_time = pick.end_time;
+        s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
+      }
+      return s;
+    });
+  };
+
   const loadSessions = async () => {
     setLoading(true);
     try {
@@ -66,25 +102,7 @@ export default function PackingInvoiceReportPage() {
       if (!q) {
         const res = await getPackingHistory(params);
         const results = sortByStartTime(res.data.results || []);
-        // enrich each packing session with picking timestamps when available
-        const enrich = async (rows) => {
-          return await Promise.all(rows.map(async (s) => {
-            try {
-              const pickRes = await getPickingHistory({ search: s.invoice_no, page_size: 1 });
-              const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
-              if (pick) {
-                s.picking_start_time = pick.start_time;
-                s.picking_end_time = pick.end_time;
-                s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
-              }
-            } catch (e) {
-              // ignore per-row failures
-            }
-            return s;
-          }));
-        };
-
-        const enriched = await enrich(results);
+        const enriched = await enrichWithPickingData(results);
         setRawSessions(enriched);
         setSessions(enriched);
         setTotalCount(res.data.count || 0);
@@ -95,26 +113,13 @@ export default function PackingInvoiceReportPage() {
 
         if (searchResults.length > 0) {
           const sorted = sortByStartTime(searchResults);
-          // enrich matched results as well
-          const enriched = await Promise.all(sorted.map(async (s) => {
-            try {
-              const pickRes = await getPickingHistory({ search: s.invoice_no, page_size: 1 });
-              const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
-              if (pick) {
-                s.picking_start_time = pick.start_time;
-                s.picking_end_time = pick.end_time;
-                s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
-              }
-            } catch (e) {}
-            return s;
-          }));
-
+          const enriched = await enrichWithPickingData(sorted);
           setRawSessions(enriched);
           setSessions(enriched);
           setTotalCount(searchRes.data.count || 0);
         } else {
-          // Fallback: client-side packer name filter
-          const allParams = { page_size: 10000 };
+          // Fallback: client-side packer name filter (reduced from 10000 to 1000 for performance)
+          const allParams = { page_size: 1000 };
           if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
 
           const allRes = await getPackingHistory(allParams);
@@ -123,20 +128,7 @@ export default function PackingInvoiceReportPage() {
           const packerMatches = allResults.filter(s =>
             (s.packer_name || '').toLowerCase().includes(q)
           );
-          // enrich the subset with picking timestamps
-          const enrichedMatches = await Promise.all(packerMatches.map(async (s) => {
-            try {
-              const pickRes = await getPickingHistory({ search: s.invoice_no, page_size: 1 });
-              const pick = (pickRes.data.results || []).find(r => r.invoice_no === s.invoice_no) || (pickRes.data.results || [])[0];
-              if (pick) {
-                s.picking_start_time = pick.start_time;
-                s.picking_end_time = pick.end_time;
-                s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
-              }
-            } catch (e) {}
-            return s;
-          }));
-
+          const enrichedMatches = await enrichWithPickingData(packerMatches);
           setRawSessions(allResults);
           setSessions(enrichedMatches);
           setTotalCount(enrichedMatches.length);
@@ -193,6 +185,17 @@ export default function PackingInvoiceReportPage() {
     const preferredNo = parts[1];
     return rows.find(r => r.invoice_no === preferredNo) || null;
   };
+
+  // Memoize grouped sessions to avoid recalculating on every render
+  const groupedSessions = useMemo(() => {
+    const grouped = {};
+    sessions.forEach(s => {
+      const key = s.boxing_group_id || `single-${s.id}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(s);
+    });
+    return Object.entries(grouped);
+  }, [sessions]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -282,14 +285,7 @@ export default function PackingInvoiceReportPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {(() => {
-                      const grouped = {};
-                      sessions.forEach(s => {
-                        const key = s.boxing_group_id || `single-${s.id}`;
-                        if (!grouped[key]) grouped[key] = [];
-                        grouped[key].push(s);
-                      });
-
-                      return Object.entries(grouped).map(([groupKey, rows]) => {
+                      return groupedSessions.map(([groupKey, rows]) => {
                         const isGroup = rows.length > 1;
                         const first = rows[0];
 

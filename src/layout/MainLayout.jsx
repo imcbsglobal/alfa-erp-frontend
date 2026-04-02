@@ -235,7 +235,7 @@ export default function MainLayout() {
                 </p>
               </div>
 
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-teal-100 overflow-hidden">
+              <div className="w-14 h-14 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-teal-100 overflow-hidden">
                 {(user?.avatar || user?.profilePhoto) ? (
                   <img src={user.avatar || user.profilePhoto} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
