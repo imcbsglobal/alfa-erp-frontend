@@ -72,6 +72,7 @@ export default function DeliveryReportPage() {
   const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery);
   const [deliveryTypeFilter, setDeliveryTypeFilter] = useState(savedFilters.deliveryTypeFilter);
   const [statusFilter, setStatusFilter] = useState(savedFilters.statusFilter);
+  const [timeFilter] = useState('');
   const searchRef = useRef(null);
 
   // Attachment lightbox state
