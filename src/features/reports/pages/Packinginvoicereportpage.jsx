@@ -7,6 +7,7 @@ import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X, Search } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
+import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -38,14 +39,22 @@ export default function PackingInvoiceReportPage() {
   const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [savedFilters, saveFilters] = usePersistedFilters('packing-report-filters', {
+    dateFilter: new Date().toISOString().split('T')[0],
+    searchQuery: '',
+  });
+  const [dateFilter, setDateFilter] = useState(savedFilters.dateFilter);
+  const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery);
   const [timeFilter, setTimeFilter] = useState('');
   const searchRef = useRef(null);
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => { searchRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    saveFilters({ dateFilter, searchQuery });
+  }, [dateFilter, searchQuery]);
 
   useEffect(() => {
     loadSessions();
@@ -143,6 +152,7 @@ export default function PackingInvoiceReportPage() {
   };
 
   const handleViewSession = (session) => {
+    saveFilters({ dateFilter, searchQuery });
     const invoiceData = {
       id: session.id,
       invoice_no: session.invoice_no,

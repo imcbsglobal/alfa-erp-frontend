@@ -7,6 +7,7 @@ import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X, Search } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
+import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 
 const toIsoDate = (value) => {
   if (!value) return null;
@@ -61,11 +62,16 @@ export default function DeliveryReportPage() {
   const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [timeFilter, setTimeFilter] = useState('');
-  const [deliveryTypeFilter, setDeliveryTypeFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [savedFilters, saveFilters] = usePersistedFilters('delivery-report-filters', {
+    dateFilter: new Date().toISOString().split('T')[0],
+    searchQuery: '',
+    deliveryTypeFilter: 'ALL',
+    statusFilter: 'ALL',
+  });
+  const [dateFilter, setDateFilter] = useState(savedFilters.dateFilter);
+  const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery);
+  const [deliveryTypeFilter, setDeliveryTypeFilter] = useState(savedFilters.deliveryTypeFilter);
+  const [statusFilter, setStatusFilter] = useState(savedFilters.statusFilter);
   const searchRef = useRef(null);
 
   // Attachment lightbox state
@@ -74,6 +80,10 @@ export default function DeliveryReportPage() {
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => { searchRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    saveFilters({ dateFilter, searchQuery, deliveryTypeFilter, statusFilter });
+  }, [dateFilter, searchQuery, deliveryTypeFilter, statusFilter]);
 
   useEffect(() => {
     loadSessions();
@@ -130,6 +140,7 @@ export default function DeliveryReportPage() {
   };
 
   const handleViewSession = (session) => {
+    saveFilters({ dateFilter, searchQuery, deliveryTypeFilter, statusFilter });
     const invoiceData = {
       id: session.id,
       invoice_no: session.invoice_no,

@@ -7,6 +7,7 @@ import Pagination from "../../../components/Pagination";
 import { formatDateTime, formatNumber } from '../../../utils/formatters';
 import { X, Search, Download } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
+import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -40,14 +41,23 @@ export default function InvoiceReportPage() {
   const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [savedFilters, saveFilters] = usePersistedFilters('invoice-report-filters', {
+  statusFilter: '',
+  dateFilter: new Date().toISOString().split('T')[0],
+  searchQuery: '',
+  });
+  const [statusFilter, setStatusFilter] = useState(savedFilters.statusFilter);
+  const [dateFilter, setDateFilter] = useState(savedFilters.dateFilter);
+  const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery);
   const searchRef = useRef(null);
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => { searchRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    saveFilters({ statusFilter, dateFilter, searchQuery });
+  }, [statusFilter, dateFilter, searchQuery]);
 
   useEffect(() => {
     loadInvoices();
@@ -100,6 +110,7 @@ export default function InvoiceReportPage() {
   };
 
   const handleViewInvoice = (id) => {
+    saveFilters({ statusFilter, dateFilter, searchQuery });
     const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
     navigate(`${isOpsUser ? '/ops/billing/invoices/view' : '/billing/invoices/view'}/${id}`, {
       state: { backPath: "/history/invoice-report" }

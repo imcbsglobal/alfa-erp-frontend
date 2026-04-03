@@ -7,6 +7,7 @@ import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X, Search } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
+import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -35,15 +36,24 @@ export default function PickingInvoiceReportPage() {
   const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
-  const [invoiceDateFilter, setInvoiceDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [pickingDateFilter, setPickingDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [savedFilters, saveFilters] = usePersistedFilters('picking-report-filters', {
+    invoiceDateFilter: new Date().toISOString().split('T')[0],
+    pickingDateFilter: new Date().toISOString().split('T')[0],
+    searchQuery: '',
+  });
+  const [invoiceDateFilter, setInvoiceDateFilter] = useState(savedFilters.invoiceDateFilter);
+  const [pickingDateFilter, setPickingDateFilter] = useState(savedFilters.pickingDateFilter);
+  const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery);
   const [timeFilter, setTimeFilter] = useState('');
   const searchRef = useRef(null);
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => { searchRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    saveFilters({ invoiceDateFilter, pickingDateFilter, searchQuery });
+  }, [invoiceDateFilter, pickingDateFilter, searchQuery]);
 
   useEffect(() => {
     loadSessions();
@@ -118,6 +128,7 @@ export default function PickingInvoiceReportPage() {
   };
 
   const handleViewSession = (session) => {
+    saveFilters({ invoiceDateFilter, pickingDateFilter, searchQuery });
     const invoiceData = {
       id: session.id,
       invoice_no: session.invoice_no,
