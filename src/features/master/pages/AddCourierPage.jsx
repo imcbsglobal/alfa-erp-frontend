@@ -143,7 +143,6 @@ export default function AddCourierPage() {
       toast.error("Failed to create courier");
       setErrors((prev) => ({
         ...prev,
-        general: "Failed to create courier. Please try again.",
       }));
     } finally {
       setLoading(false);
