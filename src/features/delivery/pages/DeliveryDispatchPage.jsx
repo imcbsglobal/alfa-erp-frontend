@@ -155,6 +155,24 @@ const SingleRow = ({ bill, onDispatch, onView, batchMode, onAddToBatch, batchIds
         </p>
       </td>
       <td className="px-4 py-3">
+        {(() => {
+          const count = bill.tray_codes?.length || bill.packer_info?.label_count || 0;
+          const courier = bill.packer_info?.courier_name || '';
+          return count > 0 ? (
+            <div className="space-y-1">
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-bold rounded-lg">
+                📦 {count}
+              </span>
+              {courier && (
+                <p className="text-xs text-blue-600 font-medium truncate max-w-[80px]">{courier}</p>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400">—</span>
+          );
+        })()}
+      </td>
+      <td className="px-4 py-3">
         {batchMode ? (
           <button
             onClick={() => !batchDisabled && onAddToBatch(bill)}
@@ -256,6 +274,12 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
         <div className="text-right flex-shrink-0 hidden sm:block">
           <p className="text-sm font-bold text-gray-800">{items.length} invoices</p>
           <p className="text-xs text-gray-400">{totalItems} total items</p>
+          {(() => {
+            const totalBoxes = items.reduce((sum, b) => sum + (b.tray_codes?.length || b.packer_info?.label_count || 0), 0);
+            return totalBoxes > 0 ? (
+              <p className="text-xs text-teal-600 font-semibold">📦 {totalBoxes} box{totalBoxes !== 1 ? 'es' : ''}</p>
+            ) : null;
+          })()}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -301,8 +325,9 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
           <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50
                           text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200">
             <div className="col-span-3">Invoice</div>
-            <div className="col-span-3">Date</div>
-            <div className="col-span-4">Customer</div>
+            <div className="col-span-2">Date</div>
+            <div className="col-span-3">Customer</div>
+            <div className="col-span-2 text-center">Boxes</div>
             <div className="col-span-2 text-center">Action</div>
           </div>
 
@@ -318,15 +343,25 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
                   <p className="font-semibold text-gray-900 text-sm">{bill.invoice_no}</p>
                   <p className="text-xs text-gray-400">{bill.customer?.code}</p>
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-2">
                   <p className="text-sm text-gray-700">{formatDate(bill.created_at)}</p>
                   <p className="text-xs text-gray-400">{formatTime(bill.created_at)}</p>
                 </div>
-                <div className="col-span-4">
+                <div className="col-span-3">
                   <p className="font-medium text-gray-900 text-sm truncate">{bill.customer?.name || '—'}</p>
                   <p className="text-xs text-gray-400">
                     {bill.customer?.area || bill.customer?.address1 || bill.temp_name || '—'}
                   </p>
+                </div>
+                <div className="col-span-2 flex justify-center items-start">
+                  {(() => {
+                    const count = bill.tray_codes?.length || bill.packer_info?.label_count || 0;
+                    return count > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-bold rounded-lg">
+                        📦 {count}
+                      </span>
+                    ) : <span className="text-xs text-gray-400">—</span>;
+                  })()}
                 </div>
                 <div className="col-span-2 flex justify-center">
                   {batchMode ? (
@@ -1366,7 +1401,7 @@ const DeliveryDispatchPage = () => {
                       <table className="w-full">
                         <thead>
                           <tr className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-sm">
-                            {['Invoice', 'Date', 'Customer', 'Actions'].map(h => (
+                            {['Invoice', 'Date', 'Customer', 'Boxes', 'Actions'].map(h => (
                               <th key={h} className="px-4 py-3 font-semibold text-left">{h}</th>
                             ))}
                           </tr>

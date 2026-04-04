@@ -301,6 +301,7 @@ const CourierDeliveryListPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useUrlPage();
   const [uploadModal, setUploadModal] = useState({ open: false, delivery: null, invoiceNos: [], boxingGroupId: '' });
+const [trackingNumber, setTrackingNumber] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -369,7 +370,10 @@ const CourierDeliveryListPage = () => {
     else { setPreviewUrl(''); }
   };
   const handleUploadSlip = async () => {
-    if (!uploadedFile) { toast.error('Please upload a courier slip/screenshot'); return; }
+    if (!uploadedFile && !trackingNumber.trim()) { 
+      toast.error('Please provide at least a tracking number or courier slip'); 
+      return; 
+    }
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -377,14 +381,15 @@ const CourierDeliveryListPage = () => {
         formData.append('invoice_nos', JSON.stringify(uploadModal.invoiceNos));
         if (uploadModal.boxingGroupId) formData.append('boxing_group_id', uploadModal.boxingGroupId);
       } else { formData.append('invoice_no', uploadModal.delivery.invoice_no); }
-      formData.append('courier_slip', uploadedFile);
+      if (uploadedFile) formData.append('courier_slip', uploadedFile);
+      if (trackingNumber.trim()) formData.append('tracking_no', trackingNumber.trim());
       formData.append('delivery_type', 'COURIER');
       await uploadDeliverySlip(formData);
       const completedInvoiceNos = (uploadModal.invoiceNos || []).length > 0 ? uploadModal.invoiceNos : [uploadModal.delivery?.invoice_no].filter(Boolean);
       setDeliveries((prev) => prev.filter((d) => !completedInvoiceNos.includes(d.invoice_no)));
       toast.success('Courier slip uploaded! Delivery marked as completed.');
       setUploadModal({ open: false, delivery: null, invoiceNos: [], boxingGroupId: '' });
-      setUploadedFile(null); setPreviewUrl('');
+      setUploadedFile(null); setPreviewUrl(''); setTrackingNumber('');
       await loadCourierDeliveries();
     } catch (error) { toast.error(error.response?.data?.detail || error.response?.data?.message || 'Failed to upload courier slip'); }
     finally { setSubmitting(false); }
@@ -513,6 +518,7 @@ const CourierDeliveryListPage = () => {
                 </button>
               </div>
               <div className="p-5 space-y-4">
+                {/* Invoice Info */}
                 <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -531,9 +537,25 @@ const CourierDeliveryListPage = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Tracking Number */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Courier Slip/Screenshot <span className="text-red-500">*</span>
+                    Tracking Number <span className="text-gray-400 font-normal text-xs">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)}
+                    placeholder="Enter tracking number..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  />
+                </div>
+
+                {/* Courier Slip Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Courier Slip/Screenshot <span className="text-gray-400 font-normal text-xs">(optional)</span>
                   </label>
                   {!uploadedFile ? (
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-teal-500 transition-colors">
@@ -547,22 +569,42 @@ const CourierDeliveryListPage = () => {
                   ) : (
                     <div className="border border-gray-300 rounded-lg p-3 bg-gray-50">
                       <div className="flex items-center gap-3">
-                        {previewUrl ? <img src={previewUrl} alt="Preview" className="w-16 h-16 object-cover rounded border" /> : <div className="w-16 h-16 bg-gray-200 rounded border flex items-center justify-center"><span className="text-2xl">📄</span></div>}
+                        {previewUrl
+                          ? <img src={previewUrl} alt="Preview" className="w-16 h-16 object-cover rounded border" />
+                          : <div className="w-16 h-16 bg-gray-200 rounded border flex items-center justify-center"><span className="text-2xl">📄</span></div>
+                        }
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900 text-sm truncate">{uploadedFile.name}</p>
                           <p className="text-xs text-gray-500">{formatFileSize(uploadedFile.size)}</p>
                         </div>
-                        <button onClick={handleRemoveFile} className="text-red-500 hover:text-red-700 p-1"><X className="w-4 h-4" /></button>
+                        <button onClick={handleRemoveFile} className="text-red-500 hover:text-red-700 p-1">
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   )}
                 </div>
+
+                {/* Helper text */}
+                <p className="text-xs text-gray-400 text-center">
+                  You can complete delivery with just a tracking number, just a slip, or both.
+                </p>
               </div>
+
               <div className="px-5 pb-5 flex gap-3">
-                <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm">Cancel</button>
-                <button onClick={handleUploadSlip} disabled={submitting || !uploadedFile}
-                  className="flex-1 py-2.5 px-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                  {submitting ? 'Uploading...' : 'Upload & Complete'}
+                <button
+                  onClick={closeModal}
+                  disabled={submitting}
+                  className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUploadSlip}
+                  disabled={submitting || (!uploadedFile && !trackingNumber.trim())}
+                  className="flex-1 py-2.5 px-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  {submitting ? 'Uploading...' : 'Complete Delivery'}
                 </button>
               </div>
             </div>
