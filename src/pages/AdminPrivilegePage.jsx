@@ -525,6 +525,8 @@ const AdminPrivilegePage = () => {
         toast.success(`✅ Moved ${response.data.count} invoice(s) from ${step.from} → ${step.to}`);
         await loadBsHistory();
         setBsHistoryOpen(true);
+        // Notify dashboard to refresh breakdown counts immediately
+        window.dispatchEvent(new CustomEvent('bulk:status:updated'));
       } else {
         toast.error(response.data.message || 'Update failed');
       }

@@ -313,11 +313,19 @@ export default function SuperAdminDashboard() {
     };
     window.addEventListener('session:cancelled', cancelHandler);
 
+    // Refresh breakdown immediately when admin bulk-updates statuses
+    const bulkUpdateHandler = () => {
+      fetchBreakdown();
+      fetchTodayStats();
+    };
+    window.addEventListener('bulk:status:updated', bulkUpdateHandler);
+
     return () => {
       clearTimeout(sseTimeout);
       clearInterval(activityInterval);
       if (eventSourceRef.current) eventSourceRef.current.close();
       window.removeEventListener('session:cancelled', cancelHandler);
+      window.removeEventListener('bulk:status:updated', bulkUpdateHandler);
     };
   }, []);
 
