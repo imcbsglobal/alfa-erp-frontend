@@ -325,9 +325,8 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
           <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50
                           text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200">
             <div className="col-span-3">Invoice</div>
-            <div className="col-span-2">Date</div>
-            <div className="col-span-3">Customer</div>
-            <div className="col-span-2 text-center">Boxes</div>
+            <div className="col-span-3">Date</div>
+            <div className="col-span-4">Customer</div>
             <div className="col-span-2 text-center">Action</div>
           </div>
 
@@ -343,25 +342,15 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
                   <p className="font-semibold text-gray-900 text-sm">{bill.invoice_no}</p>
                   <p className="text-xs text-gray-400">{bill.customer?.code}</p>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-3">
                   <p className="text-sm text-gray-700">{formatDate(bill.created_at)}</p>
                   <p className="text-xs text-gray-400">{formatTime(bill.created_at)}</p>
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-4">
                   <p className="font-medium text-gray-900 text-sm truncate">{bill.customer?.name || '—'}</p>
                   <p className="text-xs text-gray-400">
                     {bill.customer?.area || bill.customer?.address1 || bill.temp_name || '—'}
                   </p>
-                </div>
-                <div className="col-span-2 flex justify-center items-start">
-                  {(() => {
-                    const count = bill.tray_codes?.length || bill.packer_info?.label_count || 0;
-                    return count > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-bold rounded-lg">
-                        📦 {count}
-                      </span>
-                    ) : <span className="text-xs text-gray-400">—</span>;
-                  })()}
                 </div>
                 <div className="col-span-2 flex justify-center">
                   {batchMode ? (
@@ -422,7 +411,6 @@ const CourierBatchPanel = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // FIX: courier is required to dispatch, but bills can be queued before selecting one
   const canDispatch = selectedCourier && batchBills.length > 0 && !submitting;
 
   return (
@@ -525,8 +513,6 @@ const CourierBatchPanel = ({
             </span>
           )}
         </div>
-
-        {batchBills.length > 0 && !selectedCourier && null}
 
         {canDispatch ? (
           <div className="space-y-3">
@@ -823,6 +809,8 @@ const DeliveryDispatchPage = () => {
   const [activeMode, setActiveMode]   = useState(null);
   const [scanInput, setScanInput]     = useState('');
   const [scanError, setScanError]     = useState('');
+  // ── NEW: search / filter query ────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
   const scanInputRef = useRef(null);
 
   const [activeTab, setActiveTab]     = useState('single');
@@ -843,6 +831,7 @@ const DeliveryDispatchPage = () => {
   const [selectedStaff, setSelectedStaff]         = useState(null);
   const [companyBatchBills, setCompanyBatchBills] = useState([]);
   const companyBatchIds = useMemo(() => new Set(companyBatchBills.map(b => b.id)), [companyBatchBills]);
+
   // Load couriers when COURIER mode selected
   useEffect(() => {
     if (activeMode !== 'COURIER' || couriers.length > 0) return;
@@ -956,7 +945,6 @@ const DeliveryDispatchPage = () => {
   };
 
   // ── Batch helpers ─────────────────────────────────────────────────────────
-  // Core toggle: accepts array of bills, toggles entire array in/out
   const handleAddToBatch = useCallback((billsToToggle) => {
     setBatchBills(prev => {
       const ids = new Set(prev.map(b => b.id));
@@ -970,8 +958,6 @@ const DeliveryDispatchPage = () => {
     });
   }, []);
 
-  // Group-aware add: if any bill belongs to a boxing_group_id, auto-include ALL siblings.
-  // Ensures a grouped multi-pack always enters the batch as a complete set.
   const handleAddToBatchGroupAware = useCallback((billsToToggle, allBillsRef) => {
     const expanded = [];
     const seen = new Set();
@@ -994,7 +980,7 @@ const DeliveryDispatchPage = () => {
     handleAddToBatch(expanded);
   }, [handleAddToBatch]);
 
-  // ── scan ──────────────────────────────────────────────────────────────────
+  // ── scan / search submit ──────────────────────────────────────────────────
   const handleScanSubmit = (value) => {
     if (!activeMode) { setScanError('Please select a delivery mode first'); return; }
     const rawValue = value.trim();
@@ -1029,7 +1015,7 @@ const DeliveryDispatchPage = () => {
       } catch (_) {}
     }
 
-    // Courier batch mode: courier must be selected before adding bills
+    // Courier batch mode
     if (activeMode === 'COURIER') {
       if (!selectedCourier) { setScanError('Please select a courier before adding bills'); return; }
       const found = bills.find(b => b.invoice_no?.toLowerCase() === invoiceNo.toLowerCase());
@@ -1037,8 +1023,6 @@ const DeliveryDispatchPage = () => {
         if (batchIds.has(found.id)) {
           setScanError(`${found.invoice_no} is already in the batch`);
         } else {
-          // If it belongs to a group, add all bills in that group together
-          // Group-aware: auto-includes all siblings if bill belongs to a boxing group
           const gid = found.packer_info?.boxing_group_id;
           const toAdd = gid
             ? bills.filter(b => b.packer_info?.boxing_group_id === gid)
@@ -1053,12 +1037,24 @@ const DeliveryDispatchPage = () => {
           );
         }
       } else {
-        setScanError(`Invoice "${invoiceNo}" not found in packed orders`);
+        // ── NEW: fallback to customer name search in courier batch mode ──
+        const nameMatches = bills.filter(b =>
+          b.customer?.name?.toLowerCase().includes(rawValue.toLowerCase()) ||
+          b.temp_name?.toLowerCase().includes(rawValue.toLowerCase())
+        );
+        if (nameMatches.length > 0) {
+          setScanError('');
+          setScanInput('');
+          setSearchQuery(rawValue);
+          toast.success(`Showing ${nameMatches.length} result(s) for "${rawValue}"`);
+        } else {
+          setScanError(`Invoice/customer "${rawValue}" not found in packed orders`);
+        }
       }
       return;
     }
 
-    // Normal modes
+    // Normal modes — try group id first
     const groupInput = normalizeGroupToken(scannedGroupId || rawValue);
     const uniqueGroupIds = [...new Set(bills.map(b => b.packer_info?.boxing_group_id).filter(Boolean))];
     const matchedGroupId = uniqueGroupIds.find(gid => {
@@ -1076,9 +1072,32 @@ const DeliveryDispatchPage = () => {
       return;
     }
 
+    // Try exact invoice match
     const found = bills.find(b => b.invoice_no?.toLowerCase() === invoiceNo.toLowerCase());
-    if (found) { setScanError(''); setScanInput(''); setSelectedBill(found); }
-    else setScanError(`Invoice/group "${invoiceNo}" not found in packed orders`);
+    if (found) {
+      setScanError(''); setScanInput('');
+      setSelectedBill(found);
+      return;
+    }
+
+    // ── NEW: fallback — search by customer name, filter the table ──
+    const nameMatches = bills.filter(b =>
+      b.customer?.name?.toLowerCase().includes(rawValue.toLowerCase()) ||
+      b.temp_name?.toLowerCase().includes(rawValue.toLowerCase())
+    );
+    if (nameMatches.length > 0) {
+      setScanError('');
+      setScanInput('');
+      setSearchQuery(rawValue);
+      // Switch to the tab that has results
+      const hasInSingle = nameMatches.some(b => !b.packer_info?.boxing_group_id);
+      if (hasInSingle) setActiveTab('single');
+      else setActiveTab('multi');
+      setCurrentPage(1);
+      toast.success(`Showing ${nameMatches.length} result(s) for "${rawValue}"`);
+    } else {
+      setScanError(`Invoice/group/customer "${rawValue}" not found in packed orders`);
+    }
   };
 
   // ── dispatch handlers ─────────────────────────────────────────────────────
@@ -1107,12 +1126,10 @@ const DeliveryDispatchPage = () => {
     } finally { setSubmitting(false); }
   };
 
-  // FIX: Send boxing_group_id per bill so the backend can consolidate group bills correctly
   const handleDispatchBatch = async () => {
     if (!selectedCourier || batchBills.length === 0) return;
     setSubmitting(true);
     try {
-      // Build enriched list: each entry carries invoice_no + boxing_group_id (if any)
       const invoiceEntries = batchBills.map(b => ({
         invoice_no: b.invoice_no,
         ...(b.packer_info?.boxing_group_id
@@ -1121,9 +1138,7 @@ const DeliveryDispatchPage = () => {
       }));
 
       const response = await startDelivery({
-        // Keep invoice_nos for backwards compatibility
         invoice_nos: batchBills.map(b => b.invoice_no),
-        // Send enriched entries so backend can group multi-packed bills correctly
         invoice_entries: invoiceEntries,
         delivery_type: 'COURIER',
         courier_id: selectedCourier.courier_id,
@@ -1168,8 +1183,39 @@ const DeliveryDispatchPage = () => {
   const singleBills = useMemo(() => bills.filter(b => !b.packer_info?.boxing_group_id), [bills]);
   const multiBills  = useMemo(() => bills.filter(b => !!b.packer_info?.boxing_group_id), [bills]);
   const groups      = useMemo(() => groupByBoxingGroup(multiBills), [multiBills]);
-  const pagedSingle = useMemo(() => singleBills.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [singleBills, currentPage]);
-  const pagedGroups = useMemo(() => groups.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [groups, currentPage]);
+
+  // ── NEW: filtered lists based on searchQuery ──────────────────────────────
+  const matchesQuery = useCallback((bill) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      bill.customer?.name?.toLowerCase().includes(q) ||
+      bill.temp_name?.toLowerCase().includes(q) ||
+      bill.invoice_no?.toLowerCase().includes(q) ||
+      bill.customer?.area?.toLowerCase().includes(q) ||
+      bill.customer?.address1?.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
+  const filteredSingleBills = useMemo(() =>
+    singleBills.filter(matchesQuery),
+    [singleBills, matchesQuery]
+  );
+
+  const filteredGroups = useMemo(() =>
+    groups.filter(({ items }) => items.some(matchesQuery)),
+    [groups, matchesQuery]
+  );
+
+  const pagedSingle = useMemo(() =>
+    filteredSingleBills.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [filteredSingleBills, currentPage]
+  );
+
+  const pagedGroups = useMemo(() =>
+    filteredGroups.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [filteredGroups, currentPage]
+  );
 
   const activeModeObj        = MODES.find(m => m.key === activeMode);
   const isCourierBatchMode   = activeMode === 'COURIER';
@@ -1211,7 +1257,7 @@ const DeliveryDispatchPage = () => {
                 <p className="text-base font-bold text-gray-700">Select Delivery Mode</p>
                 {activeMode && (
                   <button
-                    onClick={() => { setActiveMode(null); setScanError(''); setScanInput(''); }}
+                    onClick={() => { setActiveMode(null); setScanError(''); setScanInput(''); setSearchQuery(''); }}
                     className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -1226,7 +1272,7 @@ const DeliveryDispatchPage = () => {
                   return (
                     <button
                       key={mode.key}
-                      onClick={() => { setActiveMode(mode.key); setScanError(''); setScanInput(''); }}
+                      onClick={() => { setActiveMode(mode.key); setScanError(''); setScanInput(''); setSearchQuery(''); }}
                       className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left
                         ${active ? mode.activeClasses : mode.idleClasses}`}
                     >
@@ -1288,8 +1334,8 @@ const DeliveryDispatchPage = () => {
               <div className="border-b border-gray-200 px-4 pt-4 flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
                   {[
-                    { key: 'single', label: 'Single Packed', count: singleBills.length },
-                    { key: 'multi',  label: 'Multi Packed',  count: multiBills.length  },
+                    { key: 'single', label: 'Single Packed', count: filteredSingleBills.length },
+                    { key: 'multi',  label: 'Multi Packed',  count: filteredGroups.length      },
                   ].map(tab => (
                     <button
                       key={tab.key}
@@ -1316,21 +1362,49 @@ const DeliveryDispatchPage = () => {
                         ref={scanInputRef}
                         type="text"
                         value={scanInput}
-                        onChange={(e) => { setScanInput(e.target.value); setScanError(''); }}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setScanInput(val);
+                          setScanError('');
+                          setSearchQuery(val);
+                          setCurrentPage(1);
+                          if (!val) { setSearchQuery(''); return; }
+                          // Auto-switch tab if current tab yields no results but the other tab does
+                          const q = val.toLowerCase();
+                          const matchBill = (b) =>
+                            b.customer?.name?.toLowerCase().includes(q) ||
+                            b.temp_name?.toLowerCase().includes(q) ||
+                            b.invoice_no?.toLowerCase().includes(q) ||
+                            b.customer?.area?.toLowerCase().includes(q) ||
+                            b.customer?.address1?.toLowerCase().includes(q);
+                          const hasSingle = singleBills.some(matchBill);
+                          const hasMulti  = multiBills.some(matchBill);
+                          if (activeTab === 'single' && !hasSingle && hasMulti) {
+                            setActiveTab('multi');
+                          } else if (activeTab === 'multi' && !hasMulti && hasSingle) {
+                            setActiveTab('single');
+                          }
+                        }}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleScanSubmit(scanInput); }}
                         placeholder={
                           isCourierBatchMode
-                            ? selectedCourier ? `Scan to add to ${selectedCourier.courier_name} batch...` : 'Select a courier first...'
+                            ? selectedCourier
+                              ? `Scan QR or search invoice / customer name...`
+                              : 'Select a courier first...'
                             : isCompanyBatchMode
-                              ? selectedStaff ? `Scan to add to ${selectedStaff.name} batch...` : 'Select a staff member first...'
-                              : 'Scan QR or type invoice / group id...'
+                              ? selectedStaff
+                                ? `Scan QR or search invoice / customer name...`
+                                : 'Select a staff member first...'
+                              : 'Scan QR or search invoice / customer name...'
                         }
                         className="w-full pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-sm
                                    focus:outline-none focus:ring-2 focus:ring-teal-500"
                       />
                       {scanInput && (
-                        <button onClick={() => setScanInput('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <button
+                          onClick={() => { setScanInput(''); setSearchQuery(''); setScanError(''); }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
                           <X className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -1365,7 +1439,7 @@ const DeliveryDispatchPage = () => {
                 </div>
               </div>
 
-              {/* courier hint banner — updated: no longer requires courier first */}
+              {/* batch mode hint banner */}
               {isBatchMode && (
                 <div className={`mx-4 mt-3 px-3 py-2 border rounded-lg flex items-center gap-2
                   ${isCourierBatchMode ? 'bg-teal-50 border-teal-200' : 'bg-blue-50 border-blue-200'}`}>
@@ -1386,14 +1460,55 @@ const DeliveryDispatchPage = () => {
                 </div>
               )}
 
+              {/* active search / filter banner */}
+              {searchQuery && (
+                <div className="">
+                  <div className="flex items-center gap-3 flex-wrap min-w-0">
+                    {/* cross-tab hint: show switch button when the OTHER tab also has results */}
+                    {activeTab === 'single' && filteredGroups.length > 0 && (
+                      <button
+                        onClick={() => { setActiveTab('multi'); setCurrentPage(1); }}
+                        className="text-xs font-semibold text-teal-600 hover:text-teal-800 underline underline-offset-2 whitespace-nowrap"
+                      >
+                        +{filteredGroups.length} in Multi Packed →
+                      </button>
+                    )}
+                    {activeTab === 'multi' && filteredSingleBills.length > 0 && (
+                      <button
+                        onClick={() => { setActiveTab('single'); setCurrentPage(1); }}
+                        className="text-xs font-semibold text-teal-600 hover:text-teal-800 underline underline-offset-2 whitespace-nowrap"
+                      >
+                        +{filteredSingleBills.length} in Single Packed →
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => { setSearchQuery(''); setScanInput(''); setScanError(''); }}
+                    className="text-yellow-500 hover:text-red-500 transition flex-shrink-0"
+                    title="Clear filter"
+                  >
+                  </button>
+                </div>
+              )}
+
               {/* ── SINGLE TAB ── */}
               {activeTab === 'single' && (
                 loading ? (
                   <div className="py-20 text-center text-gray-400 text-sm">Loading packed orders...</div>
-                ) : singleBills.length === 0 ? (
+                ) : filteredSingleBills.length === 0 ? (
                   <div className="py-20 text-center text-gray-400">
                     <Package className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">No single packed orders</p>
+                    <p className="text-sm">
+                      {searchQuery ? `No results for "${searchQuery}"` : 'No single packed orders'}
+                    </p>
+                    {searchQuery && (
+                      <button
+                        onClick={() => { setSearchQuery(''); setScanInput(''); }}
+                        className="mt-2 text-xs text-teal-500 hover:underline"
+                      >
+                        Clear search
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -1427,7 +1542,7 @@ const DeliveryDispatchPage = () => {
                     </div>
                     <Pagination
                       currentPage={currentPage}
-                      totalItems={singleBills.length}
+                      totalItems={filteredSingleBills.length}
                       itemsPerPage={itemsPerPage}
                       onPageChange={(p) => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       label="orders"
@@ -1441,10 +1556,20 @@ const DeliveryDispatchPage = () => {
               {activeTab === 'multi' && (
                 loading ? (
                   <div className="py-20 text-center text-gray-400 text-sm">Loading packed orders...</div>
-                ) : groups.length === 0 ? (
+                ) : filteredGroups.length === 0 ? (
                   <div className="py-20 text-center text-gray-400">
                     <Layers className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">No multi-packed orders</p>
+                    <p className="text-sm">
+                      {searchQuery ? `No results for "${searchQuery}"` : 'No multi-packed orders'}
+                    </p>
+                    {searchQuery && (
+                      <button
+                        onClick={() => { setSearchQuery(''); setScanInput(''); }}
+                        className="mt-2 text-xs text-teal-500 hover:underline"
+                      >
+                        Clear search
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="p-4">
@@ -1471,7 +1596,7 @@ const DeliveryDispatchPage = () => {
                     ))}
                     <Pagination
                       currentPage={currentPage}
-                      totalItems={groups.length}
+                      totalItems={filteredGroups.length}
                       itemsPerPage={itemsPerPage}
                       onPageChange={(p) => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       label="groups"
