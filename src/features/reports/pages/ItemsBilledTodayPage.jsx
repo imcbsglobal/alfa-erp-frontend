@@ -117,12 +117,13 @@ export default function ItemsBilledTodayPage() {
       
       // Prepare data for main sheet
       const mainData = [
-        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Quantity', 'Rate', 'Sale Total', 'Company', 'Packing', 'Location'],
+        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Customer Location', 'Quantity', 'Rate', 'Sale Total', 'Company', 'Packing', 'Shelf Location'],
         ...filteredItems.map((item) => [
           item.bill_no,
           item.invoice_date,
           item.item_name,
           item.customer_name,
+          item.customer_location || '',
           item.quantity,
           item.rate.toFixed(2),
           item.sale_total.toFixed(2),
@@ -142,7 +143,7 @@ export default function ItemsBilledTodayPage() {
       const worksheet = XLSX.utils.aoa_to_sheet(mainData);
       
       // Set column widths
-      const colWidths = [12, 12, 20, 18, 10, 10, 12, 15, 12, 15];
+      const colWidths = [12, 12, 20, 18, 16, 10, 10, 12, 15, 12, 15];
       worksheet['!cols'] = colWidths.map(w => ({ wch: w }));
 
       // Add styling to header row
@@ -152,7 +153,7 @@ export default function ItemsBilledTodayPage() {
         alignment: { horizontal: "center", vertical: "center" }
       };
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 11; i++) {
         const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: i })];
         if (cell) cell.s = headerStyle;
       }
@@ -257,13 +258,13 @@ export default function ItemsBilledTodayPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '20%' }} />
-                  <col style={{ width: '20%' }} />
-                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '18%' }} />
                   <col style={{ width: '8%' }} />
                   <col style={{ width: '8%' }} />
+                  <col style={{ width: '12%' }} />
                   <col style={{ width: '12%' }} />
                 </colgroup>
                 <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
@@ -296,10 +297,7 @@ export default function ItemsBilledTodayPage() {
                       </div>
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-                      Customer Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-                      Company
+                      Customer & Location
                     </th>
                     <th
                       className="px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
@@ -343,10 +341,10 @@ export default function ItemsBilledTodayPage() {
                         <p className="font-medium">{item.item_name}</p>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
-                        {item.customer_name}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
-                        {item.company_name}
+                        <p className="font-medium">{item.customer_name}</p>
+                        <p className="text-xs text-gray-500">
+                          {item.customer_location || '—'}
+                        </p>
                       </td>
                       <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
                         <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
@@ -357,7 +355,10 @@ export default function ItemsBilledTodayPage() {
                         ₹{item.rate.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-700">
-                        {formatAmount(item.sale_total)}
+                        ₹{formatAmount(item.sale_total)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {item.company_name}
                       </td>
                     </tr>
                   ))}
