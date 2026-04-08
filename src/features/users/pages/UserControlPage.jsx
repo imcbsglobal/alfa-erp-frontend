@@ -265,17 +265,17 @@ export default function UserControlPage() {
     setShowMobileUserList(false);
   };
 
-  const togglePermission = (menuId) => {
+  const togglePermission = (menuCode) => {
     setUserPermissions(prev => ({
       ...prev,
-      [menuId]: !prev[menuId]
+      [menuCode]: !prev[menuCode]
     }));
   };
 
-  const toggleExpand = (menuId) => {
+  const toggleExpand = (menuCode) => {
     setExpandedMenus(prev => ({
       ...prev,
-      [menuId]: !prev[menuId]
+      [menuCode]: !prev[menuCode]
     }));
   };
 
@@ -316,9 +316,9 @@ export default function UserControlPage() {
   };
 
   const MenuItem = ({ menu, level = 0 }) => {
-    const enabled = !!userPermissions[menu.id];
+    const enabled = !!userPermissions[menu.code];
     const hasChildren = menu.children?.length > 0;
-    const isExpanded = expandedMenus[menu.id];
+    const isExpanded = expandedMenus[menu.code];
 
     return (
       <div className="border-b border-gray-100 last:border-0">
@@ -330,7 +330,7 @@ export default function UserControlPage() {
         >
           {hasChildren ? (
             <button
-              onClick={() => toggleExpand(menu.id)}
+              onClick={() => toggleExpand(menu.code)}
               className="p-0.5 hover:bg-gray-200 rounded transition-colors"
             >
               <svg
@@ -353,7 +353,7 @@ export default function UserControlPage() {
           </div>
 
           <button
-            onClick={() => togglePermission(menu.id)}
+            onClick={() => togglePermission(menu.code)}
             className="flex-1 flex items-center justify-between min-w-0"
           >
             <span className="text-sm font-medium text-gray-700 truncate">{menu.name}</span>
@@ -372,7 +372,7 @@ export default function UserControlPage() {
         {hasChildren && isExpanded && (
           <div>
             {menu.children.map((child) => (
-              <MenuItem key={child.id} menu={child} level={level + 1} />
+              <MenuItem key={child.code} menu={child} level={level + 1} />
             ))}
           </div>
         )}
@@ -621,7 +621,7 @@ export default function UserControlPage() {
                         const updates = {};
                         const walk = (menus) => {
                           menus.forEach((m) => {
-                            updates[m.id] = true;
+                            updates[m.code] = true;
                             if (m.children?.length) walk(m.children);
                           });
                         };
@@ -644,7 +644,7 @@ export default function UserControlPage() {
 
               <div className="flex-1 overflow-y-auto">
                 {availableMenus.map(menu => (
-                  <MenuItem key={menu.id} menu={menu} />
+                  <MenuItem key={menu.code} menu={menu} />
                 ))}
               </div>
 
