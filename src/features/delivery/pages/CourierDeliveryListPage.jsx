@@ -358,7 +358,7 @@ const SingleRow = ({ delivery, onView, onUpload, onEditCourier }) => {
       <td className="px-4 py-3 text-sm text-gray-600">{boxCount} box{boxCount !== 1 ? 'es' : ''}</td>
       <td className="px-4 py-3 font-bold">
         {weightsDisplay ? (
-          <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg text-xs font-bold border-2 border-teal-700 shadow-md">
+          <div className="px-3 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-xs hover:from-teal-600 hover:to-cyan-700 transition-all">
             <span>{weightsDisplay}</span>
           </div>
         ) : (
