@@ -568,7 +568,7 @@ const CourierBatchPanel = ({
                 }
                 // Show weight modal for all bills in batch
                 setBillsAwaitingWeight(batchBills);
-                setPendingWeightsPerBill(new Array(totalBoxes).fill(''));
+                setPendingWeightsPerBill('');
                 setShowWeightModalPerBill(true);
               }}
               className="w-full py-2 px-4 border border-teal-300 bg-teal-50 text-teal-700 rounded-lg text-sm font-medium hover:bg-teal-100 transition-all"
@@ -1065,14 +1065,16 @@ const DeliveryDispatchPage = () => {
   const handleConfirmBillWeights = useCallback(() => {
     if (!billsAwaitingWeight) return;
     
-    // Store the weights separately by bill ID
+    // Store the single total weight for all bills added in this batch
     const newWeights = { ...batchWeights };
-    billsAwaitingWeight.forEach((bill) => {
-      const filteredWeights = pendingWeightsPerBill.filter(w => w !== '').map(w => parseFloat(w));
-      if (filteredWeights.length > 0) {
-        newWeights[bill.id] = filteredWeights;
-      }
-    });
+    const totalWeight = parseFloat(pendingWeightsPerBill);
+    
+    if (totalWeight && !isNaN(totalWeight)) {
+      // Store as array with single value for consistency with API
+      billsAwaitingWeight.forEach((bill) => {
+        newWeights[bill.id] = [totalWeight];
+      });
+    }
     
     // Add bills to batch (without modifying them)
     setBatchBills(prev => [...prev, ...billsAwaitingWeight]);
@@ -1081,7 +1083,7 @@ const DeliveryDispatchPage = () => {
     // Close modal and reset
     setShowWeightModalPerBill(false);
     setBillsAwaitingWeight(null);
-    setPendingWeightsPerBill([]);
+    setPendingWeightsPerBill('');
   }, [billsAwaitingWeight, pendingWeightsPerBill, batchWeights]);
 
   // ── scan / search submit ──────────────────────────────────────────────────
@@ -1807,38 +1809,28 @@ const DeliveryDispatchPage = () => {
               <div className="p-5 space-y-4">
                 <div className="bg-teal-50 border border-teal-200 rounded-lg px-3 py-2.5">
                   <p className="text-xs text-teal-700">
-                    <span className="font-semibold">{pendingWeightsPerBill.length} box{pendingWeightsPerBill.length !== 1 ? 'es' : ''}</span>
-                    {' '}from{' '}
                     <span className="font-semibold">{billsAwaitingWeight.length} bill{billsAwaitingWeight.length !== 1 ? 's' : ''}</span>
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Box Weights (kg)</p>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {pendingWeightsPerBill.map((weight, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-gray-500 w-12">📦 Box {idx + 1}</span>
-                        <input
-                          type="number"
-                          value={weight}
-                          onChange={(e) => {
-                            const updated = [...pendingWeightsPerBill];
-                            updated[idx] = e.target.value;
-                            setPendingWeightsPerBill(updated);
-                          }}
-                          placeholder="0.0"
-                          step="0.1"
-                          min="0"
-                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        />
-                        <span className="text-xs text-gray-400 w-6">kg</span>
-                      </div>
-                    ))}
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Total Weight (kg)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={pendingWeightsPerBill}
+                      onChange={(e) => setPendingWeightsPerBill(e.target.value)}
+                      placeholder="0.0"
+                      step="0.1"
+                      min="0"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      autoFocus
+                    />
+                    <span className="text-sm text-gray-400 font-medium">kg</span>
                   </div>
                 </div>
 
-                <p className="text-xs text-gray-400 text-center">Leave blank if weight is not available for a box</p>
+                <p className="text-xs text-gray-400 text-center">Enter the total weight of all boxes</p>
               </div>
 
               <div className="px-5 pb-5 flex gap-3 border-t border-gray-200">
@@ -1846,7 +1838,7 @@ const DeliveryDispatchPage = () => {
                   onClick={() => {
                     setShowWeightModalPerBill(false);
                     setBillsAwaitingWeight(null);
-                    setPendingWeightsPerBill([]);
+                    setPendingWeightsPerBill('');
                   }}
                   className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
                 >

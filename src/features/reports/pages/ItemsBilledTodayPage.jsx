@@ -20,7 +20,7 @@ export default function ItemsBilledTodayPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('total_quantity');
+  const [sortBy, setSortBy] = useState('invoice_date');
   const [sortOrder, setSortOrder] = useState('desc');
   const [summary, setSummary] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -93,8 +93,10 @@ export default function ItemsBilledTodayPage() {
     const q = debouncedSearch.toLowerCase();
     if (!q) return true;
     return (
+      item.bill_no.toLowerCase().includes(q) ||
       item.item_code.toLowerCase().includes(q) ||
-      item.item_name.toLowerCase().includes(q)
+      item.item_name.toLowerCase().includes(q) ||
+      item.customer_name.toLowerCase().includes(q)
     );
   });
 
@@ -115,22 +117,22 @@ export default function ItemsBilledTodayPage() {
       
       // Prepare data for main sheet
       const mainData = [
-        ['Item Code', 'Item Name', 'Company', 'Quantity Sold', 'Unit Price', 'Total Revenue', 'Bills Count', 'Packing', 'Barcode', 'Location'],
+        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Quantity', 'Rate', 'Sale Total', 'Company', 'Packing', 'Location'],
         ...filteredItems.map((item) => [
-          item.item_code,
+          item.bill_no,
+          item.invoice_date,
           item.item_name,
+          item.customer_name,
+          item.quantity,
+          item.rate.toFixed(2),
+          item.sale_total.toFixed(2),
           item.company_name,
-          item.total_quantity,
-          item.unit_price.toFixed(2),
-          item.total_revenue.toFixed(2),
-          item.number_of_bills,
           item.packing || 'N/A',
-          item.barcode || 'N/A',
           item.shelf_location || 'N/A',
         ]),
         [],
         ['Summary'],
-        ['Total Items Type', summary?.total_items_type || 0],
+        ['Total Line Items', summary?.total_line_items || 0],
         ['Total Quantity', summary?.total_quantity || 0],
         ['Total Revenue', (summary?.total_revenue || 0).toFixed(2)],
         ['Total Bills', summary?.total_bills || 0],
@@ -140,7 +142,7 @@ export default function ItemsBilledTodayPage() {
       const worksheet = XLSX.utils.aoa_to_sheet(mainData);
       
       // Set column widths
-      const colWidths = [12, 20, 15, 14, 12, 14, 10, 12, 12, 15];
+      const colWidths = [12, 12, 20, 18, 10, 10, 12, 15, 12, 15];
       worksheet['!cols'] = colWidths.map(w => ({ wch: w }));
 
       // Add styling to header row
@@ -181,7 +183,7 @@ export default function ItemsBilledTodayPage() {
 
         {/* Header */}
         <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">Items Wise Report</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Items Wise Report </h1>
         </div>
 
         {/* Filter Bar */}
@@ -209,7 +211,7 @@ export default function ItemsBilledTodayPage() {
                 <input
                   ref={searchRef}
                   type="text"
-                  placeholder="Item Code or Name..."
+                  placeholder="Bill No, Item Name, Customer..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[300px]"
@@ -255,24 +257,33 @@ export default function ItemsBilledTodayPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '16%' }} />
                   <col style={{ width: '8%' }} />
-                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '12%' }} />
                 </colgroup>
                 <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                   <tr>
                     <th
                       className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
-                      onClick={() => handleSort('item_code')}
+                      onClick={() => handleSort('bill_no')}
                     >
                       <div className="flex items-center gap-2">
-                        Item Code
-                        <SortIcon field="item_code" />
+                        Bill No
+                        <SortIcon field="bill_no" />
+                      </div>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
+                      onClick={() => handleSort('invoice_date')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Date
+                        <SortIcon field="invoice_date" />
                       </div>
                     </th>
                     <th
@@ -285,40 +296,37 @@ export default function ItemsBilledTodayPage() {
                       </div>
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+                      Customer Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
                       Company
                     </th>
                     <th
                       className="px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
-                      onClick={() => handleSort('total_quantity')}
+                      onClick={() => handleSort('quantity')}
                     >
                       <div className="flex items-center gap-2 justify-center">
-                        Qty Sold
-                        <SortIcon field="total_quantity" />
+                        Qty
+                        <SortIcon field="quantity" />
                       </div>
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">
-                      Unit Price
                     </th>
                     <th
                       className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
-                      onClick={() => handleSort('total_revenue')}
+                      onClick={() => handleSort('rate')}
                     >
                       <div className="flex items-center gap-2 justify-end">
-                        Total Revenue
-                        <SortIcon field="total_revenue" />
+                        Rate
+                        <SortIcon field="rate" />
                       </div>
                     </th>
                     <th
-                      className="px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
-                      onClick={() => handleSort('number_of_bills')}
+                      className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
+                      onClick={() => handleSort('sale_total')}
                     >
-                      <div className="flex items-center gap-2 justify-center">
-                        Bills
-                        <SortIcon field="number_of_bills" />
+                      <div className="flex items-center gap-2 justify-end">
+                        Sale Total
+                        <SortIcon field="sale_total" />
                       </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-                      Details
                     </th>
                   </tr>
                 </thead>
@@ -326,48 +334,30 @@ export default function ItemsBilledTodayPage() {
                   {paginatedItems.map((item, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-4 py-3 text-sm font-semibold text-teal-700">
-                        {item.item_code}
+                        {item.bill_no}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {item.invoice_date}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <p className="font-medium">{item.item_name}</p>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {item.customer_name}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
                         {item.company_name}
                       </td>
                       <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
                         <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                          {item.total_quantity}
+                          {item.quantity}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-gray-700">
-                        ₹{item.unit_price.toFixed(2)}
+                        ₹{item.rate.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-700">
-                        ₹{formatAmount(item.total_revenue)}
-                      </td>
-                      <td className="px-4 py-3 text-center text-sm text-gray-700">
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 font-semibold text-xs">
-                          {item.number_of_bills}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        <div className="flex flex-col gap-1">
-                          {item.packing && (
-                            <div>
-                              <span className="text-gray-500">Packing:</span> {item.packing}
-                            </div>
-                          )}
-                          {item.barcode && (
-                            <div>
-                              <span className="text-gray-500">Barcode:</span> {item.barcode}
-                            </div>
-                          )}
-                          {item.shelf_location && (
-                            <div>
-                              <span className="text-gray-500">Location:</span> {item.shelf_location}
-                            </div>
-                          )}
-                        </div>
+                        {formatAmount(item.sale_total)}
                       </td>
                     </tr>
                   ))}
@@ -381,28 +371,28 @@ export default function ItemsBilledTodayPage() {
             <div className="bg-gray-50 border-t border-gray-200 px-4 py-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-xs text-gray-600 uppercase font-semibold">Filtered Items</p>
+                  <p className="text-xs text-gray-600 uppercase font-semibold">Line Items</p>
                   <p className="text-2xl font-bold text-gray-900">{filteredItems.length}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-600 uppercase font-semibold">Total Quantity</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {filteredItems.reduce((sum, item) => sum + item.total_quantity, 0)}
+                    {filteredItems.reduce((sum, item) => sum + item.quantity, 0)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 uppercase font-semibold">Average Price</p>
+                  <p className="text-xs text-gray-600 uppercase font-semibold">Average Rate</p>
                   <p className="text-2xl font-bold text-gray-900">
                     ₹{(
-                      filteredItems.reduce((sum, item) => sum + item.total_revenue, 0) /
-                      filteredItems.reduce((sum, item) => sum + item.total_quantity, 0)
+                      filteredItems.reduce((sum, item) => sum + item.sale_total, 0) /
+                      filteredItems.reduce((sum, item) => sum + item.quantity, 0)
                     ).toFixed(2)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-600 uppercase font-semibold">Total Revenue (Filtered)</p>
                   <p className="text-2xl font-bold text-green-700">
-                    ₹{formatAmount(filteredItems.reduce((sum, item) => sum + item.total_revenue, 0))}
+                    ₹{formatAmount(filteredItems.reduce((sum, item) => sum + item.sale_total, 0))}
                   </p>
                 </div>
               </div>
