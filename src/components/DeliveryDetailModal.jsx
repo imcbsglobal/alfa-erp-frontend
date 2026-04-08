@@ -3,6 +3,8 @@ import { formatNumber, formatDetailedDateTime } from "../utils/formatters";
 
 export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
   const [loading, setLoading] = useState(false);
+  const [courierAuditLogs, setCourierAuditLogs] = useState([]);
+  const [auditLoaded, setAuditLoaded] = useState(false);
 
   useEffect(() => {
     if (isOpen && deliveryData) {
@@ -14,8 +16,25 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
         lon: deliveryData.delivery_longitude,
         address: deliveryData.delivery_location_address
       });
+
+      // Fetch courier audit logs if courier delivery
+      if (deliveryData.delivery_type === "COURIER") {
+        fetchCourierAuditLogs(deliveryData.invoice_no);
+      }
     }
   }, [isOpen, deliveryData]);
+
+  const fetchCourierAuditLogs = async (invoiceNo) => {
+    try {
+      const { getCourierAuditLogs } = await import("../services/sales");
+      const response = await getCourierAuditLogs(invoiceNo);
+      setCourierAuditLogs(response.data?.data || []);
+      setAuditLoaded(true);
+    } catch (error) {
+      console.error("Failed to fetch courier audit logs:", error);
+      setAuditLoaded(true);
+    }
+  };
 
   if (!isOpen || !deliveryData) return null;
 
@@ -448,6 +467,62 @@ export default function DeliveryDetailModal({ isOpen, onClose, deliveryData }) {
                 <div className="text-xs text-gray-500 pt-4 border-t">
                   Created by <span className="font-medium text-gray-700">{deliveryData.created_by_name}</span>
                   {deliveryData.created_at && <span> on {formatDetailedDateTime(deliveryData.created_at)}</span>}
+                </div>
+              )}
+
+              {/* COURIER CHANGE AUDIT LOG SECTION */}
+              {deliveryData.delivery_type === "COURIER" && auditLoaded && courierAuditLogs.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-teal-600 font-bold text-sm uppercase mb-3">Courier Change History</h3>
+                  <div className="space-y-3">
+                    {courierAuditLogs.map((log, idx) => (
+                      <div key={log.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-gray-900">
+                              Change #{courierAuditLogs.length - idx}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              Changed by: <span className="font-medium">{log.changed_by_name_display || log.changed_by_name || "System"}</span>
+                            </p>
+                            {log.changed_by_email && (
+                              <p className="text-xs text-gray-500">{log.changed_by_email}</p>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs text-gray-700 font-medium">
+                              {formatDetailedDateTime(log.changed_at)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-gray-200 pt-3 mt-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1">
+                              <p className="text-xs text-gray-600 mb-1">From</p>
+                              <p className="text-sm font-medium text-red-700 bg-red-50 px-3 py-2 rounded">
+                                {log.old_courier_name || "Not Assigned"}
+                              </p>
+                            </div>
+                            <div className="flex-shrink-0 text-gray-400 text-lg">→</div>
+                            <div className="flex-1">
+                              <p className="text-xs text-gray-600 mb-1">To</p>
+                              <p className="text-sm font-medium text-green-700 bg-green-50 px-3 py-2 rounded">
+                                {log.new_courier_name || "Not Assigned"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {log.reason && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <p className="text-xs text-gray-600 mb-1">Reason</p>
+                            <p className="text-sm text-gray-800 italic">{log.reason}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

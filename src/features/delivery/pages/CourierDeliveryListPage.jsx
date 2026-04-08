@@ -67,9 +67,52 @@ const buildTableRows = (deliveries) => {
   return [...groups, ...singles.map(d => ({ type: 'single', delivery: d }))];
 };
 
+const getBoxCount = (delivery) => {
+  // Box count comes ONLY from packing data, not from items count
+  // Priority order: packer_info.label_count → label_count → tray_codes.length → 0
+  return (
+    delivery?.packer_info?.label_count ||
+    delivery?.label_count ||
+    delivery?.tray_codes?.length ||
+    0
+  );
+};
+
+const getBoxWeight = (delivery) => {
+  // Get weights - can be single value or array of individual box weights
+  const weights = (
+    delivery?.delivery_info?.box_weights ||
+    delivery?.packer_info?.box_weights ||
+    delivery?.box_weights ||
+    null
+  );
+  
+  // If single weight value (backwards compatibility)
+  if (typeof weights === 'number') {
+    return [weights];
+  }
+  
+  // If array of weights
+  if (Array.isArray(weights)) {
+    return weights;
+  }
+  
+  return null;
+};
+
+const formatBoxWeights = (weights) => {
+  if (!weights) return null;
+  const array = Array.isArray(weights) ? weights : [weights];
+  const total = array.reduce((sum, w) => sum + (w || 0), 0);
+  return `${total} kg`;
+};
+
 // ─── Mobile Card for single delivery ──────────────────────────────────────────
-const MobileSingleCard = ({ delivery, onView, onUpload }) => {
+const MobileSingleCard = ({ delivery, onView, onUpload, onEditCourier }) => {
   const isCourierAssigned = !!delivery.delivery_info?.courier_name;
+  const boxCount = getBoxCount(delivery);
+  const boxWeights = getBoxWeight(delivery);
+  const weightsDisplay = formatBoxWeights(boxWeights);
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
       <div className="flex items-start justify-between mb-2">
@@ -83,6 +126,7 @@ const MobileSingleCard = ({ delivery, onView, onUpload }) => {
             <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 justify-end">
               <Truck className="w-3 h-3" />{delivery.delivery_info.courier_name}
             </p>
+            <button onClick={() => onEditCourier(delivery)} className="text-xs text-teal-600 hover:text-teal-800 font-medium mt-1 hover:underline">Change</button>
           </div>
         ) : (
           <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">Pending</span>
@@ -93,8 +137,16 @@ const MobileSingleCard = ({ delivery, onView, onUpload }) => {
       <div className="flex items-center justify-between mt-2">
         <div>
           <p className="text-xs text-gray-400">{delivery.customer?.phone1 || '—'}</p>
-          <p className="text-xs text-gray-400">{delivery.items?.length || 0} items · {formatAmount(delivery.Total)}</p>
-          <p className="text-xs text-gray-400">{formatAddedDate(delivery.created_at)} {formatAddedTime(delivery.created_at)}</p>
+          <p className="text-xs text-gray-400">{boxCount} box{boxCount !== 1 ? 'es' : ''} · {formatAmount(delivery.Total)}</p>
+          {weightsDisplay && (
+            <div className="text-xs font-bold text-white bg-gradient-to-r from-teal-500 to-teal-600 px-3 py-1.5 rounded-lg border-2 border-teal-700 inline-flex items-center gap-1 mt-1 shadow-md">
+              {weightsDisplay}
+            </div>
+          )}
+          {!weightsDisplay && (
+            <p className="text-xs text-gray-300 italic mt-1">No weight data</p>
+          )}
+          <p className="text-xs text-gray-400 mt-1">{formatAddedDate(delivery.created_at)} {formatAddedTime(delivery.created_at)}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -117,9 +169,13 @@ const MobileSingleCard = ({ delivery, onView, onUpload }) => {
 };
 
 // ─── Mobile Card for group delivery ───────────────────────────────────────────
-const MobileGroupCard = ({ groupId, items, onUpload, onView }) => {
+const MobileGroupCard = ({ groupId, items, onUpload, onView, onEditCourier }) => {
   const [expanded, setExpanded] = useState(false);
   const highPriority = items.some(b => b.priority === 'HIGH');
+  const repItem = items[0];
+  const totalBoxes = repItem?.packer_info?.label_count || repItem?.label_count || repItem?.tray_codes?.length || 0;
+  const boxWeights = getBoxWeight(repItem);
+  const weightsDisplay = formatBoxWeights(boxWeights);
   return (
     <div className={`border-2 rounded-xl overflow-hidden shadow-sm ${highPriority ? 'border-red-300' : 'border-teal-300'}`}>
       <div className={`px-4 py-3 ${highPriority ? 'bg-red-50' : 'bg-teal-50'}`}>
@@ -128,8 +184,13 @@ const MobileGroupCard = ({ groupId, items, onUpload, onView }) => {
             <Layers className="w-4 h-4 text-teal-600" />
           </div>
           <span className="text-xs font-bold text-teal-900">
-            Consolidated · {items.length} invoice{items.length !== 1 ? 's' : ''}
+            Consolidated · {items.length} invoice{items.length !== 1 ? 's' : ''} · 📦 {totalBoxes} box{totalBoxes !== 1 ? 'es' : ''}
           </span>
+          {weightsDisplay && (
+            <span className="text-xs font-bold text-white bg-gradient-to-r from-teal-500 to-teal-600 px-3 py-0.5 rounded-lg border border-teal-700 inline-flex items-center gap-1 shadow">
+              {weightsDisplay}
+            </span>
+          )}
           {highPriority && (
             <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300 ml-auto">
               HIGH PRIORITY
@@ -164,11 +225,14 @@ const MobileGroupCard = ({ groupId, items, onUpload, onView }) => {
                     <p className="font-medium text-gray-800 text-sm">{delivery.customer?.name || '—'}</p>
                     <p className="text-xs text-gray-500">{delivery.customer?.address1 || ''}</p>
                     <p className="text-xs text-gray-400">{delivery.customer?.phone1 || '—'}</p>
-                    <p className="text-xs text-gray-400">{delivery.items?.length || 0} items · {formatAmount(delivery.Total)}</p>
+                    <p className="text-xs text-gray-400">{formatAmount(delivery.Total)}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     {isCourierAssigned ? (
-                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Assigned</span>
+                      <>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Assigned</span>
+                        <button onClick={() => onEditCourier(delivery)} className="text-xs text-teal-600 hover:text-teal-800 font-medium hover:underline">Change</button>
+                      </>
                     ) : (
                       <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">Pending</span>
                     )}
@@ -190,10 +254,14 @@ const MobileGroupCard = ({ groupId, items, onUpload, onView }) => {
 };
 
 // ─── Desktop GroupBlock (table row based) ──────────────────────────────────────
-const GroupBlock = ({ groupId, items, onUpload, onView }) => {
+const GroupBlock = ({ groupId, items, onUpload, onView, onEditCourier }) => {
   const highPriority = items.some(b => b.priority === 'HIGH');
   const borderColor = '#5eead4';
   const headerBg = '#f0fdfa';
+  const repItem = items[0];
+  const totalBoxes = repItem?.packer_info?.label_count || repItem?.label_count || repItem?.tray_codes?.length || 0;
+  const boxWeights = getBoxWeight(repItem);
+  const weightsDisplay = formatBoxWeights(boxWeights);
 
   return (
     <>
@@ -207,8 +275,13 @@ const GroupBlock = ({ groupId, items, onUpload, onView }) => {
               <Layers className="w-3.5 h-3.5" style={{ color: '#0d9488' }} />
             </div>
             <span className="text-xs font-bold" style={{ color: '#0f766e' }}>
-              Consolidated · {items.length} invoice{items.length !== 1 ? 's' : ''}
+              Consolidated · {items.length} invoice{items.length !== 1 ? 's' : ''} · 📦 {totalBoxes} box{totalBoxes !== 1 ? 'es' : ''}
             </span>
+            {weightsDisplay && (
+              <span className="text-xs font-bold text-white bg-gradient-to-r from-teal-500 to-teal-600 px-3 py-1 rounded-lg border-2 border-teal-700 shadow-md inline-flex items-center gap-1">
+                {weightsDisplay}
+              </span>
+            )}
             {highPriority && (
               <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">HIGH PRIORITY</span>
             )}
@@ -228,13 +301,24 @@ const GroupBlock = ({ groupId, items, onUpload, onView }) => {
       {items.map((delivery, idx) => {
         const isCourierAssigned = !!delivery.delivery_info?.courier_name;
         const isLast = idx === items.length - 1;
+        const boxCount = delivery?.label_count || delivery?.tray_codes?.length || 0;
+        const deliveryBoxWeights = getBoxWeight(delivery);
+        const deliveryWeightsDisplay = formatBoxWeights(deliveryBoxWeights);
         return (
           <tr key={delivery.id} className={`transition-colors ${idx % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-teal-50/20 hover:bg-teal-50/60'}`}
             style={{ borderLeft: `2px solid ${borderColor}`, borderRight: `2px solid ${borderColor}`, borderBottom: isLast ? `2px solid ${borderColor}` : `1px solid ${highPriority ? '#fee2e2' : '#ccfbf1'}`, borderRadius: isLast ? '0 0 10px 10px' : undefined }}>
             <td className="px-4 py-3"><p className="font-semibold text-gray-900 text-sm">{delivery.invoice_no}</p><p className="text-xs text-gray-400">{delivery.customer?.code}</p></td>
-            <td className="px-4 py-3"><p className="font-medium text-gray-900 text-sm">{delivery.customer?.name || delivery.temp_name || '—'}</p><p className="text-xs text-gray-400">{delivery.customer?.address1 || delivery.customer?.area || ''}</p></td>
-            <td className="px-4 py-3"><p className="text-sm text-gray-700">{delivery.customer?.phone1 || '—'}</p></td>
-            <td className="px-4 py-3 text-sm text-gray-600">{delivery.items?.length || 0} items</td>
+            <td className="px-4 py-3"><p className="font-medium text-gray-900 text-sm">{delivery.customer?.name || delivery.temp_name || '—'}</p><p className="text-xs text-gray-400 mt-0.5">{delivery.customer?.address1 || delivery.customer?.area || ''}</p></td>
+            <td className="px-4 py-3 text-sm font-semibold text-gray-700">{boxCount} box{boxCount !== 1 ? 'es' : ''}</td>
+            <td className="px-4 py-3">
+              {deliveryWeightsDisplay ? (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg text-xs font-bold border-2 border-teal-700 shadow-md">
+                  <span>{deliveryWeightsDisplay}</span>
+                </div>
+              ) : (
+                <span className="text-gray-300 text-xs italic">No weight</span>
+              )}
+            </td>
             <td className="px-4 py-3 text-right"><p className="font-semibold text-gray-800 text-sm">{formatAmount(delivery.Total)}</p></td>
             <td className="px-4 py-3"><p className="text-sm text-gray-700">{formatAddedDate(delivery.created_at)}</p><p className="text-xs text-gray-500">{formatAddedTime(delivery.created_at)}</p></td>
             <td className="px-4 py-3">
@@ -242,6 +326,7 @@ const GroupBlock = ({ groupId, items, onUpload, onView }) => {
                 <div>
                   <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium inline-flex mb-0.5">Assigned</span>
                   <span className="text-xs text-gray-500 flex items-center gap-1"><Truck className="w-3 h-3" />{delivery.delivery_info.courier_name}</span>
+                  <button onClick={() => onEditCourier(delivery)} className="text-xs text-teal-600 hover:text-teal-800 font-medium mt-1 hover:underline">Change</button>
                 </div>
               ) : (
                 <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">Pending</span>
@@ -261,14 +346,25 @@ const GroupBlock = ({ groupId, items, onUpload, onView }) => {
 };
 
 // ─── Desktop SingleRow ─────────────────────────────────────────────────────────
-const SingleRow = ({ delivery, onView, onUpload }) => {
+const SingleRow = ({ delivery, onView, onUpload, onEditCourier }) => {
   const isCourierAssigned = !!delivery.delivery_info?.courier_name;
+  const boxCount = getBoxCount(delivery);
+  const boxWeights = getBoxWeight(delivery);
+  const weightsDisplay = formatBoxWeights(boxWeights);
   return (
     <tr className="hover:bg-gray-50 transition border-b border-gray-100">
       <td className="px-4 py-3"><p className="font-semibold text-gray-900">{delivery.invoice_no}</p><p className="text-xs text-gray-500">{delivery.customer?.code}</p></td>
       <td className="px-4 py-3"><p className="font-medium text-gray-900">{delivery.customer?.name || '—'}</p><p className="text-xs text-gray-500">{delivery.customer?.address1 || delivery.temp_name || ''}</p></td>
-      <td className="px-4 py-3"><p className="text-sm text-gray-700">{delivery.customer?.phone1 || '—'}</p></td>
-      <td className="px-4 py-3 text-sm text-gray-600">{delivery.items?.length || 0} items</td>
+      <td className="px-4 py-3 text-sm text-gray-600">{boxCount} box{boxCount !== 1 ? 'es' : ''}</td>
+      <td className="px-4 py-3 font-bold">
+        {weightsDisplay ? (
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg text-xs font-bold border-2 border-teal-700 shadow-md">
+            <span>{weightsDisplay}</span>
+          </div>
+        ) : (
+          <span className="text-gray-300 text-xs italic">No weight</span>
+        )}
+      </td>
       <td className="px-4 py-3 text-right font-semibold text-gray-800">{formatAmount(delivery.Total)}</td>
       <td className="px-4 py-3"><p className="text-sm text-gray-700">{formatAddedDate(delivery.created_at)}</p><p className="text-xs text-gray-500">{formatAddedTime(delivery.created_at)}</p></td>
       <td className="px-4 py-3">
@@ -276,6 +372,7 @@ const SingleRow = ({ delivery, onView, onUpload }) => {
           <div>
             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium inline-flex mb-0.5">Assigned</span>
             <span className="text-xs text-gray-500 flex items-center gap-1"><Truck className="w-3 h-3" />{delivery.delivery_info.courier_name}</span>
+            <button onClick={() => onEditCourier(delivery)} className="text-xs text-teal-600 hover:text-teal-800 font-medium mt-1 hover:underline">Change</button>
           </div>
         ) : (
           <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">Pending</span>
@@ -301,10 +398,14 @@ const CourierDeliveryListPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useUrlPage();
   const [uploadModal, setUploadModal] = useState({ open: false, delivery: null, invoiceNos: [], boxingGroupId: '' });
-const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [couriers, setCouriers] = useState([]);
+  const [loadingCouriers, setLoadingCouriers] = useState(false);
+  const [courierEditModal, setCourierEditModal] = useState({ open: false, delivery: null, selectedCourier: null, reason: "" });
+  const [submittingCourier, setSubmittingCourier] = useState(false);
   const navigate = useNavigate();
   const itemsPerPage = 10;
 
@@ -330,6 +431,22 @@ const [trackingNumber, setTrackingNumber] = useState('');
     return () => { if (reconnectTimeout) clearTimeout(reconnectTimeout); if (es) es.close(); };
   }, []);
 
+  const loadCouriers = async () => {
+    setLoadingCouriers(true);
+    try {
+      const { getCouriers } = await import('../../../services/sales');
+      const response = await getCouriers();
+      const apiData = response?.data;
+      const arr = Array.isArray(apiData?.data) ? apiData.data : [];
+      setCouriers(arr.filter(c => c.status === 'ACTIVE'));
+    } catch (error) {
+      toast.error('Failed to load couriers');
+      setCouriers([]);
+    } finally {
+      setLoadingCouriers(false);
+    }
+  };
+
   const loadCourierDeliveries = async () => {
     setLoading(true);
     try {
@@ -352,6 +469,35 @@ const [trackingNumber, setTrackingNumber] = useState('');
   };
 
   const handleViewInvoice = (billId) => navigate(`/delivery/invoices/view/${billId}/courier-delivery`);
+  
+  const handleEditCourierClick = (delivery) => {
+    loadCouriers();
+    setCourierEditModal({ open: true, delivery, selectedCourier: delivery.delivery_info?.courier_id || null, reason: "" });
+  };
+
+  const handleChangeCourier = async () => {
+    if (!courierEditModal.delivery || !courierEditModal.selectedCourier) {
+      toast.error('Please select a courier');
+      return;
+    }
+    setSubmittingCourier(true);
+    try {
+      const { updateDeliveryCourier } = await import('../../../services/sales');
+      const response = await updateDeliveryCourier({
+        invoice_nos: [courierEditModal.delivery.invoice_no],
+        courier_id: courierEditModal.selectedCourier,
+        reason: courierEditModal.reason.trim() || undefined,
+      });
+      toast.success('Courier updated successfully');
+      setCourierEditModal({ open: false, delivery: null, selectedCourier: null, reason: "" });
+      await loadCourierDeliveries();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || error.response?.data?.message || 'Failed to update courier');
+    } finally {
+      setSubmittingCourier(false);
+    }
+  };
+
   const handleUploadClick = (delivery, groupItems = null) => {
     const invoiceNos = Array.isArray(groupItems) && groupItems.length > 0 ? groupItems.map((item) => item?.invoice_no).filter(Boolean) : [delivery?.invoice_no].filter(Boolean);
     const boxingGroupId = delivery?.packer_info?.boxing_group_id || (Array.isArray(groupItems) && groupItems[0]?.packer_info?.boxing_group_id) || '';
@@ -454,9 +600,9 @@ const [trackingNumber, setTrackingNumber] = useState('');
               <div className="md:hidden p-3 space-y-3">
                 {pagedRows.map((row) => {
                   if (row.type === 'group') {
-                    return <MobileGroupCard key={row.groupId} groupId={row.groupId} items={row.items} onUpload={handleUploadClick} onView={handleViewInvoice} />;
+                    return <MobileGroupCard key={row.groupId} groupId={row.groupId} items={row.items} onUpload={handleUploadClick} onView={handleViewInvoice} onEditCourier={handleEditCourierClick} />;
                   }
-                  return <MobileSingleCard key={row.delivery.id} delivery={row.delivery} onView={handleViewInvoice} onUpload={handleUploadClick} />;
+                  return <MobileSingleCard key={row.delivery.id} delivery={row.delivery} onView={handleViewInvoice} onUpload={handleUploadClick} onEditCourier={handleEditCourierClick} />;
                 })}
               </div>
 
@@ -464,26 +610,31 @@ const [trackingNumber, setTrackingNumber] = useState('');
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full table-fixed">
                   <colgroup>
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '28%' }} />
                     <col style={{ width: '8%' }} />
-                    <col style={{ width: '26%' }} />
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '8%' }} />
                     <col style={{ width: '10%' }} />
                     <col style={{ width: '10%' }} />
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '19%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '14%' }} />
                   </colgroup>
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
                     <tr>
-                      {['Invoice', 'Customer', 'Contact', 'Items', 'Amount', 'Added At', 'Status', 'Actions'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">{h}</th>
+                      {['Invoice', 'Customer', 'Boxes', 'Weight', 'Amount', 'Added At', 'Status', 'Actions'].map(h => (
+                        <th 
+                          key={h} 
+                          className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider"
+                        >
+                          {h}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="bg-gray-50">
                     {pagedRows.map((row) => {
-                      if (row.type === 'group') return <GroupBlock key={row.groupId} groupId={row.groupId} items={row.items} onUpload={handleUploadClick} onView={handleViewInvoice} />;
-                      return <SingleRow key={row.delivery.id} delivery={row.delivery} onView={handleViewInvoice} onUpload={handleUploadClick} />;
+                      if (row.type === 'group') return <GroupBlock key={row.groupId} groupId={row.groupId} items={row.items} onUpload={handleUploadClick} onView={handleViewInvoice} onEditCourier={handleEditCourierClick} />;
+                      return <SingleRow key={row.delivery.id} delivery={row.delivery} onView={handleViewInvoice} onUpload={handleUploadClick} onEditCourier={handleEditCourierClick} />;
                     })}
                   </tbody>
                 </table>
@@ -541,7 +692,7 @@ const [trackingNumber, setTrackingNumber] = useState('');
                 {/* Tracking Number */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Tracking Number <span className="text-gray-400 font-normal text-xs">(optional)</span>
+                    Tracking Number <span className="text-gray-400 font-normal text-xs"></span>
                   </label>
                   <input
                     type="text"
@@ -605,6 +756,97 @@ const [trackingNumber, setTrackingNumber] = useState('');
                   className="flex-1 py-2.5 px-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   {submitting ? 'Uploading...' : 'Complete Delivery'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Change Courier Modal ── */}
+      {courierEditModal.open && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setCourierEditModal({ open: false, delivery: null, selectedCourier: null })} />
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div
+              className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-5 py-4 flex items-center justify-between rounded-t-2xl sm:rounded-t-xl">
+                <h3 className="text-lg font-bold text-white">Change Courier Delivery</h3>
+                <button onClick={() => setCourierEditModal({ open: false, delivery: null, selectedCourier: null, reason: "" })} className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1.5 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* Invoice Info */}
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <div>
+                    <p className="font-semibold text-gray-900">{courierEditModal.delivery?.invoice_no}</p>
+                    <p className="text-sm text-gray-600 mt-0.5">{courierEditModal.delivery?.customer?.name}</p>
+                    <p className="text-xs text-teal-600 mt-1 font-medium">Current: {courierEditModal.delivery?.delivery_info?.courier_name || 'None'}</p>
+                  </div>
+                </div>
+
+                {/* Courier Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select New Courier <span className="text-red-500">*</span>
+                  </label>
+                  {loadingCouriers ? (
+                    <div className="py-6 text-center text-gray-400 text-sm">
+                      <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                      <p className="mt-2">Loading couriers...</p>
+                    </div>
+                  ) : couriers.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-4">No active couriers available</p>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {couriers.map((courier) => (
+                        <button
+                          key={courier.courier_id}
+                          onClick={() => setCourierEditModal(prev => ({ ...prev, selectedCourier: courier.courier_id }))}
+                          className={`w-full text-left px-3 py-2.5 border-2 rounded-lg transition-all flex items-center gap-2 ${
+                            courierEditModal.selectedCourier === courier.courier_id
+                              ? 'border-teal-500 bg-teal-50'
+                              : 'border-gray-200 bg-white hover:border-teal-300 hover:bg-teal-50/40'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm">{courier.courier_name}</p>
+                            <p className="text-xs text-gray-500">{courier.courier_code}</p>
+                          </div>
+                          {courierEditModal.selectedCourier === courier.courier_id && (
+                            <div className="w-4 h-4 rounded-full bg-teal-500 border-2 border-white"></div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-5 pb-5 flex gap-3 border-t border-gray-200">
+                <button
+                  onClick={() => setCourierEditModal({ open: false, delivery: null, selectedCourier: null, reason: "" })}
+                  disabled={submittingCourier}
+                  className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangeCourier}
+                  disabled={submittingCourier || !courierEditModal.selectedCourier}
+                  className="flex-1 py-2.5 px-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+                >
+                  {submittingCourier ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Change Courier'
+                  )}
                 </button>
               </div>
             </div>

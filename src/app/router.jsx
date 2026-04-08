@@ -63,6 +63,7 @@ const PackingInvoiceReportPage = lazy(() => import("../features/reports/pages/Pa
 const PackingUserSummaryPage = lazy(() => import("../features/reports/pages/Packingusersummarypage"));
 const DeliveryReportPage = lazy(() => import("../features/reports/pages/Deliveryreportpage"));
 const DeliveryUserSummaryPage = lazy(() => import("../features/reports/pages/Deliveryusersummarypage"));
+const ItemsBilledTodayPage = lazy(() => import("../features/reports/pages/ItemsBilledTodayPage"));
 
 function RouteFallback() {
   return (
@@ -168,6 +169,7 @@ export default function AppRouter() {
           <Route path="/history/packing-user-summary" element={<PackingUserSummaryPage />} />
           <Route path="/history/delivery-report" element={<DeliveryReportPage />} />
           <Route path="/history/delivery-user-summary" element={<DeliveryUserSummaryPage />} />
+          <Route path="/history/items-sold-today" element={<ItemsBilledTodayPage />} />
 
           {/* Developer Options - SUPERADMIN ONLY */}
           <Route 

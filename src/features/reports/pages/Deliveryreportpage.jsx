@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import { getDeliveryHistory } from "../../../services/sales";
+import { getDeliveryHistory, getCourierAuditLogs } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
-import { X, Search } from 'lucide-react';
+import { X, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 
@@ -52,6 +52,40 @@ const DELIVERY_LABEL = {
   DIRECT: "Counter Pickup",
 };
 
+// ─── Box weight helpers ────────────────────────────────────────────────────────
+const getBoxWeight = (session) => {
+  // Get weights - prioritize invoice-specific weights, then fall back to group weights
+  const weights = (
+    session?.invoice_box_weights ||
+    session?.delivery_info?.box_weights ||
+    session?.packer_info?.box_weights ||
+    session?.box_weights ||
+    null
+  );
+  
+  // If single weight value (backwards compatibility)
+  if (typeof weights === 'number') {
+    return weights;
+  }
+  
+  // If array of weights
+  if (Array.isArray(weights)) {
+    return weights;
+  }
+  
+  return null;
+};
+
+const formatBoxWeights = (weights) => {
+  if (!weights) return null;
+  const array = Array.isArray(weights) ? weights : [weights];
+  const total = array.reduce((sum, w) => sum + (w || 0), 0);
+  if (array.length === 1) {
+    return ` ${array[0]} kg`;
+  }
+  return ` ${total} kg (${array.length}${array.length !== 1 ? '' : ''})`;
+};
+
 export default function DeliveryReportPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -77,6 +111,10 @@ export default function DeliveryReportPage() {
 
   // Attachment lightbox state
   const [attachmentModal, setAttachmentModal] = useState({ open: false, url: '', type: '' });
+  
+  // Courier audit logs state
+  const [expandedAuditLogs, setExpandedAuditLogs] = useState({});
+  const [auditLogCache, setAuditLogCache] = useState({});
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
@@ -92,6 +130,16 @@ export default function DeliveryReportPage() {
 
   const sortByStartTime = (arr) =>
     [...arr].sort((a, b) => new Date(a.start_time || a.created_at) - new Date(b.start_time || b.created_at));
+
+  const toggleAuditLogs = async (invoiceNo) => {
+    const key = `audit-${invoiceNo}`;
+    
+    // Just toggle the expand state - logs should already be cached from loadSessions
+    setExpandedAuditLogs(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   const loadSessions = async () => {
     setLoading(true);
@@ -125,6 +173,23 @@ export default function DeliveryReportPage() {
       const dateFilteredResults = !dateFilter
         ? searchedResults
         : searchedResults.filter((s) => getSessionFilterDate(s) === dateFilter);
+
+      // Batch fetch courier audit logs for COURIER deliveries
+      const courierInvoices = dateFilteredResults.filter(s => s.delivery_type === 'COURIER');
+      if (courierInvoices.length > 0) {
+        const logsCache = { ...auditLogCache };
+        for (const invoice of courierInvoices) {
+          if (!logsCache[invoice.invoice_no]) {
+            try {
+              const response = await getCourierAuditLogs(invoice.invoice_no);
+              logsCache[invoice.invoice_no] = response.data.data || [];
+            } catch (err) {
+              logsCache[invoice.invoice_no] = [];
+            }
+          }
+        }
+        setAuditLogCache(logsCache);
+      }
 
       const startIdx = (currentPage - 1) * itemsPerPage;
       const endIdx = startIdx + itemsPerPage;
@@ -201,6 +266,48 @@ export default function DeliveryReportPage() {
 
   const getCourierSlipUrl = (session) => session?.courier_slip_url || session?.courier_slip || "";
 
+  const renderCourierAuditTrail = (invoiceNo) => {
+    const logs = auditLogCache[invoiceNo] || [];
+    if (!logs.length) return null;
+
+    return (
+      <div className="mt-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
+        <p className="text-xs font-bold text-gray-700 mb-2">📋 Courier Change History:</p>
+        <div className="space-y-2">
+          {logs.map((log, idx) => (
+            <div key={log.id} className="text-xs bg-white p-2 rounded border border-gray-100">
+              <div className="flex items-start justify-between">
+                <span className="font-semibold text-gray-900">Change #{logs.length - idx}</span>
+                <span className="text-gray-500">{formatTime(log.changed_at)}</span>
+              </div>
+              <p className="text-gray-600 mt-1">
+                <span className="font-medium">{log.changed_by_name}</span>
+                {log.changed_by_email && <span className="text-gray-500"> ({log.changed_by_email})</span>}
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-[10px] font-semibold">
+                  {log.old_courier_name || 'N/A'}
+                </span>
+                <span className="text-gray-400">→</span>
+                <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] font-semibold">
+                  {log.new_courier_name || 'N/A'}
+                </span>
+              </div>
+              {log.reason && (
+                <p className="text-gray-600 italic mt-1">
+                  <span className="font-medium">Reason:</span> {log.reason}
+                </p>
+              )}
+              <p className="text-gray-500 text-[9px] mt-1">
+                {formatDateDDMMYYYY(log.changed_at)} at {formatTime(log.changed_at)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const getPickupDisplayName = (session) => (
     session?.pickup_person_name || session?.customer_name || session?.temp_name || '—'
   );
@@ -233,6 +340,9 @@ export default function DeliveryReportPage() {
   const renderDeliveryDetails = (session) => {
     if (session.delivery_type === 'COURIER') {
       const slipUrl = getCourierSlipUrl(session);
+      const auditKey = `audit-${session.invoice_no}`;
+      const isAuditExpanded = expandedAuditLogs[auditKey];
+      
       return (
         <div className="space-y-0.5">
           <p>{session.courier_name || 'Courier not set'}</p>
@@ -251,6 +361,23 @@ export default function DeliveryReportPage() {
             <p className="text-xs text-teal-700">Slip not uploaded</p>
           )}
           {renderAttachmentLink(session)}
+          {session.delivery_type === 'COURIER' && auditLogCache[session.invoice_no]?.length > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleAuditLogs(session.invoice_no);
+              }}
+              className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:text-blue-800 font-semibold hover:underline"
+            >
+              <ChevronDown size={14} style={{ transform: isAuditExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+              {isAuditExpanded ? 'Hide' : 'View'} Change History
+            </button>
+          )}
+          {isAuditExpanded && auditLogCache[session.invoice_no]?.length > 0 && (
+            <div onClick={(e) => e.stopPropagation()}>
+              {renderCourierAuditTrail(session.invoice_no)}
+            </div>
+          )}
         </div>
       );
     }
@@ -399,13 +526,13 @@ export default function DeliveryReportPage() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
-                      <col style={{ width: '12%' }} />
-                      <col style={{ width: '18%' }} />
-                      <col style={{ width: '18%' }} />
-                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '11%' }} />
                       <col style={{ width: '16%' }} />
+                      <col style={{ width: '19%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '15%' }} />
                       <col style={{ width: '10%' }} />
-                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '18%' }} />
                     </colgroup>
                     <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                       <tr>
@@ -445,11 +572,19 @@ export default function DeliveryReportPage() {
                                           {first.courier_name && <span className="ml-2 text-teal-700">· {first.courier_name}</span>}
                                           {first.label_count != null && <span className="ml-2 text-teal-600">· {first.label_count} box(es)</span>}
                                           {(() => {
+                                            const weights = getBoxWeight(first);
+                                            const weightsDisplay = formatBoxWeights(weights);
+                                            if (weightsDisplay) {
+                                              return <span className="ml-2 text-teal-600">· {weightsDisplay}</span>;
+                                            }
+                                            return null;
+                                          })()}
+                                          {(() => {
                                             const preferred = getPreferredInvoiceFromGroupId(first.boxing_group_id, rows);
                                             if (!preferred) return null;
                                             return (
                                               <span className="ml-2 px-2 py-0.5 bg-teal-100 text-teal-800 rounded-full text-[10px] font-bold">
-                                                📦 Address: {preferred.customer_name}
+                                               Address: {preferred.customer_name}
                                               </span>
                                             );
                                           })()}
@@ -468,13 +603,13 @@ export default function DeliveryReportPage() {
                                         <div className={`mx-3 border-l-2 border-r-2 border-teal-400 ${isLast ? 'border-b-2 rounded-b-lg mb-2' : ''} px-0`}>
                                           <table className="w-full" style={{ tableLayout: 'fixed' }}>
                                             <colgroup>
-                                              <col style={{ width: '12%' }} />
-                                              <col style={{ width: '18%' }} />
-                                              <col style={{ width: '18%' }} />
-                                              <col style={{ width: '12%' }} />
+                                              <col style={{ width: '11%' }} />
                                               <col style={{ width: '16%' }} />
+                                              <col style={{ width: '19%' }} />
+                                              <col style={{ width: '11%' }} />
+                                              <col style={{ width: '15%' }} />
                                               <col style={{ width: '10%' }} />
-                                              <col style={{ width: '14%' }} />
+                                              <col style={{ width: '18%' }} />
                                             </colgroup>
                                             <tbody>
                                               <tr className={`${isLast ? '' : 'border-b border-teal-100'}`}>
@@ -482,6 +617,19 @@ export default function DeliveryReportPage() {
                                                 <td className="px-4 py-2 text-sm text-gray-700">
                                                   <p>{session.customer_name || '—'}</p>
                                                   <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || '—'}</p>
+                                                  {(() => {
+                                                    const boxCount = session.label_count || session.tray_codes?.length || 0;
+                                                    const weights = getBoxWeight(session);
+                                                    const weightsDisplay = formatBoxWeights(weights);
+                                                    if (boxCount > 0 || weightsDisplay) {
+                                                      return (
+                                                        <p className="text-xs text-teal-600 font-semibold mt-1">
+                                                         {boxCount} box{boxCount !== 1 ? 'es' : ''}{weightsDisplay ? ` · ${weightsDisplay}` : ''}
+                                                        </p>
+                                                      );
+                                                    }
+                                                    return null;
+                                                  })()}
                                                 </td>
                                                 <td className="px-4 py-2 text-sm text-gray-700">
                                                   {renderDeliveryDetails(session)}
@@ -491,9 +639,9 @@ export default function DeliveryReportPage() {
                                                   {session.courier_name && <p className="text-xs font-semibold text-blue-700">{session.courier_name}</p>}
                                                 </td>
                                                 <td className="px-4 py-2 text-sm text-gray-700">
-                                                  <p>{formatDateDDMMYYYY(getSessionDisplayDateTime(session))}</p>
+                                                  <p>{formatDateDDMMYYYY(session.start_time || session.created_at)}</p>
                                                   <p className="text-xs text-gray-500">
-                                                    {formatTime(getSessionDisplayDateTime(session))}
+                                                    {formatTime(session.start_time || session.created_at)}
                                                     {session.end_time ? ` → ${formatTime(session.end_time)}` : ''}
                                                   </p>
                                                 </td>
@@ -529,6 +677,19 @@ export default function DeliveryReportPage() {
                               <td className="px-4 py-3 text-sm text-gray-700">
                                 <p>{first.customer_name || '—'}</p>
                                 <p className="text-xs text-gray-500">{first.customer_area || first.customer_address || first.temp_name || '—'}</p>
+                                {(() => {
+                                  const boxCount = first.label_count || first.tray_codes?.length || 0;
+                                  const weights = getBoxWeight(first);
+                                  const weightsDisplay = formatBoxWeights(weights);
+                                  if (boxCount > 0 || weightsDisplay) {
+                                    return (
+                                      <p className="text-xs text-teal-600 font-semibold mt-1">
+                                       {boxCount} box{boxCount !== 1 ? 'es' : ''}{weightsDisplay ? ` · ${weightsDisplay}` : ''}
+                                      </p>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700">
                                 {renderDeliveryDetails(first)}
@@ -538,9 +699,9 @@ export default function DeliveryReportPage() {
                                 {first.courier_name && <p className="text-xs font-semibold text-blue-700">{first.courier_name}</p>}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700">
-                                <p>{formatDateDDMMYYYY(getSessionDisplayDateTime(first))}</p>
+                                <p>{formatDateDDMMYYYY(first.start_time || first.created_at)}</p>
                                 <p className="text-xs text-gray-500">
-                                  {formatTime(getSessionDisplayDateTime(first))}
+                                  {formatTime(first.start_time || first.created_at)}
                                   {first.end_time ? ` → ${formatTime(first.end_time)}` : ''}
                                 </p>
                               </td>

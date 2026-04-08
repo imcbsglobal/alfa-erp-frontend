@@ -139,6 +139,11 @@ export const getByUrl = (url) => api.get(url);
 // Invoices list
 export const getInvoices = (params = {}) => api.get("/sales/invoices/", { params });
 
+// Items billed today report
+export const getItemsBilledToday = (params = {}) => {
+  return api.get("/sales/items-billed-today/", { params });
+};
+
 // Picking
 export const startPicking = (data) => api.post("/sales/picking/start/", data);
 export const completePicking = (data) => api.post("/sales/picking/complete/", data);
@@ -167,6 +172,8 @@ export const completeBoxing = (data) => api.post("/sales/packing/complete-boxing
 
 // Delivery
 export const assignDelivery = (data) => api.post("/sales/delivery/assign/", data);
+export const updateDeliveryCourier = (data) => api.post("/sales/delivery/update-courier/", data);
+export const getCourierAuditLogs = (invoiceNo) => api.get(`/sales/delivery/audit-logs/?invoice_no=${invoiceNo}`);
 export const getEligibleDeliveryStaff = () => api.get("/sales/delivery/eligible-staff/");
 export const uploadDeliverySlip = (formData) =>
   api.post("/sales/delivery/upload-slip/", formData, {

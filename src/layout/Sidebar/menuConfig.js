@@ -196,6 +196,12 @@ export const MENU_CONFIG = [
         icon: Truck,
         path: "/history/delivery-report",
       },
+      {
+        label: "Items Wise Reports",
+        icon: Pill,
+        path: "/history/items-sold-today",
+        hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
+      },
       // ── NEW: User Summary nested dropdown ──────────────
       {
         label: "User Summary",

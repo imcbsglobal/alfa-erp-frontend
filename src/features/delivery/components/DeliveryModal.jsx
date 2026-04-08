@@ -190,12 +190,29 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   // ── Initialise step from parent mode ──────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    if (initialMode === 'COUNTER_PICKUP')   { setDeliveryType('COUNTER_PICKUP');   setStep(2); return; }
+    if (initialMode === 'COUNTER_PICKUP')   { setDeliveryType('COUNTER_PICKUP');   setStep(3); setSubType('PATIENT'); return; }
     if (initialMode === 'COURIER')          { setDeliveryType('COURIER');          setStep(4); return; }
     if (initialMode === 'COMPANY_DELIVERY') { setDeliveryType('COMPANY_DELIVERY'); setStep(5); return; }
     setStep(1);
     setDeliveryType(null);
   }, [isOpen, initialMode]);
+
+  // ── Auto-fill Counter Pickup fields from invoice data ────────────────────
+  useEffect(() => {
+    if (!isOpen || !repInvoice || deliveryType !== 'COUNTER_PICKUP' || step !== 3) return;
+    
+    // Auto-fill name: customer name or temp name
+    const autoName = repInvoice.customer?.name || repInvoice.temp_name || '';
+    if (autoName && !pickupPersonName) {
+      setPickupPersonName(autoName);
+    }
+
+    // Auto-fill phone: prefer phone1, fallback to phone2
+    const autoPhone = repInvoice.customer?.phone1 || repInvoice.customer?.phone2 || '';
+    if (autoPhone && !pickupPersonPhone) {
+      setPickupPersonPhone(autoPhone);
+    }
+  }, [isOpen, repInvoice, deliveryType, step]);
 
   const loadCouriers = async () => {
     setLoadingCouriers(true);
@@ -224,7 +241,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
 
   const handleTypeSelect = (type) => {
     setDeliveryType(type);
-    if (type === 'COUNTER_PICKUP')       setStep(2);
+    if (type === 'COUNTER_PICKUP')       { setStep(3); setSubType('PATIENT'); }
     else if (type === 'COURIER')         setStep(4);
     else if (type === 'COMPANY_DELIVERY') setStep(5);
   };
@@ -232,7 +249,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   const handleSubTypeSelect = (sub) => { setSubType(sub); setStep(3); };
 
   const handleBack = () => {
-    if (step === 3 && deliveryType === 'COUNTER_PICKUP') { setStep(2); setSubType(null); }
+    if (step === 3 && deliveryType === 'COUNTER_PICKUP') { setStep(1); setDeliveryType(null); setSubType(null); }
     else if (initialMode) { handleClose(); }
     else if ([2, 4, 5].includes(step)) {
       setStep(1); setDeliveryType(null); setSubType(null);
@@ -276,8 +293,8 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
           alert('Please enter person name');
           return;
         }
-        if (!/^\d{10}$/.test(pickupPersonPhone)) {
-          alert('Enter a valid 10-digit phone number');
+        if (!pickupPersonPhone.trim()) {
+          alert('Enter a valid phone number');
           return;
         }
         onConfirm({
@@ -292,8 +309,8 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
       // Required: pickup_person_name, pickup_person_phone, pickup_company_name
       // Optional: pickup_company_id, notes
       } else if (subType === 'COMPANY') {
-        if (!/^\d{10}$/.test(pickupPersonPhone)) {
-          alert('Enter a valid 10-digit phone number');
+        if (!pickupPersonPhone.trim()) {
+          alert('Enter a valid phone number');
           return;
         }
         if (
@@ -330,14 +347,14 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   const isFormValid = () => {
     if (deliveryType === 'COUNTER_PICKUP') {
       if (subType === 'PATIENT') {
-        // Only phone required
-        return pickupPersonName.trim() !== '' && /^\d{10}$/.test(pickupPersonPhone);
+        // Only phone required (any length)
+        return pickupPersonName.trim() !== '' && pickupPersonPhone.trim() !== '';
       }
       if (subType === 'COMPANY') {
         // Name + phone + company name required (company ID is optional)
         return (
           pickupPersonName.trim() !== '' &&
-          /^\d{10}$/.test(pickupPersonPhone) &&
+          pickupPersonPhone.trim() !== '' &&
           companyName.trim() !== ''
         );
       }
@@ -359,6 +376,9 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   const GroupSummaryStrip = () => {
     if (!isGroup || invoiceArr.length === 0) return null;
     const totalItems = invoiceArr.reduce((s, b) => s + (b.items?.length || 0), 0);
+    // For grouped invoices with same boxing_group_id, use only the first item's label_count
+    // as they represent ONE consolidated box, not individual boxes per item
+    const totalBoxes = invoiceArr[0]?.packer_info?.label_count || invoiceArr[0]?.label_count || invoiceArr[0]?.tray_codes?.length || 0;
     return (
       <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 mb-4">
         <div className="flex items-center gap-2 mb-3">
@@ -366,7 +386,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
             <Layers className="w-4 h-4 text-teal-600" />
           </div>
           <span className="text-sm font-bold text-teal-700">
-            Group Dispatch — {invoiceArr.length} invoices · {totalItems} items
+            Group Dispatch — {invoiceArr.length} invoices · {totalItems} items {totalBoxes > 0 ? `· 📦 ${totalBoxes} box${totalBoxes !== 1 ? 'es' : ''}` : ''}
           </span>
         </div>
         <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
@@ -390,6 +410,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
 
   const SingleSummaryStrip = () => {
     if (isGroup) return null;
+    const labelCount = repInvoice?.packer_info?.label_count || repInvoice?.label_count || repInvoice?.tray_codes?.length || 0;
     return (
       <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 mb-4">
         <div className="flex items-start justify-between">
@@ -397,9 +418,12 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
             <p className="font-semibold text-gray-900">{repInvoice?.invoice_no}</p>
             <p className="text-sm text-gray-500 mt-0.5 truncate">{repInvoice?.customer?.name}</p>
           </div>
-          <div className="text-right flex-shrink-0 ml-3">
+          <div className="text-right flex-shrink-0 ml-3 space-y-1">
             <p className="font-semibold text-gray-900">{formatAmount(repInvoice?.Total)}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{formatItemCount(repInvoice?.items?.length)}</p>
+            <p className="text-xs text-gray-400">{formatItemCount(repInvoice?.items?.length)}</p>
+            {labelCount > 0 && (
+              <p className="text-xs text-teal-600 font-medium">📦 {labelCount} box{labelCount !== 1 ? 'es' : ''}</p>
+            )}
           </div>
         </div>
       </div>
@@ -409,7 +433,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   const BackButton = () => (
     <button onClick={handleBack}
       className="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 mb-3 font-medium">
-      ← Back
+      
     </button>
   );
 
@@ -522,7 +546,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
             <div>
               <BackButton />
               <p className="font-semibold text-gray-800 mb-4">
-                {subType === 'PATIENT' ? 'Direct Patient Pickup' : 'Direct Company Pickup'}
+                {subType === 'PATIENT' ? 'Direct Patient / Repo Pickup' : 'Direct Company Pickup'}
               </p>
 
               <div className="space-y-4">
@@ -558,14 +582,14 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
                           type="tel"
                           value={pickupPersonPhone}
                           onChange={e => setPickupPersonPhone(e.target.value)}
-                          placeholder="10-digit phone number"
-                          maxLength={10}
+                          placeholder="Phone number"
+                          maxLength={30}
                           className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
                                     focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                         />
                       </div>
-                      {pickupPersonPhone && !/^\d{10}$/.test(pickupPersonPhone) && (
-                        <p className="text-xs text-red-500 mt-1">Enter a valid 10-digit phone number</p>
+                      {pickupPersonPhone && !pickupPersonPhone.trim() && (
+                        <p className="text-xs text-red-500 mt-1">Phone number is required</p>
                       )}
                     </div>
                   </div>
@@ -617,14 +641,14 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
                             type="tel"
                             value={pickupPersonPhone}
                             onChange={e => setPickupPersonPhone(e.target.value)}
-                            placeholder="10-digit phone number"
-                            maxLength={10}
+                            placeholder="Phone number"
+                            maxLength={30}
                             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
                                        focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                           />
                         </div>
-                        {pickupPersonPhone && !/^\d{10}$/.test(pickupPersonPhone) && (
-                          <p className="text-xs text-red-500 mt-1">Enter a valid 10-digit phone number</p>
+                        {pickupPersonPhone && !pickupPersonPhone.trim() && (
+                          <p className="text-xs text-red-500 mt-1">Phone number is required</p>
                         )}
                       </div>
                     </div>

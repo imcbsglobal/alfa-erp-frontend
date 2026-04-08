@@ -53,8 +53,7 @@ export default function BoxingPage() {
         const res = await getBoxingData(invoiceNo);
         const d = res.data?.data || res.data;
         setData(d);
-        const trayCount = d?.trays?.length || d?.boxes?.length || 1;
-        setLabelCount(trayCount);
+        setLabelCount(1); // Always default to 1 label
       } catch (err) {
         console.error("Failed to load boxing data", err);
         toast.error("Failed to load boxing data");

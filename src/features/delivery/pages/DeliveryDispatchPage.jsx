@@ -26,7 +26,7 @@ const MODES = [
   {
     key: 'COUNTER_PICKUP',
     label: 'Counter Pickup',
-    sub: 'Patient / Company',
+    sub: 'Patient / Repo ',
     icon: User,
     activeClasses: 'border-teal-500 bg-teal-50',
     idleClasses: 'border-teal-200 bg-teal-50/40 hover:border-teal-300 hover:bg-teal-50/70',
@@ -156,12 +156,12 @@ const SingleRow = ({ bill, onDispatch, onView, batchMode, onAddToBatch, batchIds
       </td>
       <td className="px-4 py-3">
         {(() => {
-          const count = bill.tray_codes?.length || bill.packer_info?.label_count || 0;
+          const count = bill.packer_info?.label_count || bill.label_count || bill.tray_codes?.length || 0;
           const courier = bill.packer_info?.courier_name || '';
           return count > 0 ? (
             <div className="space-y-1">
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-bold rounded-lg">
-                📦 {count}
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-bold rounded-lg">
+                 📦 {count} box{count !== 1 ? 'es' : ''}
               </span>
               {courier && (
                 <p className="text-xs text-blue-600 font-medium truncate max-w-[80px]">{courier}</p>
@@ -275,7 +275,10 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
           <p className="text-sm font-bold text-gray-800">{items.length} invoices</p>
           <p className="text-xs text-gray-400">{totalItems} total items</p>
           {(() => {
-            const totalBoxes = items.reduce((sum, b) => sum + (b.tray_codes?.length || b.packer_info?.label_count || 0), 0);
+            // For grouped items with same boxing_group_id, use only the first item's label_count
+            // as they represent ONE consolidated box, not individual boxes per item
+            const repItem = items[0];
+            const totalBoxes = repItem?.packer_info?.label_count || repItem?.label_count || repItem?.tray_codes?.length || 0;
             return totalBoxes > 0 ? (
               <p className="text-xs text-teal-600 font-semibold">📦 {totalBoxes} box{totalBoxes !== 1 ? 'es' : ''}</p>
             ) : null;
@@ -388,10 +391,36 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
   );
 };
 
+// ─── Helper: Calculate total boxes from bills ──────────────────────────────────
+const getTotalBoxesFromBills = (bills) => {
+  // Group bills by boxing_group_id to handle consolidated shipments
+  const groupMap = {};
+  let totalBoxes = 0;
+
+  bills.forEach((bill) => {
+    const groupId = bill?.packer_info?.boxing_group_id;
+    
+    if (groupId) {
+      // Grouped shipment - count it once per group
+      if (!groupMap[groupId]) {
+        groupMap[groupId] = true;
+        const boxCount = bill?.packer_info?.label_count || bill?.label_count || bill?.tray_codes?.length || 0;
+        totalBoxes += boxCount;
+      }
+    } else {
+      // Ungrouped shipment - count individual boxes
+      const boxCount = bill?.packer_info?.label_count || bill?.label_count || bill?.tray_codes?.length || 0;
+      totalBoxes += boxCount;
+    }
+  });
+
+  return totalBoxes;
+};
+
 // ─── CourierBatchPanel ─────────────────────────────────────────────────────────
 const CourierBatchPanel = ({
   couriers, loadingCouriers, selectedCourier, onSelectCourier,
-  batchBills, onDispatchBatch, submitting, singleBillsCount, multiBillsCount,
+  batchBills, batchWeights, onDispatchBatch, submitting, singleBillsCount, multiBillsCount,
 }) => {
   const [courierSearch, setCourierSearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -410,6 +439,13 @@ const CourierBatchPanel = ({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const handleDispatchWithWeights = () => {
+    // Collect all weights from the batch
+    const allWeights = batchBills.map(bill => batchWeights[bill.id] || null);
+    const flatWeights = allWeights.filter(w => w !== null).flat();
+    onDispatchBatch(flatWeights.length > 0 ? flatWeights : null);
+  };
 
   const canDispatch = selectedCourier && batchBills.length > 0 && !submitting;
 
@@ -524,7 +560,23 @@ const CourierBatchPanel = ({
               </p>
             </div>
             <button
-              onClick={onDispatchBatch}
+              onClick={() => {
+                // Calculate total boxes from batch bills
+                if (totalBoxes === 0) {
+                  toast.error('No boxes to add weights for');
+                  return;
+                }
+                // Show weight modal for all bills in batch
+                setBillsAwaitingWeight(batchBills);
+                setPendingWeightsPerBill(new Array(totalBoxes).fill(''));
+                setShowWeightModalPerBill(true);
+              }}
+              className="w-full py-2 px-4 border border-teal-300 bg-teal-50 text-teal-700 rounded-lg text-sm font-medium hover:bg-teal-100 transition-all"
+            >
+              📦 {getTotalBoxesFromBills(batchBills)} box{getTotalBoxesFromBills(batchBills) !== 1 ? 'es' : ''} — Add Weights (Optional)
+            </button>
+            <button
+              onClick={handleDispatchWithWeights}
               disabled={submitting}
               className="w-full py-2.5 px-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white
                          rounded-xl font-semibold text-sm hover:from-teal-600 hover:to-cyan-700
@@ -824,6 +876,12 @@ const DeliveryDispatchPage = () => {
   const [selectedCourier, setSelectedCourier] = useState(null);
   const [batchBills, setBatchBills]           = useState([]);
   const batchIds = useMemo(() => new Set(batchBills.map(b => b.id)), [batchBills]);
+  const [batchWeights, setBatchWeights]       = useState({}); // Map of bill ID -> weights array
+
+  // ── Per-bill weight modal state ───────────────────────────────────────────
+  const [billsAwaitingWeight, setBillsAwaitingWeight] = useState(null);
+  const [showWeightModalPerBill, setShowWeightModalPerBill] = useState(false);
+  const [pendingWeightsPerBill, setPendingWeightsPerBill] = useState([]);
 
   // ── Company delivery state ────────────────────────────────────────────────
   const [deliveryStaff, setDeliveryStaff]         = useState([]);
@@ -849,7 +907,7 @@ const DeliveryDispatchPage = () => {
 
   // Reset courier batch when mode changes
   useEffect(() => {
-    if (activeMode !== 'COURIER') { setSelectedCourier(null); setBatchBills([]); }
+    if (activeMode !== 'COURIER') { setSelectedCourier(null); setBatchBills([]); setBatchWeights({}); }
   }, [activeMode]);
 
   // Load delivery staff when COMPANY_DELIVERY mode selected
@@ -946,17 +1004,40 @@ const DeliveryDispatchPage = () => {
 
   // ── Batch helpers ─────────────────────────────────────────────────────────
   const handleAddToBatch = useCallback((billsToToggle) => {
-    setBatchBills(prev => {
-      const ids = new Set(prev.map(b => b.id));
-      const allPresent = billsToToggle.every(b => ids.has(b.id));
-      if (allPresent) {
-        const removeIds = new Set(billsToToggle.map(b => b.id));
-        return prev.filter(b => !removeIds.has(b.id));
-      }
-      const toAdd = billsToToggle.filter(b => !ids.has(b.id));
-      return [...prev, ...toAdd];
-    });
-  }, []);
+    // Check if already in batch
+    const ids = new Set(batchBills.map(b => b.id));
+    const allPresent = billsToToggle.every(b => ids.has(b.id));
+    if (allPresent) {
+      // Remove from batch
+      const removeIds = new Set(billsToToggle.map(b => b.id));
+      setBatchBills(prev => prev.filter(b => !removeIds.has(b.id)));
+      // Also remove weights for removed bills
+      setBatchWeights(prev => {
+        const updated = { ...prev };
+        removeIds.forEach(id => delete updated[id]);
+        return updated;
+      });
+      return;
+    }
+    
+    // Bills to add - show weight modal if they have boxes
+    const toAdd = billsToToggle.filter(b => !ids.has(b.id));
+    if (toAdd.length === 0) return;
+    
+    // Calculate total boxes for these bills
+    const totalBoxes = getTotalBoxesFromBills(toAdd);
+    
+    // If no boxes, add directly without weight entry
+    if (totalBoxes === 0) {
+      setBatchBills(prev => [...prev, ...toAdd]);
+      return;
+    }
+    
+    // If has boxes, show weight modal for this batch of bills
+    setBillsAwaitingWeight(toAdd);
+    setPendingWeightsPerBill(new Array(totalBoxes).fill(''));
+    setShowWeightModalPerBill(true);
+  }, [batchBills]);
 
   const handleAddToBatchGroupAware = useCallback((billsToToggle, allBillsRef) => {
     const expanded = [];
@@ -979,6 +1060,29 @@ const DeliveryDispatchPage = () => {
     });
     handleAddToBatch(expanded);
   }, [handleAddToBatch]);
+  
+  // ── Confirm weights and add to batch ─────────────────────────────────────────
+  const handleConfirmBillWeights = useCallback(() => {
+    if (!billsAwaitingWeight) return;
+    
+    // Store the weights separately by bill ID
+    const newWeights = { ...batchWeights };
+    billsAwaitingWeight.forEach((bill) => {
+      const filteredWeights = pendingWeightsPerBill.filter(w => w !== '').map(w => parseFloat(w));
+      if (filteredWeights.length > 0) {
+        newWeights[bill.id] = filteredWeights;
+      }
+    });
+    
+    // Add bills to batch (without modifying them)
+    setBatchBills(prev => [...prev, ...billsAwaitingWeight]);
+    setBatchWeights(newWeights);
+    
+    // Close modal and reset
+    setShowWeightModalPerBill(false);
+    setBillsAwaitingWeight(null);
+    setPendingWeightsPerBill([]);
+  }, [billsAwaitingWeight, pendingWeightsPerBill, batchWeights]);
 
   // ── scan / search submit ──────────────────────────────────────────────────
   const handleScanSubmit = (value) => {
@@ -1126,7 +1230,7 @@ const DeliveryDispatchPage = () => {
     } finally { setSubmitting(false); }
   };
 
-  const handleDispatchBatch = async () => {
+  const handleDispatchBatch = async (boxWeights = null) => {
     if (!selectedCourier || batchBills.length === 0) return;
     setSubmitting(true);
     try {
@@ -1137,16 +1241,24 @@ const DeliveryDispatchPage = () => {
           : {}),
       }));
 
-      const response = await startDelivery({
+      const payload = {
         invoice_nos: batchBills.map(b => b.invoice_no),
         invoice_entries: invoiceEntries,
         delivery_type: 'COURIER',
         courier_id: selectedCourier.courier_id,
-      });
+      };
+
+      // Include box weights if provided (array of weights)
+      if (Array.isArray(boxWeights) && boxWeights.length > 0) {
+        payload.box_weights = boxWeights;
+      }
+
+      const response = await startDelivery(payload);
       if (response.data.success) {
         const count = batchBills.length;
         toast.success(`${count} bill${count !== 1 ? 's' : ''} assigned to ${selectedCourier.courier_name}`);
         setBatchBills([]);
+        setBatchWeights({});
         loadPackedInvoices();
       }
     } catch (error) {
@@ -1300,6 +1412,7 @@ const DeliveryDispatchPage = () => {
                 selectedCourier={selectedCourier}
                 onSelectCourier={setSelectedCourier}
                 batchBills={batchBills}
+                batchWeights={batchWeights}
                 onDispatchBatch={handleDispatchBatch}
                 submitting={submitting}
                 singleBillsCount={singleBills.length}
@@ -1670,6 +1783,81 @@ const DeliveryDispatchPage = () => {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Per-Bill Weight Modal */}
+      {showWeightModalPerBill && billsAwaitingWeight && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowWeightModalPerBill(false)} />
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div
+              className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-3 flex items-center justify-between rounded-t-2xl sm:rounded-t-xl sticky top-0">
+                <h3 className="text-lg font-bold text-white">Enter Box Weights</h3>
+                <button onClick={() => setShowWeightModalPerBill(false)} className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1.5 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="bg-teal-50 border border-teal-200 rounded-lg px-3 py-2.5">
+                  <p className="text-xs text-teal-700">
+                    <span className="font-semibold">{pendingWeightsPerBill.length} box{pendingWeightsPerBill.length !== 1 ? 'es' : ''}</span>
+                    {' '}from{' '}
+                    <span className="font-semibold">{billsAwaitingWeight.length} bill{billsAwaitingWeight.length !== 1 ? 's' : ''}</span>
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Box Weights (kg)</p>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {pendingWeightsPerBill.map((weight, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500 w-12">📦 Box {idx + 1}</span>
+                        <input
+                          type="number"
+                          value={weight}
+                          onChange={(e) => {
+                            const updated = [...pendingWeightsPerBill];
+                            updated[idx] = e.target.value;
+                            setPendingWeightsPerBill(updated);
+                          }}
+                          placeholder="0.0"
+                          step="0.1"
+                          min="0"
+                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                        <span className="text-xs text-gray-400 w-6">kg</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-400 text-center">Leave blank if weight is not available for a box</p>
+              </div>
+
+              <div className="px-5 pb-5 flex gap-3 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowWeightModalPerBill(false);
+                    setBillsAwaitingWeight(null);
+                    setPendingWeightsPerBill([]);
+                  }}
+                  className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmBillWeights}
+                  className="flex-1 py-2.5 px-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow-lg hover:from-teal-600 hover:to-cyan-700 transition-all"
+                >
+                  Confirm & Add to Batch
+                </button>
               </div>
             </div>
           </div>

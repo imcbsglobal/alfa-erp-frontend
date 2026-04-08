@@ -4,6 +4,29 @@ import toast from "react-hot-toast";
 import { formatNumber } from '../../../utils/formatters';
 import { RefreshCw } from 'lucide-react';
 
+// ─── Box weight helpers ────────────────────────────────────────────────────────
+const getBoxWeight = (session) => {
+  const weights = (
+    session?.delivery_info?.box_weights ||
+    session?.packer_info?.box_weights ||
+    session?.box_weights ||
+    null
+  );
+  if (typeof weights === 'number') {
+    return weights;
+  }
+  if (Array.isArray(weights)) {
+    return weights;
+  }
+  return null;
+};
+
+const getTotalWeight = (weights) => {
+  if (!weights) return 0;
+  const array = Array.isArray(weights) ? weights : [weights];
+  return array.reduce((sum, w) => sum + (w || 0), 0);
+};
+
 export default function DeliveryUserSummaryPage() {
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,9 +72,14 @@ export default function DeliveryUserSummaryPage() {
             user_id: userId,
             user_name: userName,
             delivery_count: 0,
+            total_weight: 0,
           };
         }
         userMap[userId].delivery_count += 1;
+        
+        const weights = getBoxWeight(session);
+        const weight = getTotalWeight(weights);
+        userMap[userId].total_weight += weight;
       }
 
       const aggregated = Object.values(userMap).sort((a, b) => a.user_name.localeCompare(b.user_name));
@@ -130,6 +158,7 @@ export default function DeliveryUserSummaryPage() {
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">#</th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Delivery Staff</th>
                       <th className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Delivered Bills</th>
+                      <th className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Total Weight (kg)</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -147,6 +176,15 @@ export default function DeliveryUserSummaryPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
                           {formatNumber(item.delivery_count, 0, '0')}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {item.total_weight > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold border border-amber-300">
+                              ⚖️ {formatNumber(item.total_weight, 2, '0.00')} kg
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
 
@@ -156,6 +194,18 @@ export default function DeliveryUserSummaryPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900">
                         {formatNumber(visibleTotal, 0, '0')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {(() => {
+                          const totalWeight = visibleRows.reduce((sum, item) => sum + item.total_weight, 0);
+                          return totalWeight > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-200 text-amber-900 rounded-full text-xs font-bold border border-amber-400">
+                              ⚖️ {formatNumber(totalWeight, 2, '0.00')} kg
+                            </span>
+                          ) : (
+                            <span className="text-gray-500 text-xs">—</span>
+                          );
+                        })()}
                       </td>
                     </tr>
                   </tbody>

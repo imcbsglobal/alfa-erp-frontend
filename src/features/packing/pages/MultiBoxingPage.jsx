@@ -85,6 +85,7 @@ export default function MultiBoxingPage() {
         );
         setAllData(results);
         setSelectedAddressIndex(0); // Default to first invoice's address
+        setLabelCount(1); // Always default to 1 label
       } catch (err) {
         console.error("Failed to load multi-boxing data", err);
         toast.error("Failed to load invoices");
