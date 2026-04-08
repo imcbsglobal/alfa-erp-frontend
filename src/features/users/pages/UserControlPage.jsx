@@ -181,6 +181,7 @@ export default function UserControlPage() {
   const fetchAllMenus = async () => {
     try {
       const res = await getAllMenusApi();
+      console.log("MENU[0]:", JSON.stringify(res.data.data.menus[0], null, 2));
       const menus = res.data.data.menus || [];
 
       // Get IDs of menus hidden from access control (e.g. "orders"/"Entries")
@@ -213,6 +214,7 @@ export default function UserControlPage() {
   const fetchUserPermissions = async (userId) => {
     try {
       const res = await getUserMenusApi(userId);
+      console.log("ASSIGNMENT[0]:", JSON.stringify(res.data.data.assignments[0], null, 2));
       const permissions = {};
       res.data.data.assignments.forEach((assignment) => {
         permissions[assignment.menu] = true;
@@ -220,7 +222,8 @@ export default function UserControlPage() {
       
       // Auto-check Dashboard for admins
       if (selectedUser?.role === "ADMIN" || selectedUser?.role === "SUPERADMIN") {
-        permissions["dashboard"] = true;
+        const dashboardMenu = availableMenus.find(m => m.code === "dashboard");
+        if (dashboardMenu) permissions[dashboardMenu.id] = true;
       }
       
       setUserPermissions(permissions);
@@ -265,17 +268,17 @@ export default function UserControlPage() {
     setShowMobileUserList(false);
   };
 
-  const togglePermission = (menuCode) => {
+  const togglePermission = (menuId) => {
     setUserPermissions(prev => ({
       ...prev,
-      [menuCode]: !prev[menuCode]
+      [menuId]: !prev[menuId]
     }));
   };
 
-  const toggleExpand = (menuCode) => {
+  const toggleExpand = (menuId) => {
     setExpandedMenus(prev => ({
       ...prev,
-      [menuCode]: !prev[menuCode]
+      [menuId]: !prev[menuId]
     }));
   };
 
@@ -292,8 +295,9 @@ export default function UserControlPage() {
 
     setSaveLoading(true);
     try {
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const menu_ids = Object.keys(userPermissions).filter(
-        id => userPermissions[id] === true
+        id => userPermissions[id] === true && UUID_REGEX.test(id)
       );
 
       await assignMenusApi({
@@ -316,9 +320,9 @@ export default function UserControlPage() {
   };
 
   const MenuItem = ({ menu, level = 0 }) => {
-    const enabled = !!userPermissions[menu.code];
+    const enabled = !!userPermissions[menu.id];
     const hasChildren = menu.children?.length > 0;
-    const isExpanded = expandedMenus[menu.code];
+    const isExpanded = expandedMenus[menu.id];
 
     return (
       <div className="border-b border-gray-100 last:border-0">
@@ -330,7 +334,7 @@ export default function UserControlPage() {
         >
           {hasChildren ? (
             <button
-              onClick={() => toggleExpand(menu.code)}
+              onClick={() => toggleExpand(menu.id)}
               className="p-0.5 hover:bg-gray-200 rounded transition-colors"
             >
               <svg
@@ -353,7 +357,7 @@ export default function UserControlPage() {
           </div>
 
           <button
-            onClick={() => togglePermission(menu.code)}
+            onClick={() => togglePermission(menu.id)}
             className="flex-1 flex items-center justify-between min-w-0"
           >
             <span className="text-sm font-medium text-gray-700 truncate">{menu.name}</span>
@@ -372,7 +376,7 @@ export default function UserControlPage() {
         {hasChildren && isExpanded && (
           <div>
             {menu.children.map((child) => (
-              <MenuItem key={child.code} menu={child} level={level + 1} />
+              <MenuItem key={child.id} menu={child} level={level + 1} />
             ))}
           </div>
         )}
@@ -500,21 +504,13 @@ export default function UserControlPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0 ${
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex-shrink-0 ${
                           u.role === "ADMIN"
                             ? "bg-purple-500"
                             : "bg-teal-500"
-                        } flex items-center justify-center text-white font-semibold text-xs sm:text-sm overflow-hidden`}
+                        } flex items-center justify-center text-white font-semibold text-xs sm:text-sm`}
                       >
-                        {u.avatar ? (
-                          <img
-                            src={u.avatar}
-                            className="w-full h-full object-cover"
-                            alt=""
-                          />
-                        ) : (
-                          userInitial
-                        )}
+                        {userInitial}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -570,6 +566,7 @@ export default function UserControlPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1">Select a User</h3>
+                <p className="text-sm text-gray-500">Choose a user to manage permissions</p>
               </div>
             </div>
           ) : (
@@ -578,21 +575,13 @@ export default function UserControlPage() {
                 <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-14 h-14 rounded-full flex-shrink-0 ${
+                      className={`w-10 h-10 rounded-full flex-shrink-0 ${
                         selectedUser.role === "ADMIN"
                           ? "bg-purple-500"
                           : "bg-teal-500"
-                      } flex items-center justify-center text-white text-lg font-bold overflow-hidden`}
+                      } flex items-center justify-center text-white text-lg font-bold`}
                     >
-                      {selectedUser.avatar ? (
-                        <img
-                          src={selectedUser.avatar}
-                          className="w-full h-full object-cover"
-                          alt=""
-                        />
-                      ) : (
-                        (selectedUser.name || selectedUser.full_name || selectedUser.email || "U").charAt(0).toUpperCase()
-                      )}
+                      {(selectedUser.name || selectedUser.full_name || selectedUser.email || "U").charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -621,7 +610,7 @@ export default function UserControlPage() {
                         const updates = {};
                         const walk = (menus) => {
                           menus.forEach((m) => {
-                            updates[m.code] = true;
+                            updates[m.id] = true;
                             if (m.children?.length) walk(m.children);
                           });
                         };
@@ -644,7 +633,7 @@ export default function UserControlPage() {
 
               <div className="flex-1 overflow-y-auto">
                 {availableMenus.map(menu => (
-                  <MenuItem key={menu.code} menu={menu} />
+                  <MenuItem key={menu.id} menu={menu} />
                 ))}
               </div>
 
