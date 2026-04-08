@@ -94,9 +94,9 @@ export default function ItemsBilledTodayPage() {
     if (!q) return true;
     return (
       item.bill_no.toLowerCase().includes(q) ||
-      item.item_code.toLowerCase().includes(q) ||
       item.item_name.toLowerCase().includes(q) ||
-      item.customer_name.toLowerCase().includes(q)
+      item.customer_name.toLowerCase().includes(q) ||
+      item.company_name.toLowerCase().includes(q)
     );
   });
 
@@ -212,7 +212,7 @@ export default function ItemsBilledTodayPage() {
                 <input
                   ref={searchRef}
                   type="text"
-                  placeholder="Bill No, Item Name, Customer..."
+                  placeholder="Bill No, Item Name, Customer, Company..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[300px]"
@@ -258,14 +258,14 @@ export default function ItemsBilledTodayPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '20%' }} />
                   <col style={{ width: '18%' }} />
-                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '16%' }} />
                   <col style={{ width: '8%' }} />
-                  <col style={{ width: '8%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '11%' }} />
                 </colgroup>
                 <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                   <tr>
@@ -297,7 +297,10 @@ export default function ItemsBilledTodayPage() {
                       </div>
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-                      Customer & Location
+                      Customer
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+                      Company
                     </th>
                     <th
                       className="px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
@@ -346,19 +349,19 @@ export default function ItemsBilledTodayPage() {
                           {item.customer_location || '—'}
                         </p>
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {item.company_name}
+                      </td>
                       <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
                         <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
                           {item.quantity}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-gray-700">
-                        ₹{item.rate.toFixed(2)}
+                        {item.rate.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-700">
-                        ₹{formatAmount(item.sale_total)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
-                        {item.company_name}
+                        {formatAmount(item.sale_total)}
                       </td>
                     </tr>
                   ))}
