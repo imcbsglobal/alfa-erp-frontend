@@ -130,7 +130,7 @@ export default function ItemsBilledTodayPage() {
           formatDate(item.invoice_date),
           item.item_name,
           item.customer_name,
-          item.customer_location || '',
+          item.customer_location || item.temp_name || '',
           item.quantity,
           item.rate.toFixed(2),
           parseFloat(item.invoiceTotal).toFixed(2),
@@ -353,7 +353,7 @@ export default function ItemsBilledTodayPage() {
                       <td className="px-4 py-3 text-sm text-gray-700">
                         <p className="font-medium">{item.customer_name}</p>
                         <p className="text-xs text-gray-500">
-                          {item.customer_location || '—'}
+                          {item.customer_location || item.temp_name || '—'}
                         </p>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
