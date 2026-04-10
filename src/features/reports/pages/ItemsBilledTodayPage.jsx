@@ -147,7 +147,7 @@ export default function ItemsBilledTodayPage() {
       
       // Prepare data for main sheet
       const mainData = [
-        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Customer Location', 'Quantity', 'Rate', 'Invoice Total', 'Company', 'Packing', 'Shelf Location'],
+        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Customer Location', 'Quantity', 'Rate/Unit', 'Invoice Total', 'Company', 'Packing', 'Shelf Location'],
         ...filteredItems.map((item) => [
           item.bill_no,
           item.invoice_date,
@@ -346,7 +346,7 @@ export default function ItemsBilledTodayPage() {
                       onClick={() => handleSort('rate')}
                     >
                       <div className="flex items-center gap-2 justify-end">
-                        Rate
+                        Rate/Unit
                         <SortIcon field="rate" />
                       </div>
                     </th>
