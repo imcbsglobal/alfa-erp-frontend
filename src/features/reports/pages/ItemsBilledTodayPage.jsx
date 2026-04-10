@@ -7,6 +7,13 @@ import * as XLSX from 'xlsx';
 import Pagination from '../../../components/Pagination';
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 
+// Format date from YYYY-MM-DD to DD/MM/YYYY
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('-');
+  return `${day}/${month}/${year}`;
+};
+
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -120,7 +127,7 @@ export default function ItemsBilledTodayPage() {
         ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Customer Location', 'Quantity', 'Rate/Unit', 'Invoice Total', 'Company', 'Packing', 'Shelf Location'],
         ...filteredItems.map((item) => [
           item.bill_no,
-          item.invoice_date,
+          formatDate(item.invoice_date),
           item.item_name,
           item.customer_name,
           item.customer_location || '',
@@ -338,7 +345,7 @@ export default function ItemsBilledTodayPage() {
                         {item.bill_no}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {item.invoice_date}
+                        {formatDate(item.invoice_date)}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <p className="font-medium">{item.item_name}</p>
