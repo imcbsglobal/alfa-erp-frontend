@@ -117,7 +117,7 @@ export default function ItemsBilledTodayPage() {
       
       // Prepare data for main sheet
       const mainData = [
-        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Customer Location', 'Quantity', 'Rate', 'Sale Total', 'Company', 'Packing', 'Shelf Location'],
+        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Customer Location', 'Quantity', 'Rate', 'Total', 'Sale Total', 'Company', 'Packing', 'Shelf Location'],
         ...filteredItems.map((item) => [
           item.bill_no,
           item.invoice_date,
@@ -126,6 +126,7 @@ export default function ItemsBilledTodayPage() {
           item.customer_location || '',
           item.quantity,
           item.rate.toFixed(2),
+          parseFloat(item.Total).toFixed(2),
           item.sale_total.toFixed(2),
           item.company_name,
           item.packing || 'N/A',
@@ -143,7 +144,7 @@ export default function ItemsBilledTodayPage() {
       const worksheet = XLSX.utils.aoa_to_sheet(mainData);
       
       // Set column widths
-      const colWidths = [12, 12, 20, 18, 16, 10, 10, 12, 15, 12, 15];
+      const colWidths = [12, 12, 20, 18, 16, 10, 10, 12, 12, 15, 12, 15];
       worksheet['!cols'] = colWidths.map(w => ({ wch: w }));
 
       // Add styling to header row
@@ -153,7 +154,7 @@ export default function ItemsBilledTodayPage() {
         alignment: { horizontal: "center", vertical: "center" }
       };
 
-      for (let i = 0; i < 11; i++) {
+      for (let i = 0; i < 12; i++) {
         const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: i })];
         if (cell) cell.s = headerStyle;
       }
@@ -258,13 +259,14 @@ export default function ItemsBilledTodayPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '8%' }} />
                   <col style={{ width: '18%' }} />
                   <col style={{ width: '16%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '7%' }} />
                   <col style={{ width: '8%' }} />
-                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '10%' }} />
                   <col style={{ width: '11%' }} />
                 </colgroup>
                 <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
@@ -325,9 +327,12 @@ export default function ItemsBilledTodayPage() {
                       onClick={() => handleSort('sale_total')}
                     >
                       <div className="flex items-center gap-2 justify-end">
-                        Sale Total
+                        Total
                         <SortIcon field="sale_total" />
                       </div>
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">
+                      Sale Total
                     </th>
                   </tr>
                 </thead>
@@ -359,6 +364,9 @@ export default function ItemsBilledTodayPage() {
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-gray-700">
                         {item.rate.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-blue-700">
+                        {formatAmount(item.Total)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-700">
                         {formatAmount(item.sale_total)}
