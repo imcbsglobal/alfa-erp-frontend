@@ -70,53 +70,56 @@ export default function ItemsBilledTodayPage() {
       const response = await getItemsBilledToday(params);
       let itemsData = response.data.data || [];
 
-      // Fetch invoice data efficiently in parallel instead of sequential loop
-      const uniqueInvoiceNos = [...new Set(itemsData.map(item => item.bill_no))];
+      // Optimization: Fetch ALL invoices for the date range at once (not per-invoice)
+      // This is FAR more efficient than 50+ separate API calls
       const invoiceTotalsMap = {};
 
-      // Fetch all invoices in batches to avoid overwhelming the API
-      const BATCH_SIZE = 50;
-      const invoiceNoBatches = [];
-      for (let i = 0; i < uniqueInvoiceNos.length; i += BATCH_SIZE) {
-        invoiceNoBatches.push(uniqueInvoiceNos.slice(i, i + BATCH_SIZE));
+      try {
+        // Fetch all invoices for this date in ONE call
+        let allInvoices = [];
+        const invoiceParams = {
+          billing_status: 'BILLED',
+        };
+        
+        if (dateFilter) {
+          invoiceParams.invoice_date__gte = dateFilter;
+          invoiceParams.invoice_date__lte = dateFilter;
+        }
+
+        // Paginate through all invoices to get complete list
+        let page = 1;
+        let hasMore = true;
+        while (hasMore) {
+          invoiceParams.page = page;
+          invoiceParams.limit = 100;  // Get 100 at a time to minimize requests
+          
+          try {
+            const invoiceResponse = await getInvoices(invoiceParams);
+            const invoices = invoiceResponse.data.results || invoiceResponse.data;
+            
+            if (Array.isArray(invoices)) {
+              allInvoices = allInvoices.concat(invoices);
+              // Check if there are more pages
+              hasMore = invoiceResponse.data.next ? true : false;
+              page++;
+            } else {
+              hasMore = false;
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch invoices page ${page}:`, err);
+            hasMore = false;
+          }
+        }
+
+        // Build map: invoice_no → Total (one-time lookup)
+        allInvoices.forEach(invoice => {
+          invoiceTotalsMap[invoice.invoice_no] = parseFloat(invoice.Total) || 0;
+        });
+
+        console.log(`✅ Fetched ${allInvoices.length} invoices in bulk (${Object.keys(invoiceTotalsMap).length} unique)`);
+      } catch (err) {
+        console.error("Failed to fetch invoices:", err);
       }
-
-      // Process batches in parallel using Promise.all
-      const batchPromises = invoiceNoBatches.map(batch =>
-        Promise.all(
-          batch.map(invoiceNo =>
-            getInvoices({ invoice_no__exact: invoiceNo })
-              .then(res => {
-                const invoices = res.data.results || res.data;
-                if (!invoices || invoices.length === 0) {
-                  console.warn(`No invoice found for ${invoiceNo}`);
-                  invoiceTotalsMap[invoiceNo] = 0;
-                  return;
-                }
-                
-                // Backend should now filter, so first result should be the match
-                const matchingInvoice = invoices.find(inv => inv.invoice_no === invoiceNo);
-                if (matchingInvoice) {
-                  invoiceTotalsMap[invoiceNo] = parseFloat(matchingInvoice.Total) || 0;
-                } else {
-                  console.warn(`Invoice mismatch for ${invoiceNo}:`, invoices.length, 'results');
-                  invoiceTotalsMap[invoiceNo] = 0;
-                }
-              })
-              .catch(err => {
-                console.error(`Failed to fetch invoice ${invoiceNo}:`, err.response?.status || err.message);
-                invoiceTotalsMap[invoiceNo] = 0;
-              })
-          )
-        )
-      );
-
-      // Execute all batches
-      await Promise.all(batchPromises);
-      
-      // Log statistics for debugging
-      const successCount = Object.values(invoiceTotalsMap).filter(v => v > 0).length;
-      console.log(`✅ Fetched ${successCount}/${uniqueInvoiceNos.length} invoice totals`);
 
       // Enrich items with invoice Total
       itemsData = itemsData.map(item => ({
