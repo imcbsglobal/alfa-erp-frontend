@@ -70,27 +70,53 @@ export default function ItemsBilledTodayPage() {
       const response = await getItemsBilledToday(params);
       let itemsData = response.data.data || [];
 
-      // Fetch invoice data for each unique invoice_no to get the Total field
+      // Fetch invoice data efficiently in parallel instead of sequential loop
       const uniqueInvoiceNos = [...new Set(itemsData.map(item => item.bill_no))];
       const invoiceTotalsMap = {};
 
-      for (const invoiceNo of uniqueInvoiceNos) {
-        try {
-          const invoiceResponse = await getInvoices({ invoice_no__exact: invoiceNo });
-          // Handle paginated response - results key contains the array
-          const invoices = invoiceResponse.data.results || invoiceResponse.data;
-          // Find the invoice that matches this invoice_no (defensive approach)
-          const matchingInvoice = invoices.find(inv => inv.invoice_no === invoiceNo);
-          if (matchingInvoice) {
-            invoiceTotalsMap[invoiceNo] = parseFloat(matchingInvoice.Total) || 0;
-          } else {
-            invoiceTotalsMap[invoiceNo] = 0;
-          }
-        } catch (err) {
-          console.warn(`Failed to fetch invoice ${invoiceNo}:`, err);
-          invoiceTotalsMap[invoiceNo] = 0;
-        }
+      // Fetch all invoices in batches to avoid overwhelming the API
+      const BATCH_SIZE = 50;
+      const invoiceNoBatches = [];
+      for (let i = 0; i < uniqueInvoiceNos.length; i += BATCH_SIZE) {
+        invoiceNoBatches.push(uniqueInvoiceNos.slice(i, i + BATCH_SIZE));
       }
+
+      // Process batches in parallel using Promise.all
+      const batchPromises = invoiceNoBatches.map(batch =>
+        Promise.all(
+          batch.map(invoiceNo =>
+            getInvoices({ invoice_no__exact: invoiceNo })
+              .then(res => {
+                const invoices = res.data.results || res.data;
+                if (!invoices || invoices.length === 0) {
+                  console.warn(`No invoice found for ${invoiceNo}`);
+                  invoiceTotalsMap[invoiceNo] = 0;
+                  return;
+                }
+                
+                // Backend should now filter, so first result should be the match
+                const matchingInvoice = invoices.find(inv => inv.invoice_no === invoiceNo);
+                if (matchingInvoice) {
+                  invoiceTotalsMap[invoiceNo] = parseFloat(matchingInvoice.Total) || 0;
+                } else {
+                  console.warn(`Invoice mismatch for ${invoiceNo}:`, invoices.length, 'results');
+                  invoiceTotalsMap[invoiceNo] = 0;
+                }
+              })
+              .catch(err => {
+                console.error(`Failed to fetch invoice ${invoiceNo}:`, err.response?.status || err.message);
+                invoiceTotalsMap[invoiceNo] = 0;
+              })
+          )
+        )
+      );
+
+      // Execute all batches
+      await Promise.all(batchPromises);
+      
+      // Log statistics for debugging
+      const successCount = Object.values(invoiceTotalsMap).filter(v => v > 0).length;
+      console.log(`✅ Fetched ${successCount}/${uniqueInvoiceNos.length} invoice totals`);
 
       // Enrich items with invoice Total
       itemsData = itemsData.map(item => ({
