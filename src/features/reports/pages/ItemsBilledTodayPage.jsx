@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { getItemsBilledToday } from "../../../services/sales";
+import { getItemsBilledToday, getInvoices } from "../../../services/sales";
 import toast from "react-hot-toast";
 import { Download, ArrowUpDown, Search, X } from 'lucide-react';
 import { formatAmount } from '../../../utils/formatters';
@@ -68,7 +68,37 @@ export default function ItemsBilledTodayPage() {
       }
 
       const response = await getItemsBilledToday(params);
-      setItems(response.data.data || []);
+      let itemsData = response.data.data || [];
+
+      // Fetch invoice data for each unique invoice_no to get the Total field
+      const uniqueInvoiceNos = [...new Set(itemsData.map(item => item.bill_no))];
+      const invoiceTotalsMap = {};
+
+      for (const invoiceNo of uniqueInvoiceNos) {
+        try {
+          const invoiceResponse = await getInvoices({ invoice_no__exact: invoiceNo });
+          // Handle paginated response - results key contains the array
+          const invoices = invoiceResponse.data.results || invoiceResponse.data;
+          // Find the invoice that matches this invoice_no (defensive approach)
+          const matchingInvoice = invoices.find(inv => inv.invoice_no === invoiceNo);
+          if (matchingInvoice) {
+            invoiceTotalsMap[invoiceNo] = parseFloat(matchingInvoice.Total) || 0;
+          } else {
+            invoiceTotalsMap[invoiceNo] = 0;
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch invoice ${invoiceNo}:`, err);
+          invoiceTotalsMap[invoiceNo] = 0;
+        }
+      }
+
+      // Enrich items with invoice Total
+      itemsData = itemsData.map(item => ({
+        ...item,
+        invoiceTotal: invoiceTotalsMap[item.bill_no] || 0
+      }));
+
+      setItems(itemsData);
       setSummary(response.data.summary || {});
     } catch (err) {
       console.error("Failed to load items:", err);
@@ -117,7 +147,7 @@ export default function ItemsBilledTodayPage() {
       
       // Prepare data for main sheet
       const mainData = [
-        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Customer Location', 'Quantity', 'Rate', 'Total', 'Sale Total', 'Company', 'Packing', 'Shelf Location'],
+        ['Bill No', 'Date', 'Item Name', 'Customer Name', 'Customer Location', 'Quantity', 'Rate', 'Invoice Total', 'Company', 'Packing', 'Shelf Location'],
         ...filteredItems.map((item) => [
           item.bill_no,
           item.invoice_date,
@@ -126,8 +156,7 @@ export default function ItemsBilledTodayPage() {
           item.customer_location || '',
           item.quantity,
           item.rate.toFixed(2),
-          parseFloat(item.Total).toFixed(2),
-          item.sale_total.toFixed(2),
+          parseFloat(item.invoiceTotal).toFixed(2),
           item.company_name,
           item.packing || 'N/A',
           item.shelf_location || 'N/A',
@@ -144,7 +173,7 @@ export default function ItemsBilledTodayPage() {
       const worksheet = XLSX.utils.aoa_to_sheet(mainData);
       
       // Set column widths
-      const colWidths = [12, 12, 20, 18, 16, 10, 10, 12, 12, 15, 12, 15];
+      const colWidths = [12, 12, 20, 18, 16, 10, 10, 12, 15, 12, 15];
       worksheet['!cols'] = colWidths.map(w => ({ wch: w }));
 
       // Add styling to header row
@@ -154,7 +183,7 @@ export default function ItemsBilledTodayPage() {
         alignment: { horizontal: "center", vertical: "center" }
       };
 
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 11; i++) {
         const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: i })];
         if (cell) cell.s = headerStyle;
       }
@@ -266,8 +295,7 @@ export default function ItemsBilledTodayPage() {
                   <col style={{ width: '14%' }} />
                   <col style={{ width: '7%' }} />
                   <col style={{ width: '8%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '12%' }} />
                 </colgroup>
                 <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                   <tr>
@@ -324,15 +352,12 @@ export default function ItemsBilledTodayPage() {
                     </th>
                     <th
                       className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider cursor-pointer hover:opacity-80"
-                      onClick={() => handleSort('sale_total')}
+                      onClick={() => handleSort('invoice_total')}
                     >
                       <div className="flex items-center gap-2 justify-end">
-                        Total
-                        <SortIcon field="sale_total" />
+                        Invoice Total
+                        <SortIcon field="invoice_total" />
                       </div>
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">
-                      Sale Total
                     </th>
                   </tr>
                 </thead>
@@ -366,10 +391,7 @@ export default function ItemsBilledTodayPage() {
                         {item.rate.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-blue-700">
-                        {formatAmount(item.Total)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-green-700">
-                        {formatAmount(item.sale_total)}
+                        {formatAmount(item.invoiceTotal)}
                       </td>
                     </tr>
                   ))}
@@ -381,7 +403,7 @@ export default function ItemsBilledTodayPage() {
           {/* Footer Summary */}
           {filteredItems.length > 0 && (
             <div className="bg-gray-50 border-t border-gray-200 px-4 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-600 uppercase font-semibold">Line Items</p>
                   <p className="text-2xl font-bold text-gray-900">{filteredItems.length}</p>
@@ -390,21 +412,6 @@ export default function ItemsBilledTodayPage() {
                   <p className="text-xs text-gray-600 uppercase font-semibold">Total Quantity</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {filteredItems.reduce((sum, item) => sum + item.quantity, 0)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600 uppercase font-semibold">Average Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ₹{(
-                      filteredItems.reduce((sum, item) => sum + item.sale_total, 0) /
-                      filteredItems.reduce((sum, item) => sum + item.quantity, 0)
-                    ).toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600 uppercase font-semibold">Total Revenue (Filtered)</p>
-                  <p className="text-2xl font-bold text-green-700">
-                    ₹{formatAmount(filteredItems.reduce((sum, item) => sum + item.sale_total, 0))}
                   </p>
                 </div>
               </div>
