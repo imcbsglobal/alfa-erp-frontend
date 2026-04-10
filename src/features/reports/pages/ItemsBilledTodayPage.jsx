@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { getItemsBilledToday, getInvoices } from "../../../services/sales";
+import { getItemsBilledToday} from "../../../services/sales";
 import toast from "react-hot-toast";
 import { Download, ArrowUpDown, Search, X } from 'lucide-react';
 import { formatAmount } from '../../../utils/formatters';
@@ -54,88 +54,29 @@ export default function ItemsBilledTodayPage() {
   }, [sortBy, sortOrder, dateFilter, debouncedSearch]);
 
   const loadItems = async () => {
-    setLoading(true);
-    try {
-      const params = {
-        sort: sortBy,
-        order: sortOrder,
-      };
+  setLoading(true);
+  try {
+    const params = {
+      sort: sortBy,
+      order: sortOrder,
+    };
 
-      // Add date filter
-      if (dateFilter) {
-        params.start_date = dateFilter;
-        params.end_date = dateFilter;
-      }
-
-      const response = await getItemsBilledToday(params);
-      let itemsData = response.data.data || [];
-
-      // Optimization: Fetch ALL invoices for the date range at once (not per-invoice)
-      // This is FAR more efficient than 50+ separate API calls
-      const invoiceTotalsMap = {};
-
-      try {
-        // Fetch all invoices for this date in ONE call
-        let allInvoices = [];
-        const invoiceParams = {
-          billing_status: 'BILLED',
-        };
-        
-        if (dateFilter) {
-          invoiceParams.invoice_date__gte = dateFilter;
-          invoiceParams.invoice_date__lte = dateFilter;
-        }
-
-        // Paginate through all invoices to get complete list
-        let page = 1;
-        let hasMore = true;
-        while (hasMore) {
-          invoiceParams.page = page;
-          invoiceParams.limit = 100;  // Get 100 at a time to minimize requests
-          
-          try {
-            const invoiceResponse = await getInvoices(invoiceParams);
-            const invoices = invoiceResponse.data.results || invoiceResponse.data;
-            
-            if (Array.isArray(invoices)) {
-              allInvoices = allInvoices.concat(invoices);
-              // Check if there are more pages
-              hasMore = invoiceResponse.data.next ? true : false;
-              page++;
-            } else {
-              hasMore = false;
-            }
-          } catch (err) {
-            console.warn(`Failed to fetch invoices page ${page}:`, err);
-            hasMore = false;
-          }
-        }
-
-        // Build map: invoice_no → Total (one-time lookup)
-        allInvoices.forEach(invoice => {
-          invoiceTotalsMap[invoice.invoice_no] = parseFloat(invoice.Total) || 0;
-        });
-
-        console.log(`✅ Fetched ${allInvoices.length} invoices in bulk (${Object.keys(invoiceTotalsMap).length} unique)`);
-      } catch (err) {
-        console.error("Failed to fetch invoices:", err);
-      }
-
-      // Enrich items with invoice Total
-      itemsData = itemsData.map(item => ({
-        ...item,
-        invoiceTotal: invoiceTotalsMap[item.bill_no] || 0
-      }));
-
-      setItems(itemsData);
-      setSummary(response.data.summary || {});
-    } catch (err) {
-      console.error("Failed to load items:", err);
-      toast.error("Failed to load items billed today");
-    } finally {
-      setLoading(false);
+    if (dateFilter) {
+      params.start_date = dateFilter;
+      params.end_date = dateFilter;
     }
-  };
+
+    const response = await getItemsBilledToday(params);
+
+    setItems(response.data.data || []);
+    setSummary(response.data.summary || {});
+  } catch (err) {
+    console.error("Failed to load items:", err);
+    toast.error("Failed to load items billed today");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSort = (field) => {
     if (sortBy === field) {
