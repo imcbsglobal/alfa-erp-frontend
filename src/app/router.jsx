@@ -42,6 +42,9 @@ const BillingInvoiceListPage = lazy(() => import("../features/billing/pages/Bill
 const BillingInvoiceViewPage = lazy(() => import("../features/billing/pages/BillingInvoiceViewPage"));
 const BillingReviewedListPage = lazy(() => import("../features/billing/pages/BillingReviewedListPage"));
 
+// Import Express Billing Pages
+const ExpressBillingListPage = lazy(() => import("../features/expressBilling/pages/ExpressBillingListPage"));
+
 // Import Delivery Pages
 const DeliveryDispatchPage = lazy(() => import("../features/delivery/pages/DeliveryDispatchPage"));
 const MyDeliveryListPage = lazy(() => import("../features/delivery/pages/MyDeliveryListPage"));
@@ -128,6 +131,9 @@ export default function AppRouter() {
           <Route path="/billing/invoices/view/:id" element={<BillingInvoiceViewPage />} />
           <Route path="/billing/reviewed" element={<BillingReviewedListPage />} />
 
+          {/* Express Billing routes */}
+          <Route path="/billing/express" element={<ExpressBillingListPage />} />
+
           {/* Delivery routes for SUPERADMIN/ADMIN */}
           <Route path="/delivery/dispatch" element={<DeliveryDispatchPage />} />
           <Route path="/delivery/my" element={<MyDeliveryListPage />} />
@@ -211,6 +217,7 @@ export default function AppRouter() {
           <Route path="/ops/billing/invoices" element={<BillingInvoiceListPage />} />
           <Route path="/ops/billing/invoices/view/:id" element={<BillingInvoiceViewPage />} />
           <Route path="/ops/billing/reviewed" element={<BillingReviewedListPage />} />
+          <Route path="/ops/billing/express" element={<ExpressBillingListPage />} />
 
           {/* Delivery */}
           <Route path="/ops/delivery/dispatch" element={<DeliveryDispatchPage />} />

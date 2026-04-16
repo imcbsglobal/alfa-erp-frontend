@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
 import { getDeliveryHistory, getCourierAuditLogs } from "../../../services/sales";
@@ -128,13 +128,42 @@ export default function DeliveryReportPage() {
     loadSessions();
   }, [currentPage, dateFilter, debouncedSearch, timeFilter, deliveryTypeFilter, statusFilter]);
 
+  // Memoize grouped sessions to avoid expensive recalculation on every render
+  const groupedSessions = useMemo(() => {
+    const grouped = {};
+    sessions.forEach((s) => {
+      const key = s.boxing_group_id || `single-${s.id}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(s);
+    });
+    return grouped;
+  }, [sessions]);
+
   const sortByStartTime = (arr) =>
     [...arr].sort((a, b) => new Date(a.start_time || a.created_at) - new Date(b.start_time || b.created_at));
 
   const toggleAuditLogs = async (invoiceNo) => {
     const key = `audit-${invoiceNo}`;
     
-    // Just toggle the expand state - logs should already be cached from loadSessions
+    // If expanding and logs not cached, fetch them
+    if (!expandedAuditLogs[key] && !auditLogCache[invoiceNo]) {
+      console.log(`📥 Fetching audit logs for ${invoiceNo}...`);
+      try {
+        const response = await getCourierAuditLogs(invoiceNo);
+        setAuditLogCache(prev => ({
+          ...prev,
+          [invoiceNo]: response.data.data || []
+        }));
+      } catch (err) {
+        console.error(`Failed to fetch audit logs for ${invoiceNo}:`, err);
+        setAuditLogCache(prev => ({
+          ...prev,
+          [invoiceNo]: []
+        }));
+      }
+    }
+    
+    // Toggle expand state
     setExpandedAuditLogs(prev => ({
       ...prev,
       [key]: !prev[key]
@@ -143,62 +172,58 @@ export default function DeliveryReportPage() {
 
   const loadSessions = async () => {
     setLoading(true);
+    console.time('📊 Total Delivery Report Load');
     try {
-      const params = { page_size: 10000 };
+      const params = { page_size: 100 };  // Keep at 100 - requesting 1000+ causes backend serialization bottleneck
+      
       if (timeFilter) {
         const cutoff = new Date(Date.now() - parseInt(timeFilter, 10) * 60 * 60 * 1000);
         params.start_time = cutoff.toISOString();
       }
+      
+      // Send all filters to backend for optimal query
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (deliveryTypeFilter !== 'ALL') params.delivery_type = deliveryTypeFilter;
+      
+      // Use correct backend parameter names
+      if (dateFilter) {
+        params.start_date = dateFilter;  // Backend expects start_date/end_date
+        params.end_date = dateFilter;     // Same day
+      }
+      
+      // Add pagination parameter
+      params.page = currentPage;
 
-      const applyLocalFilters = (rows) => {
-        let out = [...rows];
-        if (statusFilter !== 'ALL') out = out.filter((s) => (s.delivery_status || '') === statusFilter);
-        if (deliveryTypeFilter !== 'ALL') out = out.filter((s) => (s.delivery_type || '') === deliveryTypeFilter);
-        return out;
-      };
-
-      const q = debouncedSearch.trim().toLowerCase();
+      console.time('🔄 API Call - getDeliveryHistory');
       const res = await getDeliveryHistory(params);
-      const allResults = sortByStartTime(applyLocalFilters(res.data.results || []));
+      console.timeEnd('🔄 API Call - getDeliveryHistory');
+      
+      const rawData = res.data.results || [];
+      console.log(`✅ Received ${rawData.length} records from API`);
 
+      console.time('⚡ Client-side search');
+      const q = debouncedSearch.trim().toLowerCase();
+      
       const searchedResults = !q
-        ? allResults
-        : allResults.filter((s) => [
+        ? rawData
+        : rawData.filter((s) => [
             s.invoice_no, s.customer_name, s.customer_area, s.customer_address,
             s.delivery_user_name, s.delivery_user_email, s.courier_name, s.tracking_no, s.notes,
           ].filter(Boolean).some((val) => String(val).toLowerCase().includes(q)));
 
-      const dateFilteredResults = !dateFilter
-        ? searchedResults
-        : searchedResults.filter((s) => getSessionFilterDate(s) === dateFilter);
-
-      // Batch fetch courier audit logs for COURIER deliveries
-      const courierInvoices = dateFilteredResults.filter(s => s.delivery_type === 'COURIER');
-      if (courierInvoices.length > 0) {
-        const logsCache = { ...auditLogCache };
-        for (const invoice of courierInvoices) {
-          if (!logsCache[invoice.invoice_no]) {
-            try {
-              const response = await getCourierAuditLogs(invoice.invoice_no);
-              logsCache[invoice.invoice_no] = response.data.data || [];
-            } catch (err) {
-              logsCache[invoice.invoice_no] = [];
-            }
-          }
-        }
-        setAuditLogCache(logsCache);
-      }
-
-      const startIdx = (currentPage - 1) * itemsPerPage;
-      const endIdx = startIdx + itemsPerPage;
-
-      setRawSessions(dateFilteredResults);
-      setSessions(dateFilteredResults.slice(startIdx, endIdx));
-      setTotalCount(dateFilteredResults.length);
+      const sortedResults = sortByStartTime(searchedResults);
+      console.timeEnd('⚡ Client-side search');
+      
+      // Note: Pagination is now handled by backend
+      setRawSessions(res.data.results || []);
+      setSessions(sortedResults);
+      setTotalCount(res.data.count || 0);
+      console.timeEnd('📊 Total Delivery Report Load');
+      console.log(`📈 Performance Summary: Total=${res.data.count || 0}, Returned=${sortedResults.length}`);
+      
     } catch (err) {
       console.error("Failed to load delivery report:", err);
+      console.timeEnd('📊 Total Delivery Report Load');
       toast.error("Failed to load delivery report");
     } finally {
       setLoading(false);
@@ -346,7 +371,6 @@ export default function DeliveryReportPage() {
       return (
         <div className="space-y-0.5">
           <p>{session.courier_name || 'Courier not set'}</p>
-          {session.tracking_no && <p className="text-xs text-gray-500">Tracking: {session.tracking_no}</p>}
           {slipUrl ? (
             <a
               href={slipUrl}
@@ -526,31 +550,25 @@ export default function DeliveryReportPage() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
-                      <col style={{ width: '11%' }} />
-                      <col style={{ width: '16%' }} />
-                      <col style={{ width: '19%' }} />
-                      <col style={{ width: '11%' }} />
-                      <col style={{ width: '15%' }} />
                       <col style={{ width: '10%' }} />
+                      <col style={{ width: '20%' }} />
                       <col style={{ width: '18%' }} />
+                      <col style={{ width: '13%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '10%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '9%' }} />
                     </colgroup>
                     <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                       <tr>
-                        {["Invoice No", "Customer", "Delivery Details", "Delivery Type", "Delivery Date & Time", "Status", "Actions"].map((h) => (
+                        {["Invoice No", "Customer", "Delivery Details", "Delivery Type", "Delivery Start Date & Time", "Delivery End Date & Time", "Status", "Actions"].map((h) => (
                           <th key={h} className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {(() => {
-                        const grouped = {};
-                        sessions.forEach((s) => {
-                          const key = s.boxing_group_id || `single-${s.id}`;
-                          if (!grouped[key]) grouped[key] = [];
-                          grouped[key].push(s);
-                        });
-
-                        return Object.entries(grouped).map(([groupKey, rows], groupIndex) => {
+                        return Object.entries(groupedSessions).map(([groupKey, rows], groupIndex) => {
                           const isGroup = rows.length > 1;
                           const first = rows[0];
 
@@ -559,7 +577,7 @@ export default function DeliveryReportPage() {
                               <React.Fragment key={groupKey}>
                                 {/* Group header */}
                                 <tr>
-                                  <td colSpan="7" className="p-0">
+                                  <td colSpan="8" className="p-0">
                                     <div className="mx-3 mt-2 rounded-t-lg border-2 border-b-0 border-teal-400 bg-teal-50 px-3 py-1.5">
                                       <div className="flex items-center gap-2">
                                         <div className="w-5 h-5 rounded bg-teal-600 flex items-center justify-center flex-shrink-0">
@@ -603,13 +621,14 @@ export default function DeliveryReportPage() {
                                         <div className={`mx-3 border-l-2 border-r-2 border-teal-400 ${isLast ? 'border-b-2 rounded-b-lg mb-2' : ''} px-0`}>
                                           <table className="w-full" style={{ tableLayout: 'fixed' }}>
                                             <colgroup>
-                                              <col style={{ width: '11%' }} />
-                                              <col style={{ width: '16%' }} />
-                                              <col style={{ width: '19%' }} />
-                                              <col style={{ width: '11%' }} />
-                                              <col style={{ width: '15%' }} />
                                               <col style={{ width: '10%' }} />
-                                              <col style={{ width: '18%' }} />
+                                              <col style={{ width: '15%' }} />
+                                              <col style={{ width: '17%' }} />
+                                              <col style={{ width: '10%' }} />
+                                              <col style={{ width: '13%' }} />
+                                              <col style={{ width: '13%' }} />
+                                              <col style={{ width: '10%' }} />
+                                              <col style={{ width: '12%' }} />
                                             </colgroup>
                                             <tbody>
                                               <tr className={`${isLast ? '' : 'border-b border-teal-100'}`}>
@@ -642,8 +661,19 @@ export default function DeliveryReportPage() {
                                                   <p>{formatDateDDMMYYYY(session.start_time || session.created_at)}</p>
                                                   <p className="text-xs text-gray-500">
                                                     {formatTime(session.start_time || session.created_at)}
-                                                    {session.end_time ? ` → ${formatTime(session.end_time)}` : ''}
                                                   </p>
+                                                </td>
+                                                <td className="px-4 py-2 text-sm text-gray-700">
+                                                  {session.end_time ? (
+                                                    <>
+                                                      <p>{formatDateDDMMYYYY(session.end_time)}</p>
+                                                      <p className="text-xs text-gray-500">
+                                                        {formatTime(session.end_time)}
+                                                      </p>
+                                                    </>
+                                                  ) : (
+                                                    <p className="text-gray-400">—</p>
+                                                  )}
                                                 </td>
                                                 <td className="px-4 py-2">
                                                   <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[session.delivery_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
@@ -702,8 +732,19 @@ export default function DeliveryReportPage() {
                                 <p>{formatDateDDMMYYYY(first.start_time || first.created_at)}</p>
                                 <p className="text-xs text-gray-500">
                                   {formatTime(first.start_time || first.created_at)}
-                                  {first.end_time ? ` → ${formatTime(first.end_time)}` : ''}
                                 </p>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700">
+                                {first.end_time ? (
+                                  <>
+                                    <p>{formatDateDDMMYYYY(first.end_time)}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {formatTime(first.end_time)}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-gray-400">—</p>
+                                )}
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[first.delivery_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>

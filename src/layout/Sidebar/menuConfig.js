@@ -151,13 +151,21 @@ export const MENU_CONFIG = [
       },
     ],
     isActive: (pathname) =>
-      pathname.startsWith("/billing") || 
-      pathname.startsWith("/ops/billing") ||
+      (pathname.startsWith("/billing") && !pathname.startsWith("/billing/express")) ||
+      (pathname.startsWith("/ops/billing") && !pathname.startsWith("/ops/billing/express")) ||
       pathname.startsWith("/invoices") ||
-      pathname.startsWith("/packing") || 
+      pathname.startsWith("/packing") ||
       pathname.startsWith("/ops/packing") ||
-      pathname.startsWith("/delivery") || 
+      pathname.startsWith("/delivery") ||
       pathname.startsWith("/ops/delivery"),
+  },
+  {
+    id: "express-billing",
+    label: "Express Billing",
+    icon: Send,
+    path: (user) => user?.role === "BILLER" ? "/ops/billing/express" : "/billing/express",
+    type: "single",
+    hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
   },
   {
     id: "reports",
@@ -320,9 +328,11 @@ export const PAGE_TITLES = {
   "/ops/packing/boxing": "Boxing List",
   "/billing/invoices": "Billing Management",
   "/billing/reviewed": "Reviewed Bills",
+  "/billing/express": "Express Billing",
   "/billing/my": "My Assigned Billing",
   "/ops/billing/invoices": "Billing Management",
   "/ops/billing/reviewed": "Reviewed Bills",
+  "/ops/billing/express": "Express Billing",
   "/ops/billing/my": "My Assigned Billing",
   "/delivery/dispatch": "Delivery Dispatch",
   "/ops/delivery/dispatch": "Delivery Dispatch",

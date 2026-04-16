@@ -183,3 +183,13 @@ export const uploadDeliverySlip = (formData) =>
 // Reports / Settings
 export const exportInvoiceReport = (params = {}) => api.get("/sales/invoice-report/export/", { params });
 export const getDeveloperSettings = () => api.get("/common/developer-settings/");
+
+// Express Billing - Get invoices by status
+export const getInvoicesByStatus = (params = {}) => {
+  return api.get("/sales/invoices/", { params });
+};
+
+// Express Billing - Update invoice status
+export const updateInvoiceStatus = (invoiceId, data) => {
+  return api.patch(`/sales/invoices/${invoiceId}/`, data);
+};

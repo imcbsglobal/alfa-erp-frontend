@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Truck, Package, User, X, RefreshCw,
-  ScanLine, CheckCircle, ChevronDown, ChevronUp, Layers, Plus, Send,
+  ScanLine, CheckCircle, ChevronDown, ChevronUp, Layers, Plus, Send, Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useUrlPage from '../../../utils/useUrlPage';
@@ -142,7 +142,14 @@ const SingleRow = ({ bill, onDispatch, onView, batchMode, onAddToBatch, batchIds
       ${inBatch ? 'bg-teal-50/60' : ''}`}
     >
       <td className="px-4 py-3">
-        <p className="font-semibold text-gray-900 text-sm">{bill.invoice_no}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-gray-900 text-sm">{bill.invoice_no}</p>
+          {bill.is_express_delivery && (
+            <span title="Express Delivery" className="inline-flex items-center justify-center bg-amber-100 rounded-full p-1">
+              <Zap className="w-3.5 h-3.5 text-amber-600" />
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3">
         <p className="text-sm text-gray-800">{formatDate(bill.created_at)}</p>
@@ -342,7 +349,14 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
                   ${bill.priority === 'HIGH' ? 'bg-red-50' : inBatch ? 'bg-teal-50/60' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}
               >
                 <div className="col-span-3">
-                  <p className="font-semibold text-gray-900 text-sm">{bill.invoice_no}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900 text-sm">{bill.invoice_no}</p>
+                    {bill.is_express_delivery && (
+                      <span title="Express Delivery" className="inline-flex items-center justify-center bg-amber-100 rounded-full p-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-600" />
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-400">{bill.customer?.code}</p>
                 </div>
                 <div className="col-span-3">
