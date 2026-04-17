@@ -163,6 +163,10 @@ const SingleRow = ({ bill, onDispatch, onView, batchMode, onAddToBatch, batchIds
       </td>
       <td className="px-4 py-3">
         {(() => {
+          // Hide box count for Express Billing deliveries since boxing doesn't occur
+          if (bill.is_express_delivery) {
+            return <span className="text-xs text-gray-400">—</span>;
+          }
           const count = bill.packer_info?.label_count || bill.label_count || bill.tray_codes?.length || 0;
           const courier = bill.packer_info?.courier_name || '';
           return count > 0 ? (
@@ -285,6 +289,10 @@ const GroupCard = ({ groupId, items, onDispatchGroup, onView, openRequest, batch
             // For grouped items with same boxing_group_id, use only the first item's label_count
             // as they represent ONE consolidated box, not individual boxes per item
             const repItem = items[0];
+            // Hide box count for Express Billing deliveries since boxing doesn't occur
+            if (repItem?.is_express_delivery) {
+              return null;
+            }
             const totalBoxes = repItem?.packer_info?.label_count || repItem?.label_count || repItem?.tray_codes?.length || 0;
             return totalBoxes > 0 ? (
               <p className="text-xs text-teal-600 font-semibold">📦 {totalBoxes} box{totalBoxes !== 1 ? 'es' : ''}</p>

@@ -91,6 +91,7 @@ export default function PackingInvoiceReportPage() {
         s.picking_start_time = pick.start_time;
         s.picking_end_time = pick.end_time;
         s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
+        s.picking_source = pick.source;  // Add source from picking session
       }
       return s;
     });
@@ -373,7 +374,12 @@ export default function PackingInvoiceReportPage() {
                                                   );
                                                 })()}
                                               </td>
-                                              <td className="px-4 py-2 text-sm text-gray-700">{session.packer_name || '—'}</td>
+                                              <td className="px-4 py-2 text-sm text-gray-700">
+                                                <p>{session.packer_name || '—'}</p>
+                                                {(session.picking_source === 'EXPRESS_BILLING' || session.source === 'EXPRESS_BILLING') && (
+                                                  <p className="text-xs text-teal-600 font-semibold">Express Billing</p>
+                                                )}
+                                              </td>
                                               <td className="px-4 py-2 text-sm text-gray-700">
                                                 <p>{formatDateDDMMYYYY(session.created_at)}</p>
                                                 <p className="text-xs text-gray-500">
@@ -381,9 +387,13 @@ export default function PackingInvoiceReportPage() {
                                                 </p>
                                               </td>
                                               <td className="px-4 py-2 text-sm text-gray-700 text-center">
-                                                {session.packing_status === 'PACKED' && session.label_count != null
-                                                  ? <span className="font-semibold text-gray-800">{session.label_count}</span>
-                                                  : <span className="text-gray-400">—</span>}
+                                                {(session.source === 'EXPRESS_BILLING' || session.picking_source === 'EXPRESS_BILLING') ? (
+                                                  <span className="text-gray-400">—</span>
+                                                ) : (
+                                                  session.packing_status === 'PACKED' && session.label_count != null
+                                                    ? <span className="font-semibold text-gray-800">{session.label_count}</span>
+                                                    : <span className="text-gray-400">—</span>
+                                                )}
                                               </td>
                                               <td className="px-4 py-2">
                                                 <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[session.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
@@ -432,7 +442,12 @@ export default function PackingInvoiceReportPage() {
                                 );
                               })()}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">{first.packer_name || '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              <p>{first.packer_name || '—'}</p>
+                              {(first.picking_source === 'EXPRESS_BILLING' || first.source === 'EXPRESS_BILLING') && (
+                                <p className="text-xs text-teal-600 font-semibold">Express Billing</p>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-sm text-gray-700">
                               <p>{formatDateDDMMYYYY(first.created_at)}</p>
                               <p className="text-xs text-gray-500">
@@ -440,13 +455,17 @@ export default function PackingInvoiceReportPage() {
                               </p>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700">
-                              {first.packing_status === 'PACKED' ? (
-                                <div className="space-y-1">
-                                  {first.label_count != null && <p className="text-sm text-center font-semibold text-gray-800">{first.label_count}</p>}
-                                  {first.courier_name && <p className="text-xs text-center text-blue-700 font-medium">{first.courier_name}</p>}
-                                  {!first.label_count && !first.courier_name && <span className="text-gray-400">—</span>}
-                                </div>
-                              ) : <span className="text-gray-400">—</span>}
+                              {(first.source === 'EXPRESS_BILLING' || first.picking_source === 'EXPRESS_BILLING') ? (
+                                <span className="text-gray-400">—</span>
+                              ) : (
+                                first.packing_status === 'PACKED' ? (
+                                  <div className="space-y-1">
+                                    {first.label_count != null && <p className="text-sm text-center font-semibold text-gray-800">{first.label_count}</p>}
+                                    {first.courier_name && <p className="text-xs text-center text-blue-700 font-medium">{first.courier_name}</p>}
+                                    {!first.label_count && !first.courier_name && <span className="text-gray-400">—</span>}
+                                  </div>
+                                ) : <span className="text-gray-400">—</span>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[first.packing_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>

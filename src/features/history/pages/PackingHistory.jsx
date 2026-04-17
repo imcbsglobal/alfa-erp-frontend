@@ -359,6 +359,9 @@ export default function PackingHistory() {
                                           <td className="px-3 sm:px-6 py-2">
                                             <p className="font-medium text-sm">{h.packer_name}</p>
                                             <p className="text-xs text-gray-500">{h.packer_email}</p>
+                                            {(h.source === 'EXPRESS_BILLING' || h.picking_source === 'EXPRESS_BILLING') && (
+                                              <p className="text-xs text-teal-600 font-semibold mt-1">Express Billing</p>
+                                            )}
                                           </td>
                                           <td className="px-3 sm:px-6 py-2">{statusBadge(h.packing_status)}</td>
                                           <td className="px-3 sm:px-6 py-2">
@@ -373,9 +376,13 @@ export default function PackingHistory() {
                                               : <span className="text-gray-400">In Progress</span>}
                                           </td>
                                           <td className="px-3 sm:px-6 py-2 text-center text-sm font-semibold text-gray-800">
-                                            {h.packing_status === 'PACKED' && h.label_count != null
-                                              ? h.label_count
-                                              : <span className="text-gray-400">—</span>}
+                                            {(h.source === 'EXPRESS_BILLING' || h.picking_source === 'EXPRESS_BILLING') ? (
+                                              <span className="text-gray-400">—</span>
+                                            ) : (
+                                              h.packing_status === 'PACKED' && h.label_count != null
+                                                ? h.label_count
+                                                : <span className="text-gray-400">—</span>
+                                            )}
                                           </td>
                                           <td className="px-3 sm:px-6 py-2">
                                             <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
@@ -413,6 +420,9 @@ export default function PackingHistory() {
                         <td className="px-3 sm:px-6 py-3">
                           <p className="font-medium">{first.packer_name}</p>
                           <p className="text-xs text-gray-500">{first.packer_email}</p>
+                          {(first.source === 'EXPRESS_BILLING' || first.picking_source === 'EXPRESS_BILLING') && (
+                            <p className="text-xs text-teal-600 font-semibold mt-1">Express Billing</p>
+                          )}
                         </td>
                         <td className="px-3 sm:px-6 py-3">{statusBadge(first.packing_status)}</td>
                         <td className="px-3 sm:px-6 py-3">
@@ -425,9 +435,13 @@ export default function PackingHistory() {
                           {first.duration ? <span className="text-teal-600 font-medium">{formatDuration(first.duration)}</span> : <span className="text-gray-400">In Progress</span>}
                         </td>
                         <td className="px-3 sm:px-6 py-3">
-                          {first.packing_status === 'PACKED' && first.label_count != null
-                            ? <p className="text-sm text-center font-semibold text-gray-800">{first.label_count}</p>
-                            : <span className="text-gray-400">—</span>}
+                          {(first.source === 'EXPRESS_BILLING' || first.picking_source === 'EXPRESS_BILLING') ? (
+                            <span className="text-gray-400">—</span>
+                          ) : (
+                            first.packing_status === 'PACKED' && first.label_count != null
+                              ? <p className="text-sm text-center font-semibold text-gray-800">{first.label_count}</p>
+                              : <span className="text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="px-3 sm:px-6 py-3">
                           <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">

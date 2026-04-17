@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import { getDeliveryHistory, getCourierAuditLogs } from "../../../services/sales";
+import { getDeliveryHistory, getCourierAuditLogs, getCouriers, getEligibleDeliveryStaff } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
-import { X, Search, ChevronDown } from 'lucide-react';
+import { X, Search, ChevronDown, Filter } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 
@@ -54,7 +54,6 @@ const DELIVERY_LABEL = {
 
 // ─── Box weight helpers ────────────────────────────────────────────────────────
 const getBoxWeight = (session) => {
-  // Get weights - prioritize invoice-specific weights, then fall back to group weights
   const weights = (
     session?.invoice_box_weights ||
     session?.delivery_info?.box_weights ||
@@ -62,17 +61,8 @@ const getBoxWeight = (session) => {
     session?.box_weights ||
     null
   );
-  
-  // If single weight value (backwards compatibility)
-  if (typeof weights === 'number') {
-    return weights;
-  }
-  
-  // If array of weights
-  if (Array.isArray(weights)) {
-    return weights;
-  }
-  
+  if (typeof weights === 'number') return weights;
+  if (Array.isArray(weights)) return weights;
   return null;
 };
 
@@ -80,10 +70,8 @@ const formatBoxWeights = (weights) => {
   if (!weights) return null;
   const array = Array.isArray(weights) ? weights : [weights];
   const total = array.reduce((sum, w) => sum + (w || 0), 0);
-  if (array.length === 1) {
-    return ` ${array[0]} kg`;
-  }
-  return ` ${total} kg (${array.length}${array.length !== 1 ? '' : ''})`;
+  if (array.length === 1) return ` ${array[0]} kg`;
+  return ` ${total} kg (${array.length})`;
 };
 
 export default function DeliveryReportPage() {
@@ -96,23 +84,30 @@ export default function DeliveryReportPage() {
   const [currentPage, setCurrentPage] = useUrlPage();
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage] = useState(100);
+  const [couriers, setCouriers] = useState([]);
+  const [loadingCouriers, setLoadingCouriers] = useState(false);
+  const [companyDeliveryUsers, setCompanyDeliveryUsers] = useState([]);
+  const [loadingDeliveryUsers, setLoadingDeliveryUsers] = useState(false);
+
   const [savedFilters, saveFilters] = usePersistedFilters('delivery-report-filters', {
     dateFilter: new Date().toISOString().split('T')[0],
     searchQuery: '',
     deliveryTypeFilter: 'ALL',
     statusFilter: 'ALL',
+    courierFilter: 'ALL',
+    companyDeliveryUserFilter: 'ALL',
   });
+
   const [dateFilter, setDateFilter] = useState(savedFilters.dateFilter);
   const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery);
   const [deliveryTypeFilter, setDeliveryTypeFilter] = useState(savedFilters.deliveryTypeFilter);
   const [statusFilter, setStatusFilter] = useState(savedFilters.statusFilter);
+  const [courierFilter, setCourierFilter] = useState(savedFilters.courierFilter);
+  const [companyDeliveryUserFilter, setCompanyDeliveryUserFilter] = useState(savedFilters.companyDeliveryUserFilter);
   const [timeFilter] = useState('');
   const searchRef = useRef(null);
 
-  // Attachment lightbox state
   const [attachmentModal, setAttachmentModal] = useState({ open: false, url: '', type: '' });
-  
-  // Courier audit logs state
   const [expandedAuditLogs, setExpandedAuditLogs] = useState({});
   const [auditLogCache, setAuditLogCache] = useState({});
 
@@ -121,14 +116,61 @@ export default function DeliveryReportPage() {
   useEffect(() => { searchRef.current?.focus(); }, []);
 
   useEffect(() => {
-    saveFilters({ dateFilter, searchQuery, deliveryTypeFilter, statusFilter });
-  }, [dateFilter, searchQuery, deliveryTypeFilter, statusFilter]);
+    saveFilters({ dateFilter, searchQuery, deliveryTypeFilter, statusFilter, courierFilter, companyDeliveryUserFilter });
+  }, [dateFilter, searchQuery, deliveryTypeFilter, statusFilter, courierFilter, companyDeliveryUserFilter]);
+
+  useEffect(() => {
+    if (deliveryTypeFilter === 'COURIER') loadCouriersList();
+  }, [deliveryTypeFilter]);
+
+  useEffect(() => {
+    if (deliveryTypeFilter === 'INTERNAL') loadCompanyDeliveryUsers();
+  }, [deliveryTypeFilter]);
+
+  useEffect(() => {
+    if (deliveryTypeFilter !== 'COURIER') setCourierFilter('ALL');
+  }, [deliveryTypeFilter]);
+
+  useEffect(() => {
+    if (deliveryTypeFilter !== 'INTERNAL') setCompanyDeliveryUserFilter('ALL');
+  }, [deliveryTypeFilter]);
+
+  const loadCouriersList = async () => {
+    setLoadingCouriers(true);
+    try {
+      const response = await getCouriers();
+      setCouriers(response?.data?.data || []);
+    } catch (err) {
+      console.error("Failed to load couriers:", err);
+      setCouriers([]);
+    } finally {
+      setLoadingCouriers(false);
+    }
+  };
+
+  const loadCompanyDeliveryUsers = async () => {
+    setLoadingDeliveryUsers(true);
+    try {
+      const res = await getEligibleDeliveryStaff();
+      const users = res?.data?.data?.results || [];
+      setCompanyDeliveryUsers(users.map(u => ({
+        id: u.id,
+        name: u.name || u.full_name || u.email,
+        email: u.email,
+        role: u.role,
+      })));
+    } catch (err) {
+      console.error("Failed to load company delivery users:", err);
+      setCompanyDeliveryUsers([]);
+    } finally {
+      setLoadingDeliveryUsers(false);
+    }
+  };
 
   useEffect(() => {
     loadSessions();
-  }, [currentPage, dateFilter, debouncedSearch, timeFilter, deliveryTypeFilter, statusFilter]);
+  }, [currentPage, dateFilter, debouncedSearch, timeFilter, deliveryTypeFilter, statusFilter, courierFilter, companyDeliveryUserFilter]);
 
-  // Memoize grouped sessions to avoid expensive recalculation on every render
   const groupedSessions = useMemo(() => {
     const grouped = {};
     sessions.forEach((s) => {
@@ -144,86 +186,58 @@ export default function DeliveryReportPage() {
 
   const toggleAuditLogs = async (invoiceNo) => {
     const key = `audit-${invoiceNo}`;
-    
-    // If expanding and logs not cached, fetch them
     if (!expandedAuditLogs[key] && !auditLogCache[invoiceNo]) {
-      console.log(`📥 Fetching audit logs for ${invoiceNo}...`);
       try {
         const response = await getCourierAuditLogs(invoiceNo);
-        setAuditLogCache(prev => ({
-          ...prev,
-          [invoiceNo]: response.data.data || []
-        }));
+        setAuditLogCache(prev => ({ ...prev, [invoiceNo]: response.data.data || [] }));
       } catch (err) {
-        console.error(`Failed to fetch audit logs for ${invoiceNo}:`, err);
-        setAuditLogCache(prev => ({
-          ...prev,
-          [invoiceNo]: []
-        }));
+        setAuditLogCache(prev => ({ ...prev, [invoiceNo]: [] }));
       }
     }
-    
-    // Toggle expand state
-    setExpandedAuditLogs(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    setExpandedAuditLogs(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const loadSessions = async () => {
     setLoading(true);
-    console.time('📊 Total Delivery Report Load');
     try {
-      const params = { page_size: 100 };  // Keep at 100 - requesting 1000+ causes backend serialization bottleneck
-      
+      const params = { page_size: 100 };
       if (timeFilter) {
         const cutoff = new Date(Date.now() - parseInt(timeFilter, 10) * 60 * 60 * 1000);
         params.start_time = cutoff.toISOString();
       }
-      
-      // Send all filters to backend for optimal query
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (deliveryTypeFilter !== 'ALL') params.delivery_type = deliveryTypeFilter;
-      
-      // Use correct backend parameter names
-      if (dateFilter) {
-        params.start_date = dateFilter;  // Backend expects start_date/end_date
-        params.end_date = dateFilter;     // Same day
-      }
-      
-      // Add pagination parameter
+      if (courierFilter !== 'ALL') params.courier_name = courierFilter;
+      if (dateFilter) { params.start_date = dateFilter; params.end_date = dateFilter; }
       params.page = currentPage;
 
-      console.time('🔄 API Call - getDeliveryHistory');
       const res = await getDeliveryHistory(params);
-      console.timeEnd('🔄 API Call - getDeliveryHistory');
-      
       const rawData = res.data.results || [];
-      console.log(`✅ Received ${rawData.length} records from API`);
-
-      console.time('⚡ Client-side search');
       const q = debouncedSearch.trim().toLowerCase();
-      
-      const searchedResults = !q
+
+      let filteredResults = !q
         ? rawData
         : rawData.filter((s) => [
             s.invoice_no, s.customer_name, s.customer_area, s.customer_address,
             s.delivery_user_name, s.delivery_user_email, s.courier_name, s.tracking_no, s.notes,
           ].filter(Boolean).some((val) => String(val).toLowerCase().includes(q)));
 
-      const sortedResults = sortByStartTime(searchedResults);
-      console.timeEnd('⚡ Client-side search');
-      
-      // Note: Pagination is now handled by backend
+      if (companyDeliveryUserFilter !== 'ALL' && deliveryTypeFilter === 'INTERNAL') {
+        const selectedUser = companyDeliveryUsers.find(u => u.id === companyDeliveryUserFilter);
+        if (selectedUser) {
+          filteredResults = filteredResults.filter((s) =>
+            s.delivery_user_email === selectedUser.email ||
+            s.delivery_user_name === selectedUser.name
+          );
+        }
+      }
+
+      const sortedResults = sortByStartTime(filteredResults);
       setRawSessions(res.data.results || []);
       setSessions(sortedResults);
       setTotalCount(res.data.count || 0);
-      console.timeEnd('📊 Total Delivery Report Load');
-      console.log(`📈 Performance Summary: Total=${res.data.count || 0}, Returned=${sortedResults.length}`);
-      
     } catch (err) {
       console.error("Failed to load delivery report:", err);
-      console.timeEnd('📊 Total Delivery Report Load');
       toast.error("Failed to load delivery report");
     } finally {
       setLoading(false);
@@ -267,7 +281,6 @@ export default function DeliveryReportPage() {
         notes: session.notes,
       },
     };
-
     const isOpsUser = ["PICKER", "PACKER", "BILLER", "DELIVERY", "STORE"].includes(user?.role);
     navigate(`${isOpsUser ? '/ops/delivery/invoices/view' : '/delivery/invoices/view'}/${session.id}`, {
       state: { backPath: "/history/delivery-report", invoiceData }
@@ -282,19 +295,11 @@ export default function DeliveryReportPage() {
     return rows.find((r) => r.invoice_no === preferredNo) || null;
   };
 
-  const getShortLocation = (address) => {
-    if (!address) return "Location not captured";
-    const parts = String(address).split(',').map((p) => p.trim()).filter(Boolean);
-    const shortAddr = parts.slice(0, 2).join(', ') || String(address);
-    return shortAddr.length > 40 ? `${shortAddr.slice(0, 40)}...` : shortAddr;
-  };
-
   const getCourierSlipUrl = (session) => session?.courier_slip_url || session?.courier_slip || "";
 
   const renderCourierAuditTrail = (invoiceNo) => {
     const logs = auditLogCache[invoiceNo] || [];
     if (!logs.length) return null;
-
     return (
       <div className="mt-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
         <p className="text-xs font-bold text-gray-700 mb-2">📋 Courier Change History:</p>
@@ -337,7 +342,6 @@ export default function DeliveryReportPage() {
     session?.pickup_person_name || session?.customer_name || session?.temp_name || '—'
   );
 
-  // Attachment viewer link — shows inside Delivery Details column
   const renderAttachmentLink = (session) => {
     const url = session?.attachment_url;
     if (!url) return null;
@@ -346,11 +350,8 @@ export default function DeliveryReportPage() {
       <button
         onClick={(e) => {
           e.stopPropagation();
-          if (isImage) {
-            setAttachmentModal({ open: true, url, type: 'image' });
-          } else {
-            window.open(url, '_blank');
-          }
+          if (isImage) setAttachmentModal({ open: true, url, type: 'image' });
+          else window.open(url, '_blank');
         }}
         className="inline-flex items-center gap-1 mt-1 text-xs text-teal-700 hover:text-teal-900 font-semibold hover:underline"
       >
@@ -367,40 +368,28 @@ export default function DeliveryReportPage() {
       const slipUrl = getCourierSlipUrl(session);
       const auditKey = `audit-${session.invoice_no}`;
       const isAuditExpanded = expandedAuditLogs[auditKey];
-      
       return (
         <div className="space-y-0.5">
           <p>{session.courier_name || 'Courier not set'}</p>
           {slipUrl ? (
-            <a
-              href={slipUrl}
-              target="_blank"
-              rel="noreferrer"
+            <a href={slipUrl} target="_blank" rel="noreferrer"
               className="text-xs font-semibold text-teal-700 hover:text-teal-800 hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
+              onClick={(e) => e.stopPropagation()}>
               View Slip / Screenshot
             </a>
           ) : (
             <p className="text-xs text-teal-700">Slip not uploaded</p>
           )}
           {renderAttachmentLink(session)}
-          {session.delivery_type === 'COURIER' && auditLogCache[session.invoice_no]?.length > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleAuditLogs(session.invoice_no);
-              }}
-              className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:text-blue-800 font-semibold hover:underline"
-            >
+          {auditLogCache[session.invoice_no]?.length > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); toggleAuditLogs(session.invoice_no); }}
+              className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:text-blue-800 font-semibold hover:underline">
               <ChevronDown size={14} style={{ transform: isAuditExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
               {isAuditExpanded ? 'Hide' : 'View'} Change History
             </button>
           )}
           {isAuditExpanded && auditLogCache[session.invoice_no]?.length > 0 && (
-            <div onClick={(e) => e.stopPropagation()}>
-              {renderCourierAuditTrail(session.invoice_no)}
-            </div>
+            <div onClick={(e) => e.stopPropagation()}>{renderCourierAuditTrail(session.invoice_no)}</div>
           )}
         </div>
       );
@@ -431,23 +420,16 @@ export default function DeliveryReportPage() {
       const mapUrl = session.delivery_latitude && session.delivery_longitude
         ? `https://www.google.com/maps?q=${session.delivery_latitude},${session.delivery_longitude}`
         : null;
-
       return (
         <div className="space-y-0.5">
           <p>{session.delivery_user_name || '—'}</p>
           <p className="text-xs text-gray-500">{session.delivery_user_email || '—'}</p>
           {mapUrl && (
-            <div>
-              <a
-                href={mapUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs font-semibold text-teal-700 hover:text-teal-800 hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Open Location
-              </a>
-          </div>
+            <a href={mapUrl} target="_blank" rel="noreferrer"
+              className="text-xs font-semibold text-teal-700 hover:text-teal-800 hover:underline"
+              onClick={(e) => e.stopPropagation()}>
+              Open Location
+            </a>
           )}
           {renderAttachmentLink(session)}
         </div>
@@ -457,17 +439,40 @@ export default function DeliveryReportPage() {
     return <p>—</p>;
   };
 
+  // Count active filters for badge
+  const activeFilterCount = [
+    deliveryTypeFilter !== 'ALL',
+    statusFilter !== 'ALL',
+    courierFilter !== 'ALL',
+    companyDeliveryUserFilter !== 'ALL',
+    !!searchQuery,
+  ].filter(Boolean).length;
+
   return (
     <>
       <div className="min-h-screen bg-gray-50 p-4">
         <div className="max-w-7xl mx-auto">
 
-          <div className="mb-4">
-            <h1 className="text-2xl font-bold text-gray-800">Delivery Report</h1>
+          {/* ── Header ── */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Delivery Report</h1>
+              <p className="text-xs text-gray-400 mt-0.5">Track and review all delivery activity</p>
+            </div>
+            <button
+              onClick={() => { loadSessions(); toast.success("Report refreshed"); }}
+              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg
+                         font-semibold text-sm shadow hover:from-teal-600 hover:to-cyan-700 transition-all"
+            >
+              Generate
+            </button>
           </div>
 
+          {/* ── Filter Bar ── */}
           <div className="bg-white rounded-xl shadow-sm p-3 mb-4">
             <div className="flex flex-wrap items-center gap-3">
+
+              {/* Date */}
               <div className="flex items-center gap-1.5">
                 <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Date:</label>
                 <input
@@ -478,10 +483,9 @@ export default function DeliveryReportPage() {
                 />
               </div>
 
-              <div className="h-6 w-px bg-gray-200" />
-
+              {/* Delivery Type */}
               <div className="flex items-center gap-1.5">
-                <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Delivery Type:</label>
+                <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Type:</label>
                 <select
                   value={deliveryTypeFilter}
                   onChange={(e) => { setDeliveryTypeFilter(e.target.value); setCurrentPage(1); }}
@@ -494,6 +498,51 @@ export default function DeliveryReportPage() {
                 </select>
               </div>
 
+              {/* Courier Service — only shown when COURIER */}
+              {deliveryTypeFilter === 'COURIER' && (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Courier:</label>
+                    <select
+                      value={courierFilter}
+                      onChange={(e) => { setCourierFilter(e.target.value); setCurrentPage(1); }}
+                      disabled={loadingCouriers}
+                      className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="ALL">{loadingCouriers ? 'Loading...' : 'All Couriers'}</option>
+                      {couriers.map((courier) => (
+                        <option key={courier.courier_id} value={courier.courier_name}>
+                          {courier.courier_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Assigned To — only shown when INTERNAL */}
+              {deliveryTypeFilter === 'INTERNAL' && (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Assigned To:</label>
+                    <select
+                      value={companyDeliveryUserFilter}
+                      onChange={(e) => { setCompanyDeliveryUserFilter(e.target.value); setCurrentPage(1); }}
+                      disabled={loadingDeliveryUsers}
+                      className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="ALL">{loadingDeliveryUsers ? 'Loading...' : 'All Users'}</option>
+                      {companyDeliveryUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name}{u.email ? ` (${u.email})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Status */}
               <div className="flex items-center gap-1.5">
                 <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Status:</label>
                 <select
@@ -502,12 +551,13 @@ export default function DeliveryReportPage() {
                   className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                 >
                   <option value="ALL">All Status</option>
-                  <option value="TO_CONSIDER">TO_CONSIDER</option>
-                  <option value="IN_TRANSIT">IN_TRANSIT</option>
-                  <option value="DELIVERED">DELIVERED</option>
+                  <option value="TO_CONSIDER">To Consider</option>
+                  <option value="IN_TRANSIT">In Transit</option>
+                  <option value="DELIVERED">Delivered</option>
                 </select>
               </div>
 
+              {/* Search */}
               <div className="flex items-center gap-1.5">
                 <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Search:</label>
                 <div className="relative">
@@ -515,10 +565,10 @@ export default function DeliveryReportPage() {
                   <input
                     ref={searchRef}
                     type="text"
-                    placeholder="Invoice No, Customer or Delivery Staff..."
+                    placeholder="Invoice, customer, delivery staff..."
                     value={searchQuery}
                     onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                    className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[320px]"
+                    className="pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm w-[300px]"
                   />
                   {searchQuery && (
                     <button
@@ -530,16 +580,10 @@ export default function DeliveryReportPage() {
                   )}
                 </div>
               </div>
-
-              <button
-                onClick={() => { loadSessions(); toast.success("Report Generated"); }}
-                className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-sm shadow hover:from-teal-600 hover:to-cyan-700 transition-all whitespace-nowrap ml-auto"
-              >
-                Generate
-              </button>
             </div>
           </div>
 
+          {/* ── Table ── */}
           <div className="bg-white rounded-xl shadow overflow-hidden">
             {loading ? (
               <div className="py-20 text-center text-gray-500">Loading report...</div>
@@ -575,7 +619,6 @@ export default function DeliveryReportPage() {
                           if (isGroup) {
                             return (
                               <React.Fragment key={groupKey}>
-                                {/* Group header */}
                                 <tr>
                                   <td colSpan="8" className="p-0">
                                     <div className="mx-3 mt-2 rounded-t-lg border-2 border-b-0 border-teal-400 bg-teal-50 px-3 py-1.5">
@@ -592,9 +635,7 @@ export default function DeliveryReportPage() {
                                           {(() => {
                                             const weights = getBoxWeight(first);
                                             const weightsDisplay = formatBoxWeights(weights);
-                                            if (weightsDisplay) {
-                                              return <span className="ml-2 text-teal-600">· {weightsDisplay}</span>;
-                                            }
+                                            if (weightsDisplay) return <span className="ml-2 text-teal-600">· {weightsDisplay}</span>;
                                             return null;
                                           })()}
                                           {(() => {
@@ -602,7 +643,7 @@ export default function DeliveryReportPage() {
                                             if (!preferred) return null;
                                             return (
                                               <span className="ml-2 px-2 py-0.5 bg-teal-100 text-teal-800 rounded-full text-[10px] font-bold">
-                                               Address: {preferred.customer_name}
+                                                Address: {preferred.customer_name}
                                               </span>
                                             );
                                           })()}
@@ -612,7 +653,6 @@ export default function DeliveryReportPage() {
                                   </td>
                                 </tr>
 
-                                {/* Group rows */}
                                 {rows.map((session, idx) => {
                                   const isLast = idx === rows.length - 1;
                                   return (
@@ -643,37 +683,29 @@ export default function DeliveryReportPage() {
                                                     if (boxCount > 0 || weightsDisplay) {
                                                       return (
                                                         <p className="text-xs text-teal-600 font-semibold mt-1">
-                                                         {boxCount} box{boxCount !== 1 ? 'es' : ''}{weightsDisplay ? ` · ${weightsDisplay}` : ''}
+                                                          {boxCount} box{boxCount !== 1 ? 'es' : ''}{weightsDisplay ? ` · ${weightsDisplay}` : ''}
                                                         </p>
                                                       );
                                                     }
                                                     return null;
                                                   })()}
                                                 </td>
-                                                <td className="px-4 py-2 text-sm text-gray-700">
-                                                  {renderDeliveryDetails(session)}
-                                                </td>
+                                                <td className="px-4 py-2 text-sm text-gray-700">{renderDeliveryDetails(session)}</td>
                                                 <td className="px-4 py-2 text-sm text-gray-700">
                                                   <p>{DELIVERY_LABEL[session.delivery_type] || session.delivery_type || '—'}</p>
                                                   {session.courier_name && <p className="text-xs font-semibold text-blue-700">{session.courier_name}</p>}
                                                 </td>
                                                 <td className="px-4 py-2 text-sm text-gray-700">
                                                   <p>{formatDateDDMMYYYY(session.start_time || session.created_at)}</p>
-                                                  <p className="text-xs text-gray-500">
-                                                    {formatTime(session.start_time || session.created_at)}
-                                                  </p>
+                                                  <p className="text-xs text-gray-500">{formatTime(session.start_time || session.created_at)}</p>
                                                 </td>
                                                 <td className="px-4 py-2 text-sm text-gray-700">
                                                   {session.end_time ? (
                                                     <>
                                                       <p>{formatDateDDMMYYYY(session.end_time)}</p>
-                                                      <p className="text-xs text-gray-500">
-                                                        {formatTime(session.end_time)}
-                                                      </p>
+                                                      <p className="text-xs text-gray-500">{formatTime(session.end_time)}</p>
                                                     </>
-                                                  ) : (
-                                                    <p className="text-gray-400">—</p>
-                                                  )}
+                                                  ) : <p className="text-gray-400">—</p>}
                                                 </td>
                                                 <td className="px-4 py-2">
                                                   <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[session.delivery_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
@@ -700,7 +732,6 @@ export default function DeliveryReportPage() {
                             );
                           }
 
-                          // Single row
                           return (
                             <tr key={first.id} className={`hover:bg-gray-50 transition-colors ${groupIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                               <td className="px-4 py-3 text-sm font-medium text-gray-900">{first.invoice_no}</td>
@@ -714,37 +745,29 @@ export default function DeliveryReportPage() {
                                   if (boxCount > 0 || weightsDisplay) {
                                     return (
                                       <p className="text-xs text-teal-600 font-semibold mt-1">
-                                       {boxCount} box{boxCount !== 1 ? 'es' : ''}{weightsDisplay ? ` · ${weightsDisplay}` : ''}
+                                        {boxCount} box{boxCount !== 1 ? 'es' : ''}{weightsDisplay ? ` · ${weightsDisplay}` : ''}
                                       </p>
                                     );
                                   }
                                   return null;
                                 })()}
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-700">
-                                {renderDeliveryDetails(first)}
-                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700">{renderDeliveryDetails(first)}</td>
                               <td className="px-4 py-3 text-sm text-gray-700">
                                 <p>{DELIVERY_LABEL[first.delivery_type] || first.delivery_type || '—'}</p>
                                 {first.courier_name && <p className="text-xs font-semibold text-blue-700">{first.courier_name}</p>}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700">
                                 <p>{formatDateDDMMYYYY(first.start_time || first.created_at)}</p>
-                                <p className="text-xs text-gray-500">
-                                  {formatTime(first.start_time || first.created_at)}
-                                </p>
+                                <p className="text-xs text-gray-500">{formatTime(first.start_time || first.created_at)}</p>
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700">
                                 {first.end_time ? (
                                   <>
                                     <p>{formatDateDDMMYYYY(first.end_time)}</p>
-                                    <p className="text-xs text-gray-500">
-                                      {formatTime(first.end_time)}
-                                    </p>
+                                    <p className="text-xs text-gray-500">{formatTime(first.end_time)}</p>
                                   </>
-                                ) : (
-                                  <p className="text-gray-400">—</p>
-                                )}
+                                ) : <p className="text-gray-400">—</p>}
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`px-2 py-1 rounded-full border text-xs font-bold ${STATUS_BADGE[first.delivery_status] || 'bg-gray-100 text-gray-700 border-gray-300'}`}>
@@ -791,16 +814,11 @@ export default function DeliveryReportPage() {
             className="relative bg-white rounded-xl shadow-2xl max-w-3xl w-full mx-4 overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <p className="text-sm font-semibold text-gray-700">Delivery Attachment</p>
               <div className="flex items-center gap-3">
-                <a
-                  href={attachmentModal.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-teal-600 hover:text-teal-800 font-medium hover:underline"
-                >
+                <a href={attachmentModal.url} target="_blank" rel="noreferrer"
+                  className="text-xs text-teal-600 hover:text-teal-800 font-medium hover:underline">
                   Open in new tab
                 </a>
                 <button
@@ -813,13 +831,9 @@ export default function DeliveryReportPage() {
                 </button>
               </div>
             </div>
-            {/* Image preview */}
             <div className="p-4 flex items-center justify-center bg-gray-50 min-h-[300px]">
-              <img
-                src={attachmentModal.url}
-                alt="Delivery attachment"
-                className="max-w-full max-h-[70vh] object-contain rounded"
-              />
+              <img src={attachmentModal.url} alt="Delivery attachment"
+                className="max-w-full max-h-[70vh] object-contain rounded" />
             </div>
           </div>
         </div>

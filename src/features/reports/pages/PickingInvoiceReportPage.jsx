@@ -186,8 +186,6 @@ export default function PickingInvoiceReportPage() {
               />
             </div>
 
-            <div className="h-6 w-px bg-gray-200" />
-
             {/* Picking Date */}
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-semibold text-gray-600 whitespace-nowrap">Picking Date:</label>
@@ -198,8 +196,6 @@ export default function PickingInvoiceReportPage() {
                 className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
               />
             </div>
-
-            <div className="h-6 w-px bg-gray-200" />
 
             {/* Unified Search */}
             <div className="flex items-center gap-1.5">
@@ -266,7 +262,10 @@ export default function PickingInvoiceReportPage() {
                           <p className="text-xs text-gray-500">{session.customer_area || session.customer_address || session.temp_name || '—'}</p>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                          {session.picker_name || '—'}
+                          <p>{session.picker_name || '—'}</p>
+                          {session.source === 'EXPRESS_BILLING' && (
+                            <p className="text-xs text-teal-600 font-semibold">Express Billing</p>
+                          )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                           <p>{formatDateDDMMYYYY(session.created_at)}</p>

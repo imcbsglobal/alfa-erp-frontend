@@ -97,10 +97,93 @@ export default function CommonInvoiceView() {
     }
 
     if (inv.delivery_info) {
-      let v = `${inv.delivery_info.name || inv.delivery_info.email || "—"}`;
-      if (inv.delivery_info.delivery_type) v += ` • ${inv.delivery_info.delivery_type}`;
-      if (inv.delivery_info.start_time) v += ` • ${formatTime(inv.delivery_info.start_time)}`;
-      rows.push({ label: "Dispatched By", value: v });
+      const di = inv.delivery_info;
+      
+      // Courier Delivery
+      if (di.delivery_type === 'COURIER') {
+        rows.push({ 
+          label: "Assigned By", 
+          value: `${di.delivery_user_name || di.assigned_by_name || di.assigned_by_user_name || di.name || di.email || "—"}` 
+        });
+        if (di.courier_name) {
+          rows.push({ 
+            label: "Courier Service", 
+            value: di.courier_name 
+          });
+        }
+        if (di.tracking_no) {
+          rows.push({ 
+            label: "Tracking No", 
+            value: di.tracking_no 
+          });
+        }
+        if (di.start_time) {
+          rows.push({ 
+            label: "Dispatch Time", 
+            value: formatTime(di.start_time) 
+          });
+        }
+      }
+      // Company Delivery (Internal Staff)
+      else if (di.delivery_type === 'INTERNAL') {
+        rows.push({ 
+          label: "Assigned By", 
+          value: `${di.delivery_user_name || di.assigned_by_name || di.assigned_by_user_name || di.name || "—"}` 
+        });
+        if (di.delivery_user_email) {
+          rows.push({ 
+            label: "Email", 
+            value: di.delivery_user_email 
+          });
+        }
+        if (di.start_time) {
+          rows.push({ 
+            label: "Dispatch Time", 
+            value: formatTime(di.start_time) 
+          });
+        }
+      }
+      // Counter Pickup (Direct)
+      else if (di.delivery_type === 'DIRECT') {
+        rows.push({ 
+          label: "Pickup Type", 
+          value: di.counter_sub_mode === 'company' ? 'Direct Company Pickup' : 'Direct Patient Pickup' 
+        });
+        if (di.counter_sub_mode === 'company') {
+          if (di.pickup_person_name) {
+            rows.push({ 
+              label: "Person Name", 
+              value: di.pickup_person_name 
+            });
+          }
+          if (di.pickup_company_name) {
+            rows.push({ 
+              label: "Company Name", 
+              value: di.pickup_company_name 
+            });
+          }
+        } else {
+          if (di.pickup_person_name) {
+            rows.push({ 
+              label: "Picked By", 
+              value: di.pickup_person_name 
+            });
+          }
+        }
+        if (di.end_time) {
+          rows.push({ 
+            label: "Pickup Time", 
+            value: formatTime(di.end_time) 
+          });
+        }
+      }
+      // Fallback for generic delivery
+      else {
+        let v = `${di.delivery_user_name || di.name || di.email || "—"}`;
+        if (di.delivery_type) v += ` • ${di.delivery_type}`;
+        if (di.start_time) v += ` • ${formatTime(di.start_time)}`;
+        rows.push({ label: "Dispatched By", value: v });
+      }
     }
 
     return rows;

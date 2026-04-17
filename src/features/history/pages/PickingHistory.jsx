@@ -306,6 +306,9 @@ export default function PickingHistory() {
                     <td className="px-3 sm:px-6 py-3">
                       <p className="font-medium">{h.picker_name}</p>
                       <p className="text-xs text-gray-500">{h.picker_email}</p>
+                      {(h.source === 'EXPRESS_BILLING' || h.picking_source === 'EXPRESS_BILLING') && (
+                        <p className="text-xs text-teal-600 font-semibold mt-1">Express Billing</p>
+                      )}
                     </td>
                     <td className="px-3 sm:px-6 py-3">
                       {statusBadge(h.picking_status, h.notes)}
