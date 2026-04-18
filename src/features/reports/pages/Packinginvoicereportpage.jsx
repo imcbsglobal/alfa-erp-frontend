@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
-import { getPackingHistory, getPickingHistory } from "../../../services/sales";
+import { getPackingHistory } from "../../../services/sales";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
@@ -17,9 +17,6 @@ function useDebounce(value, delay) {
   }, [value, delay]);
   return debouncedValue;
 }
-
-// Request cache to avoid duplicate API calls
-const pickingCache = new Map();
 
 const STATUS_BADGE = {
   PACKING:   "bg-blue-100 text-blue-700 border-blue-300",
@@ -63,40 +60,6 @@ export default function PackingInvoiceReportPage() {
   const sortByStartTime = (arr) =>
     [...arr].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
-  // Batch fetch picking data with caching to avoid N+1 queries
-  const enrichWithPickingData = async (rows, maxConcurrent = 10) => {
-    const cache = pickingCache;
-    const uncachedInvoices = [...new Set(rows.map(r => r.invoice_no))].filter(inv => !cache.has(inv));
-    
-    // Fetch uncached invoices in batches
-    if (uncachedInvoices.length > 0) {
-      for (let i = 0; i < uncachedInvoices.length; i += maxConcurrent) {
-        const batch = uncachedInvoices.slice(i, i + maxConcurrent);
-        await Promise.all(batch.map(async (invoiceNo) => {
-          try {
-            const pickRes = await getPickingHistory({ search: invoiceNo, page_size: 1 });
-            const pick = (pickRes.data.results || []).find(r => r.invoice_no === invoiceNo);
-            cache.set(invoiceNo, pick || null);
-          } catch (e) {
-            cache.set(invoiceNo, null);
-          }
-        }));
-      }
-    }
-    
-    // Enrich rows with cached data
-    return rows.map(s => {
-      const pick = cache.get(s.invoice_no);
-      if (pick) {
-        s.picking_start_time = pick.start_time;
-        s.picking_end_time = pick.end_time;
-        s.picking_date = pick.created_at || pick.invoice_created_at || pick.invoice_date;
-        s.picking_source = pick.source;  // Add source from picking session
-      }
-      return s;
-    });
-  };
-
   const loadSessions = async () => {
     setLoading(true);
     try {
@@ -112,9 +75,9 @@ export default function PackingInvoiceReportPage() {
       if (!q) {
         const res = await getPackingHistory(params);
         const results = sortByStartTime(res.data.results || []);
-        const enriched = await enrichWithPickingData(results);
-        setRawSessions(enriched);
-        setSessions(enriched);
+        // ✅ Picking data now included directly in API response (no enrichment needed)
+        setRawSessions(results);
+        setSessions(results);
         setTotalCount(res.data.count || 0);
       } else {
         // Try API search first
@@ -123,12 +86,12 @@ export default function PackingInvoiceReportPage() {
 
         if (searchResults.length > 0) {
           const sorted = sortByStartTime(searchResults);
-          const enriched = await enrichWithPickingData(sorted);
-          setRawSessions(enriched);
-          setSessions(enriched);
+          // ✅ Picking data now included directly in API response (no enrichment needed)
+          setRawSessions(sorted);
+          setSessions(sorted);
           setTotalCount(searchRes.data.count || 0);
         } else {
-          // Fallback: client-side packer name filter (reduced from 10000 to 1000 for performance)
+          // Fallback: client-side packer name filter
           const allParams = { page_size: 1000 };
           if (dateFilter) { allParams.start_date = dateFilter; allParams.end_date = dateFilter; }
 
@@ -138,10 +101,10 @@ export default function PackingInvoiceReportPage() {
           const packerMatches = allResults.filter(s =>
             (s.packer_name || '').toLowerCase().includes(q)
           );
-          const enrichedMatches = await enrichWithPickingData(packerMatches);
           setRawSessions(allResults);
-          setSessions(enrichedMatches);
-          setTotalCount(enrichedMatches.length);
+          // ✅ Picking data now included directly in API response (no enrichment needed)
+          setSessions(packerMatches);
+          setTotalCount(packerMatches.length);
         }
       }
     } catch (err) {
