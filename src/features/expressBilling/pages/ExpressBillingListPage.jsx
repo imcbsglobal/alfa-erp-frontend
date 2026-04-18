@@ -115,8 +115,8 @@ function InvoiceModal({ invoice, onClose, onStatusUpdate }) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const customerName = invoice.customer?.name || invoice.temp_name || "—";
-  const customerArea = invoice.customer?.area || "—";
+  const customerName = invoice.customer?.name || "—";
+  const customerArea = invoice.customer?.area || invoice.customer?.address1 || invoice.temp_name || "—";
   const customerPhone = invoice.customer?.phone || invoice.customer?.mobile || "—";
 
   const initials = customerName
@@ -567,10 +567,10 @@ export default function ExpressBillingListPage() {
                         {inv.invoice_no}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {inv.customer?.name || inv.temp_name || "—" }
+                        {inv.customer?.name || "—" }
                       </p>
                       <p className="text-xs text-gray-400">
-                        {inv.customer?.area || inv.customer?.address1 || "—"}
+                        {inv.customer?.area || inv.customer?.address1 || inv.temp_name || "—"}
                       </p>
                     </div>
                   </div>
