@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { getInvoicesByStatus, updateInvoiceStatus } from "../../../services/sales";
 import toast from "react-hot-toast";
 import {
@@ -103,8 +104,7 @@ function StatusBadge({ status }) {
 }
 
 // ─── Invoice detail modal ────────────────────────────────────────────────────
-function InvoiceModal({ invoice, onClose, onStatusUpdate }) {
-  const [status, setStatus]       = useState(invoice.status || "INVOICED");
+function InvoiceModal({ invoice, onClose, onStatusUpdate }) {  const navigate = useNavigate();  const [status, setStatus]       = useState(invoice.status || "INVOICED");
   const [processing, setProc]     = useState(false);
   const [showSuccess, setSuccess] = useState(false);
 
@@ -271,7 +271,7 @@ function InvoiceModal({ invoice, onClose, onStatusUpdate }) {
                     <tr className="bg-gray-50/50">
                       <th className="px-4 py-2 text-left text-gray-500 font-medium">Item</th>
                       <th className="px-3 py-2 text-center text-gray-500 font-medium">Qty</th>
-                      <th className="px-3 py-2 text-right text-gray-500 font-medium">Amount</th>
+                      <th className="px-3 py-2 text-right text-gray-500 font-medium">MRP</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -283,8 +283,8 @@ function InvoiceModal({ invoice, onClose, onStatusUpdate }) {
                         <td className="px-3 py-2.5 text-center text-gray-600">
                           {item.quantity || item.qty}
                         </td>
-                        <td className="px-3 py-2.5 text-right font-semibold text-gray-800">
-                          {formatAmount(item.total || item.amount)}
+                        <td className="px-3 py-2.5 text-right text-gray-600">
+                          {formatAmount(item.mrp)}
                         </td>
                       </tr>
                     ))}
@@ -364,10 +364,13 @@ function InvoiceModal({ invoice, onClose, onStatusUpdate }) {
             )}
 
             {status === "PACKED" && (
-              <div className="flex-[2] h-11 rounded-xl bg-green-50 border border-green-200 flex items-center justify-center gap-2 text-green-700 text-sm font-semibold">
+              <button
+                onClick={() => navigate("/delivery/dispatch")}
+                className="flex-[2] h-11 rounded-xl bg-green-50 border border-green-200 hover:bg-green-100 flex items-center justify-center gap-2 text-green-700 text-sm font-semibold transition-colors"
+              >
                 <Truck size={15} />
                 Ready for delivery
-              </div>
+              </button>
             )}
           </div>
         </div>
