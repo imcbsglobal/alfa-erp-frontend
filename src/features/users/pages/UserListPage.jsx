@@ -70,14 +70,29 @@ export default function UserListPage() {
   const loadUsers = async () => {
     setLoading(true);
     try {
+      // Fetch first page
       const response = await getUsers();
-
       const apiData = response?.data?.data;
 
+      // Collect results from first page
+      let allResults = Array.isArray(apiData?.results) ? [...apiData.results] : [];
+
+      // If there are additional pages, follow `next` links using the API axios instance
+      try {
+        const { default: api } = await import("../../../services/api");
+        let next = apiData?.next;
+        while (next) {
+          const nextResp = await api.get(next);
+          const nextData = nextResp?.data?.data;
+          if (Array.isArray(nextData?.results)) allResults = allResults.concat(nextData.results);
+          next = nextData?.next;
+        }
+      } catch (err) {
+        // If following next fails, ignore and proceed with available results
+      }
+
       // Only include users with role 'ADMIN' or 'USER'
-      const filteredList = (Array.isArray(apiData?.results) ? apiData.results : []).filter(
-        (u) => u.role === "ADMIN" || u.role === "USER"
-      );
+      const filteredList = allResults.filter((u) => u.role === "ADMIN" || u.role === "USER");
 
       const sortedUsers = filteredList.sort((a, b) =>
         a.name?.toLowerCase() > b.name?.toLowerCase() ? 1 : -1
