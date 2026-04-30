@@ -551,6 +551,25 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
 
               <div className="space-y-4">
 
+                {/* Customer Name Field */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                    Customer Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={repInvoice?.temp_name || ''}
+                      disabled
+                      placeholder="N/A"
+                      className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                                 bg-gray-50 text-gray-600 cursor-not-allowed
+                                 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
                 {/* ── PATIENT: only Phone + Notes ─────────────────────────── */}
                 {subType === 'PATIENT' && (
                 <>
@@ -717,7 +736,24 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
               <BackButton />
               <p className="font-semibold text-gray-800 mb-4">Assign Courier</p>
 
-              {isGroup ? <GroupSummaryStrip /> : <SingleSummaryStrip />}
+              {/* Customer Name Field */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Customer Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={repInvoice?.temp_name || ''}
+                    disabled
+                    placeholder="N/A"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                               bg-gray-50 text-gray-600 cursor-not-allowed
+                               focus:outline-none"
+                  />
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -782,6 +818,25 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
             <div>
               <BackButton />
               <p className="font-semibold text-gray-800 mb-4">Assign Delivery Staff</p>
+
+              {/* Customer Name Field */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Customer Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={repInvoice?.temp_name || ''}
+                    disabled
+                    placeholder="N/A"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                               bg-gray-50 text-gray-600 cursor-not-allowed
+                               focus:outline-none"
+                  />
+                </div>
+              </div>
 
               {isGroup ? <GroupSummaryStrip /> : (
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-4">

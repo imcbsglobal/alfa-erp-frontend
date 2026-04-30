@@ -68,6 +68,11 @@ const DeliveryReportPage = lazy(() => import("../features/reports/pages/Delivery
 const DeliveryUserSummaryPage = lazy(() => import("../features/reports/pages/Deliveryusersummarypage"));
 const ItemsBilledTodayPage = lazy(() => import("../features/reports/pages/ItemsBilledTodayPage"));
 
+// Import Payment Follow-Up Pages
+const FollowUpTrackerPage = lazy(() => import("../features/followup/pages/FollowUpTrackerPage"));
+const FollowUpReportPage = lazy(() => import("../features/followup/pages/FollowUpReportPage"));
+const AlertsPage = lazy(() => import("../features/followup/pages/AlertsPage"));
+
 function RouteFallback() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center p-6 text-sm text-gray-600">
@@ -176,6 +181,11 @@ export default function AppRouter() {
           <Route path="/history/delivery-report" element={<DeliveryReportPage />} />
           <Route path="/history/delivery-user-summary" element={<DeliveryUserSummaryPage />} />
           <Route path="/history/items-sold-today" element={<ItemsBilledTodayPage />} />
+
+          {/* Payment Follow-Up Routes */}
+          <Route path="/followup/tracker" element={<FollowUpTrackerPage />} />
+          <Route path="/followup/report" element={<FollowUpReportPage />} />
+          <Route path="/followup/alerts" element={<AlertsPage />} />
 
           {/* Developer Options - SUPERADMIN ONLY */}
           <Route 

@@ -32,6 +32,9 @@ import {
     Pill,
     Settings,
     Database,
+    CreditCard,
+    TrendingUp,
+    Bell,
   } from "lucide-react";
 
 export const MENU_CONFIG = [
@@ -161,11 +164,37 @@ export const MENU_CONFIG = [
   },
   {
     id: "express-billing",
-    label: "Express Billing",
+    label: "Express Delivery",
     icon: Send,
     path: (user) => user?.role === "BILLER" ? "/ops/billing/express" : "/billing/express",
     type: "single",
     hasAccess: (user) => user?.role === "BILLER" || user?.role === "SUPERADMIN" || user?.role === "ADMIN",
+  },
+  {
+    id: "followup",
+    label: "Payment Follow-Up",
+    icon: CreditCard,
+    type: "dropdown",
+    hasAccess: (user) =>
+      ["SUPERADMIN", "ADMIN", "USER", "STORE", "PICKER", "PACKER", "BILLER", "DELIVERY"].includes(user?.role),
+    submenu: [
+      {
+        label: "Follow-Up",
+        icon: TrendingUp,
+        path: "/followup/tracker",
+      },
+      {
+        label: "Reports",
+        icon: FileText,
+        path: "/followup/report",
+      },
+      {
+        label: "Alerts",
+        icon: AlertCircle,
+        path: "/followup/alerts",
+      },
+    ],
+    isActive: (pathname) => pathname.startsWith("/followup"),
   },
   {
     id: "reports",
@@ -328,11 +357,11 @@ export const PAGE_TITLES = {
   "/ops/packing/boxing": "Boxing List",
   "/billing/invoices": "Billing Management",
   "/billing/reviewed": "Reviewed Bills",
-  "/billing/express": "Express Billing",
+  "/billing/express": "Express Delivery",
   "/billing/my": "My Assigned Billing",
   "/ops/billing/invoices": "Billing Management",
   "/ops/billing/reviewed": "Reviewed Bills",
-  "/ops/billing/express": "Express Billing",
+  "/ops/billing/express": "Express Delivery",
   "/ops/billing/my": "My Assigned Billing",
   "/delivery/dispatch": "Delivery Dispatch",
   "/ops/delivery/dispatch": "Delivery Dispatch",
@@ -360,7 +389,8 @@ export const PAGE_TITLES = {
   "/history/packing-report": "Packing Report",
   "/history/packing-user-summary": "Packing User Summary",
   "/history/delivery-report": "Delivery Report",
-  "/history/delivery-user-summary": "Delivery User Summary",
-  "/developer/settings": "Developer Options",
+  "/history/delivery-user-summary": "Delivery User Summary",  "/followup/tracker": "Follow-Up Tracker",
+  "/followup/report": "Follow-Up Report",
+  "/followup/alerts": "Payment Alerts",  "/developer/settings": "Developer Options",
   "/admin/privilege": "Advanced Control",
 };

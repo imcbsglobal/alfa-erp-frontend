@@ -5,6 +5,7 @@ import { ChevronDownIcon, LogoutIcon, MenuIcon } from "./Icons";
 import { Sidebar } from "./Sidebar/Sidebar";
 import ToastProvider from "../components/ToastProvider";
 import { MENU_CONFIG, PAGE_TITLES } from "./Sidebar/menuConfig";
+import { getAlerts } from "../services/followup";
 import {
   HomeIcon,
   UsersIcon,
@@ -37,6 +38,9 @@ import {
   Send,
   Warehouse,
   Pill,
+  CreditCard,
+  TrendingUp,
+  Bell,
 } from "lucide-react";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 
@@ -72,6 +76,9 @@ const iconMap = {
   Send: Send,
   Warehouse: Warehouse,
   Pill: Pill,
+  CreditCard: CreditCard,
+  TrendingUp: TrendingUp,
+  Bell: Bell,
   
   // MUI icons
   TuneOutlinedIcon: TuneOutlinedIcon,
@@ -86,6 +93,7 @@ export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [unreadAlertCount, setUnreadAlertCount] = useState(0);
 
   // Set sidebar open by default on desktop
   useEffect(() => {
@@ -104,8 +112,8 @@ export default function MainLayout() {
 
   // Build menus from backend data with proper icon mapping
   const visibleMenus = useMemo(() => {
-    // Use frontend menu config for SUPERADMIN and ADMIN
-    if (user?.role === "SUPERADMIN" || user?.role === "ADMIN") {
+    // SUPERADMIN sees the full frontend config; everyone else uses assigned backend menus.
+    if (user?.role === "SUPERADMIN") {
       return MENU_CONFIG.filter(menu => 
         menu.hasAccess ? menu.hasAccess(user) : true
       );
@@ -130,6 +138,11 @@ export default function MainLayout() {
       })) || [],
     }));
   }, [user, menus]);
+
+  const canSeeAlertsBell = useMemo(() => {
+    if (!user) return false;
+    return visibleMenus.some(menu => menu.id === "followup");
+  }, [user, visibleMenus]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -171,6 +184,29 @@ export default function MainLayout() {
     if (location.pathname.includes("/invoices/view")) return "View Invoice";
     return "Dashboard";
   };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUnreadAlertCount = async () => {
+      try {
+        const response = await getAlerts({ resolved: "false" });
+        if (!mounted) return;
+        setUnreadAlertCount(response?.data?.count || 0);
+      } catch (error) {
+        if (!mounted) return;
+        setUnreadAlertCount(0);
+      }
+    };
+
+    loadUnreadAlertCount();
+    const interval = setInterval(loadUnreadAlertCount, 30000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [location.pathname]);
 
   return (
     <div
@@ -217,54 +253,77 @@ export default function MainLayout() {
             </button>
           </div>
 
-          <div className="relative" data-profile-menu style={{ zIndex: 950 }}>
-            <button
-              data-profile-button
-              onClick={() => {
-                setShowProfileMenu(!showProfileMenu);
-                setOpenMenuId(null);
-              }}
-              className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 transition-all"
-            >
-              <div className="text-right hidden sm:block">
-                <p className="font-semibold text-gray-800 text-sm">
-                  {user?.name || "User"}
-                </p>
-                <p className="text-xs text-gray-500 capitalize">
-                  {user?.role?.replace("_", " ").toLowerCase() || "User"}
-                </p>
-              </div>
-
-              <div className="w-14 h-14 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-teal-100 overflow-hidden">
-                {(user?.avatar || user?.profilePhoto) ? (
-                  <img src={user.avatar || user.profilePhoto} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-sm sm:text-base">{user?.name?.charAt(0).toUpperCase() || "U"}</span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {canSeeAlertsBell && (
+              <button
+                onClick={() => {
+                  navigate("/followup/alerts");
+                  setOpenMenuId(null);
+                  setShowProfileMenu(false);
+                }}
+                className="relative inline-flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-lg border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition-all shadow-sm"
+                aria-label="Open alerts"
+                title="Alerts"
+              >
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline text-sm font-semibold">Alerts</span>
+                {unreadAlertCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none">
+                    {unreadAlertCount > 99 ? "99+" : unreadAlertCount}
+                  </span>
                 )}
-              </div>
-
-              <ChevronDownIcon
-                className={`w-3 h-3 sm:w-4 sm:h-4 text-gray-600 transition-transform ${
-                  showProfileMenu ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {showProfileMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 sm:w-64 bg-white border border-gray-200 shadow-xl rounded-lg py-2">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="font-semibold text-gray-800 text-sm">{user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
-                >
-                  <LogoutIcon className="w-4 h-4" />
-                  Logout
-                </button>
-              </div>
+              </button>
             )}
+
+            <div className="relative" data-profile-menu style={{ zIndex: 950 }}>
+              <button
+                data-profile-button
+                onClick={() => {
+                  setShowProfileMenu(!showProfileMenu);
+                  setOpenMenuId(null);
+                }}
+                className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 transition-all"
+              >
+                <div className="text-right hidden sm:block">
+                  <p className="font-semibold text-gray-800 text-sm">
+                    {user?.name || "User"}
+                  </p>
+                  <p className="text-xs text-gray-500 capitalize">
+                    {user?.role?.replace("_", " ").toLowerCase() || "User"}
+                  </p>
+                </div>
+
+                <div className="w-14 h-14 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-teal-100 overflow-hidden">
+                  {(user?.avatar || user?.profilePhoto) ? (
+                    <img src={user.avatar || user.profilePhoto} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm sm:text-base">{user?.name?.charAt(0).toUpperCase() || "U"}</span>
+                  )}
+                </div>
+
+                <ChevronDownIcon
+                  className={`w-3 h-3 sm:w-4 sm:h-4 text-gray-600 transition-transform ${
+                    showProfileMenu ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {showProfileMenu && (
+                <div className="absolute right-0 top-full mt-2 w-56 sm:w-64 bg-white border border-gray-200 shadow-xl rounded-lg py-2">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="font-semibold text-gray-800 text-sm">{user?.name}</p>
+                    <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
+                  >
+                    <LogoutIcon className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

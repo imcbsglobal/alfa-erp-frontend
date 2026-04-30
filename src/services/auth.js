@@ -1,15 +1,9 @@
 import api from "./api";
-import axios from "axios";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
-// LOGIN (uses axios, not api)
+// LOGIN (uses api instance which has correct baseURL with /api)
 export async function login(email, password) {
-  // const response = await axios.post(`${API_BASE_URL}/auth/login/`, {
-  //   email,
-  //   password,
-  // });
-    try {
-    const response = await axios.post(`${API_BASE_URL}/auth/login/`, { email, password });
+  try {
+    const response = await api.post(`/auth/login/`, { email, password });
     return response.data;
   } catch (err) {
     if (err.response?.data?.detail == "No active account found with the given credentials"){
