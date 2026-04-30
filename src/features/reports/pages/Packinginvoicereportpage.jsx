@@ -8,6 +8,7 @@ import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X, Search } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -115,6 +116,17 @@ export default function PackingInvoiceReportPage() {
     }
   };
 
+  const activeFilterCount = [
+    !!searchQuery,
+  ].filter(Boolean).length;
+
+  const handleClearFilters = () => {
+    setDateFilter(new Date().toISOString().split('T')[0]);
+    setSearchQuery('');
+    setCurrentPage(1);
+    toast.success('Filters cleared');
+  };
+
   const handleViewSession = (session) => {
     saveFilters({ dateFilter, searchQuery });
     const invoiceData = {
@@ -220,6 +232,8 @@ export default function PackingInvoiceReportPage() {
                 )}
               </div>
             </div>
+
+            <ClearFiltersButton onClear={handleClearFilters} activeCount={activeFilterCount} />
 
             <button
               onClick={() => { loadSessions(); toast.success("Report Generated"); }}

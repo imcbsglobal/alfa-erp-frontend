@@ -8,6 +8,7 @@ import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X, Search, ChevronDown, Filter } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 
 const toIsoDate = (value) => {
   if (!value) return null;
@@ -221,6 +222,14 @@ export default function DeliveryReportPage() {
             s.invoice_no, s.customer_name, s.customer_area, s.customer_address,
             s.delivery_user_name, s.delivery_user_email, s.courier_name, s.tracking_no, s.notes,
           ].filter(Boolean).some((val) => String(val).toLowerCase().includes(q)));
+
+      if (statusFilter !== 'ALL') {
+        filteredResults = filteredResults.filter((s) => s.delivery_status === statusFilter);
+      }
+
+      if (courierFilter !== 'ALL' && deliveryTypeFilter === 'COURIER') {
+        filteredResults = filteredResults.filter((s) => s.courier_name === courierFilter);
+      }
 
       if (companyDeliveryUserFilter !== 'ALL' && deliveryTypeFilter === 'INTERNAL') {
         const selectedUser = companyDeliveryUsers.find(u => u.id === companyDeliveryUserFilter);
@@ -448,6 +457,16 @@ export default function DeliveryReportPage() {
     !!searchQuery,
   ].filter(Boolean).length;
 
+  const handleClearFilters = () => {
+    setDeliveryTypeFilter('ALL');
+    setStatusFilter('ALL');
+    setCourierFilter('ALL');
+    setCompanyDeliveryUserFilter('ALL');
+    setSearchQuery('');
+    setCurrentPage(1);
+    toast.success('Filters cleared');
+  };
+
   return (
     <>
       <div className="min-h-screen bg-gray-50 p-4">
@@ -580,6 +599,9 @@ export default function DeliveryReportPage() {
                   )}
                 </div>
               </div>
+
+              {/* Clear Filters Button */}
+              <ClearFiltersButton onClear={handleClearFilters} activeCount={activeFilterCount} />
             </div>
           </div>
 

@@ -6,6 +6,7 @@ import { formatAmount } from '../../../utils/formatters';
 import * as XLSX from 'xlsx';
 import Pagination from '../../../components/Pagination';
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 
 // Format date from YYYY-MM-DD to DD/MM/YYYY
 const formatDate = (dateString) => {
@@ -84,6 +85,17 @@ export default function ItemsBilledTodayPage() {
     setLoading(false);
   }
 };
+
+  const activeFilterCount = [
+    !!searchQuery,
+  ].filter(Boolean).length;
+
+  const handleClearFilters = () => {
+    setDateFilter(new Date().toISOString().split('T')[0]);
+    setSearchQuery('');
+    setCurrentPage(1);
+    toast.success('Filters cleared');
+  };
 
   const handleSort = (field) => {
     if (sortBy === field) {
@@ -234,6 +246,8 @@ export default function ItemsBilledTodayPage() {
                 )}
               </div>
             </div>
+
+            <ClearFiltersButton onClear={handleClearFilters} activeCount={activeFilterCount} />
 
             <div className="flex items-center gap-2 ml-auto">
               <button

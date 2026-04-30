@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getFollowUpReport, getFollowUpLogs } from "../../../services/followup";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatNumber, formatDateTime } from "../../../utils/formatters";
 import { X, Search, Download, Eye } from "lucide-react";
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 function useDebounce(value, delay) {
   const [dv, setDv] = useState(value);
   useEffect(() => {
@@ -210,14 +211,18 @@ export default function FollowUpReportPage() {
 
   const hasActiveFilters =
     outcomeFilter ||
-    searchQuery.trim().length > 0 ||
-    dateFilter !== today;
+    searchQuery.trim().length > 0;
+
+  const activeFilterCount = [
+    outcomeFilter !== '',
+    !!searchQuery,
+  ].filter(Boolean).length;
 
   const clearFilters = () => {
     setOutcomeFilter("");
     setSearchQuery("");
-    setDateFilter(today);
     setCurrentPage(1);
+    toast.success('Filters cleared');
   };
 
   return (
@@ -328,6 +333,8 @@ export default function FollowUpReportPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 xl:justify-end xl:ml-auto">
+                <ClearFiltersButton onClear={clearFilters} activeCount={activeFilterCount} />
+
                 <button
                   onClick={() => { loadSummary(); loadLogs(); toast.success("Report generated"); }}
                   className="px-3.5 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-semibold text-xs shadow hover:from-teal-600 hover:to-cyan-700 transition-all"
@@ -342,14 +349,6 @@ export default function FollowUpReportPage() {
                 >
                   <Download size={12} />
                   {exporting ? "Exporting…" : `Excel (${totalCount})`}
-                </button>
-
-                <button
-                  onClick={clearFilters}
-                  disabled={!hasActiveFilters}
-                  className="px-3.5 py-2 bg-white border border-gray-300 text-gray-600 rounded-xl font-semibold text-xs hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Reset Filters
                 </button>
               </div>
             </div>

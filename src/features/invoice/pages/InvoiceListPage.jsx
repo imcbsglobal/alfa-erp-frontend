@@ -18,6 +18,7 @@ import ActiveUsersDock from '../../../components/ActiveUsersDock';
 import { formatDateDDMMYYYY, formatTime, formatDuration, formatNumber, formatDate, formatDateTime } from '../../../utils/formatters';
 import { getInvoiceStatusColor, getInvoiceStatusLabel } from '../../../utils/invoiceStatus';
 import { X } from 'lucide-react';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -508,6 +509,16 @@ export default function InvoiceListPage() {
   const getStatusBadgeColor = getInvoiceStatusColor;
   const getStatusLabel = (status) => getInvoiceStatusLabel(status) || "INVOICED";
 
+  const activeFilterCount = [
+    !!searchTerm,
+  ].filter(Boolean).length;
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setCurrentPage(1);
+    toast.success('Filters cleared');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -544,6 +555,7 @@ export default function InvoiceListPage() {
                   </button>
                 )}
               </div>
+              <ClearFiltersButton onClear={handleClearFilters} activeCount={activeFilterCount} />
               {isBulkPickingEnabled && (
                 <button
                   onClick={() => setShowBulkPickModal(true)}

@@ -8,6 +8,7 @@ import { formatDateTime, formatNumber } from '../../../utils/formatters';
 import { X, Search, Download } from 'lucide-react';
 import { useAuth } from "../../auth/AuthContext";
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -115,6 +116,18 @@ export default function InvoiceReportPage() {
     navigate(`${isOpsUser ? '/ops/billing/invoices/view' : '/billing/invoices/view'}/${id}`, {
       state: { backPath: "/history/invoice-report" }
     });
+  };
+
+  const activeFilterCount = [
+    statusFilter !== '',
+    !!searchQuery,
+  ].filter(Boolean).length;
+
+  const handleClearFilters = () => {
+    setStatusFilter('');
+    setSearchQuery('');
+    setCurrentPage(1);
+    toast.success('Filters cleared');
   };
 
   const downloadExcel = async () => {
@@ -249,6 +262,8 @@ export default function InvoiceReportPage() {
                 )}
               </div>
             </div>
+
+            <ClearFiltersButton onClear={handleClearFilters} activeCount={activeFilterCount} />
 
             <div className="flex items-center gap-2 ml-auto">
               <button
