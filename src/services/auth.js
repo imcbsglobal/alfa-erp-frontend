@@ -16,7 +16,8 @@ export async function login(email, password) {
 }
 
 // USERS
-export const getUsers = () => api.get("/auth/users/");
+export const getUsers = (params = {}) => api.get("/auth/users/", { params });
+export const getAllUsers = () => api.get("/auth/users/", { params: { page_size: 'all' } });
 export const getUser = (id) => api.get(`/auth/users/${id}/`);
 export const createUser = (data) => api.post("/auth/users/", data);
 export const updateUser = (id, data) => api.put(`/auth/users/${id}/`, data);

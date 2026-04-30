@@ -148,8 +148,10 @@ export default function UserControlPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await getUsersApi();
-      const allUsers = res.data?.data?.results || [];
+      // request full list from backend
+      const res = await getAllUsersApi();
+      const apiData = res.data?.data;
+      const allUsers = Array.isArray(apiData?.results) ? apiData.results : [];
 
       // ❌ Hide Superadmin + Store users (Picker, Packer, Delivery, Billing)
       const filtered = allUsers.filter(

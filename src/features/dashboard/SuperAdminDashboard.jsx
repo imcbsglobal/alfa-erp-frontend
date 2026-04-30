@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
-import { getUsers } from '../../services/auth';
+import { getAllUsers } from '../../services/auth';
 import {
   getPickingHistory,
   getPackingHistory,
@@ -384,11 +384,10 @@ export default function SuperAdminDashboard() {
     setLoading(true);
     try {
       // Only fetch users — invoice counts come from getDashboardStats() already
-      const usersRes = await Promise.allSettled([getUsers()]);
-      
+      const usersRes = await getAllUsers();
       let totalAdmins = 0, totalUsers = 0, activeUsers = 0;
-      if (usersRes[0].status === 'fulfilled') {
-        const users = usersRes[0].value?.data?.data?.results || [];
+      if (usersRes?.data?.data) {
+        const users = usersRes.data.data.results || [];
         totalAdmins = users.filter(u => u.role === 'ADMIN' || u.role === 'SUPERADMIN').length;
         totalUsers = users.length;
         activeUsers = users.filter(u => u.is_active === true).length;

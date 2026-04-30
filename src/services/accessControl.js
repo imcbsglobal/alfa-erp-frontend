@@ -1,7 +1,8 @@
 import api from "./api";
 
 // USERS
-export const getUsersApi = () => api.get("/auth/users/");
+export const getUsersApi = (params = {}) => api.get("/auth/users/", { params });
+export const getAllUsersApi = () => api.get("/auth/users/", { params: { page_size: 'all' } });
 
 // ADMIN – GET ALL MENUS
 export const getAllMenusApi = () =>
