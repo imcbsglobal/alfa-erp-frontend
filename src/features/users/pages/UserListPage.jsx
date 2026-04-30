@@ -5,9 +5,11 @@ import useUrlPage from '../../../utils/useUrlPage';
 import { useAuth } from "../../auth/AuthContext";
 import Pagination from "../../../components/Pagination";
 import { X } from "lucide-react";
+import toast from 'react-hot-toast';
 import {
   getJobTitles,
   getUsers,
+  getAllUsers,
   activateUser,
   deactivateUser,
   deleteUser,

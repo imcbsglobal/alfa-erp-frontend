@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import {
   getUsersApi,
+  getAllUsersApi,
   getAllMenusApi,
   getUserMenusApi,
   assignMenusApi,
