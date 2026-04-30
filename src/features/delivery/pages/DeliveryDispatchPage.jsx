@@ -1280,7 +1280,7 @@ const DeliveryDispatchPage = () => {
       const response = await startDelivery(payload);
       if (response.data.success) {
         const count = batchBills.length;
-        toast.success(`${count} bill${count !== 1 ? 's' : ''} assigned to ${selectedCourier.courier_name}`);
+        toast.success(`${count} bill${count !== 1 ? 's' : ''} assigned to ${selectedCourier.courier_name} and marked as delivered`);
         setBatchBills([]);
         setBatchWeights({});
         loadPackedInvoices();
