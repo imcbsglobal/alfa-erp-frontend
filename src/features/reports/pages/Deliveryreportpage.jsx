@@ -348,7 +348,7 @@ export default function DeliveryReportPage() {
   };
 
   const getPickupDisplayName = (session) => (
-    session?.pickup_person_name || session?.customer_name || session?.temp_name || '—'
+    session?.customer_display_name || session?.customer_name || session?.temp_name || '—'
   );
 
   const renderAttachmentLink = (session) => {
@@ -411,14 +411,14 @@ export default function DeliveryReportPage() {
           {session.counter_sub_mode === 'company' ? (
             <>
               <p className="text-xs font-semibold text-teal-700">
-                Person: {session.pickup_person_name ? session.pickup_person_name : <span className="text-red-600 font-medium">Required</span>}
+                Customer: {getPickupDisplayName(session)}
               </p>
               <p className="text-xs font-semibold text-teal-700">
                 Company: {session.pickup_company_name ? session.pickup_company_name : <span className="text-red-600 font-medium">Required</span>}
               </p>
             </>
           ) : (
-            <p className="text-xs font-semibold text-teal-700">Name: {getPickupDisplayName(session)}</p>
+            <p className="text-xs font-semibold text-teal-700">Customer: {getPickupDisplayName(session)}</p>
           )}
           {renderAttachmentLink(session)}
         </div>

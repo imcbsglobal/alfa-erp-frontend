@@ -139,6 +139,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
   const [pickupPersonPhone, setPickupPersonPhone] = useState('');  // both modes
   const [companyName, setCompanyName]             = useState('');  // company only
   const [companyId, setCompanyId]                 = useState('');  // company only
+  const [customerName, setCustomerName]           = useState('');  // editable display name
   const [notes, setNotes]                         = useState('');  // both modes (optional)
 
   // ── Courier ───────────────────────────────────────────────────────────────
@@ -207,6 +208,10 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
       setPickupPersonName(autoName);
     }
 
+    if (autoName && !customerName) {
+      setCustomerName(autoName);
+    }
+
     // Auto-fill phone: prefer phone1, fallback to phone2
     const autoPhone = repInvoice.customer?.phone1 || repInvoice.customer?.phone2 || '';
     if (autoPhone && !pickupPersonPhone) {
@@ -231,6 +236,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
     // REMOVED: setPickupPersonUsername('')
     setPickupPersonName(''); setPickupPersonPhone('');
     setCompanyName(''); setCompanyId(''); setNotes('');
+    setCustomerName('');
     setSelectedCourier(''); setSelectedCourierName(''); setCourierSearch('');
     setSelectedCourierData(null);
     setStaffEmail('');
@@ -301,6 +307,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
           ...basePayload,
           delivery_type:       'DIRECT',
           counter_sub_mode:    'patient',
+          customer_name:       customerName.trim(),
           pickup_person_name:  pickupPersonName.trim(),
           pickup_person_phone: pickupPersonPhone.trim(),
         });
@@ -325,6 +332,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
           ...basePayload,
           delivery_type:        'DIRECT',
           counter_sub_mode:     'company',
+          customer_name:        customerName.trim(),
           pickup_person_name:   pickupPersonName.trim(),
           pickup_person_phone:  pickupPersonPhone.trim(),
           pickup_company_name:  companyName.trim(),
@@ -335,11 +343,11 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
 
     } else if (deliveryType === 'COURIER') {
       if (!selectedCourier) { alert('Please select a courier'); return; }
-      onConfirm({ ...basePayload, delivery_type: 'COURIER', courier_id: selectedCourier });
+      onConfirm({ ...basePayload, delivery_type: 'COURIER', courier_id: selectedCourier, customer_name: customerName.trim() });
 
     } else if (deliveryType === 'COMPANY_DELIVERY') {
       if (!staffEmail.trim()) { alert('Please enter staff email'); return; }
-      onConfirm({ ...basePayload, delivery_type: 'INTERNAL', user_email: staffEmail.trim() });
+      onConfirm({ ...basePayload, delivery_type: 'INTERNAL', user_email: staffEmail.trim(), customer_name: customerName.trim() });
     }
   };
 
@@ -560,12 +568,11 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
                       type="text"
-                      value={repInvoice?.temp_name || ''}
-                      disabled
-                      placeholder="N/A"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      placeholder="Enter customer name"
                       className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
-                                 bg-gray-50 text-gray-600 cursor-not-allowed
-                                 focus:outline-none"
+                                 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -745,12 +752,11 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
-                    value={repInvoice?.temp_name || ''}
-                    disabled
-                    placeholder="N/A"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      placeholder="Enter customer name"
                     className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
-                               bg-gray-50 text-gray-600 cursor-not-allowed
-                               focus:outline-none"
+                                 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -828,12 +834,11 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
-                    value={repInvoice?.temp_name || ''}
-                    disabled
-                    placeholder="N/A"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      placeholder="Enter customer name"
                     className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
-                               bg-gray-50 text-gray-600 cursor-not-allowed
-                               focus:outline-none"
+                                 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                 </div>
               </div>
