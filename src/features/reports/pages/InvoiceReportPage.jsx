@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
 import { getInvoiceReport, exportInvoiceReport } from "../../../services/sales";
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateTime, formatNumber } from '../../../utils/formatters';
@@ -257,6 +258,12 @@ export default function InvoiceReportPage() {
               >
                 Generate
               </button>
+              <ClearFiltersButton onClear={() => {
+                setStatusFilter('');
+                setDateFilter(new Date().toISOString().split('T')[0]);
+                setSearchQuery('');
+                setCurrentPage(1);
+              }} />
               <button
                 onClick={downloadExcel}
                 disabled={loading || exporting}

@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
 import Pagination from "../../../components/Pagination";
 import { formatDate } from '../../../utils/formatters';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import {
   getJobTitles,
   updateJobTitle,
@@ -452,17 +453,7 @@ export default function JobTitleListPage() {
                   </button>
                 </span>
               )}
-              <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setFilterTitle("ALL");
-                  setFilterDepartment("ALL");
-                  setCurrentPage(1);
-                }}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 font-medium"
-              >
-                Clear All
-              </button>
+<ClearFiltersButton onClear={() => { setSearchTerm(""); setFilterTitle("ALL"); setFilterDepartment("ALL"); setCurrentPage(1); }} />
             </div>
           )}
         </div>

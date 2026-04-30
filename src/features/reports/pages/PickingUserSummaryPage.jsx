@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import { getPickingHistory } from "../../../services/sales";
 import toast from "react-hot-toast";
 import { formatNumber } from '../../../utils/formatters';
@@ -118,6 +119,7 @@ export default function PickingUserSummaryPage() {
                 <RefreshCw size={16} />
                 Refresh
               </button>
+              <ClearFiltersButton onClear={() => { setDate(new Date().toISOString().split('T')[0]); setRowsPerPage(20); }} />
             </div>
           </div>
         </div>

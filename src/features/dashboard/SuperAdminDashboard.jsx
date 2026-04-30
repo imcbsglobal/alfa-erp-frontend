@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
 import { getUsers } from '../../services/auth';
+import axios from 'axios';
 import {
   getPickingHistory,
   getPackingHistory,
@@ -46,9 +47,32 @@ const validateAndSanitizeStats = (rawStats) => {
   return stats;
 };
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
+  window.location.hostname === 'localhost'
+    ? 'http://localhost:8000/api'
+    : `${window.location.origin}/api`
+);
+
+const decodeJwtPayload = (token) => {
+  try {
+    const payload = token.split('.')[1];
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const isTokenExpired = (token) => {
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp) return true;
+  return Date.now() >= payload.exp * 1000;
+};
+
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshToken } = useAuth();
   const [stats, setStats] = useState({
     totalAdmins: 0,
     totalUsers: 0,
@@ -80,14 +104,35 @@ export default function SuperAdminDashboard() {
   const [sseConnected, setSseConnected] = useState(false);
 
   const eventSourceRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
 
-  useEffect(() => {
-    // Run all three in parallel instead of sequentially
-    Promise.allSettled([fetchAllStats(), fetchTodayStats(), fetchBreakdown()]);
+  const refreshAccessToken = async () => {
+    const storedRefreshToken = refreshToken || localStorage.getItem('refresh_token');
+    if (!storedRefreshToken) {
+      throw new Error('Missing refresh token');
+    }
 
-    const setupSSE = () => {
-      const token = localStorage.getItem('access_token');
+    const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+      refresh: storedRefreshToken,
+    });
+
+    const newAccessToken = response.data?.access;
+    if (!newAccessToken) {
+      throw new Error('No access token returned from refresh endpoint');
+    }
+
+    localStorage.setItem('access_token', newAccessToken);
+    return newAccessToken;
+  };
+
+  const connectSse = async () => {
+    try {
+      let token = localStorage.getItem('access_token');
       if (!token) return;
+
+      if (isTokenExpired(token)) {
+        token = await refreshAccessToken();
+      }
 
       const baseURL = window.location.origin.includes('localhost')
         ? 'http://localhost:8000'
@@ -97,7 +142,6 @@ export default function SuperAdminDashboard() {
       const eventSource = new EventSource(sseUrl);
       eventSourceRef.current = eventSource;
 
-      // ── Fires when SSE connection opens ─────────────────────────────────
       eventSource.onopen = () => {
         setSseConnected(true);
       };
@@ -108,7 +152,6 @@ export default function SuperAdminDashboard() {
           if (data.stats) {
             const s = data.stats;
 
-            // ── Validate and sanitize stats before updating state ────────
             const validatedStats = validateAndSanitizeStats({
               totalInvoices:         s.totalInvoices,
               completedPicking:      s.completedPicking,
@@ -119,22 +162,15 @@ export default function SuperAdminDashboard() {
               pendingInvoices:       s.pendingInvoices,
             });
 
-            // ── Update Session Overview cards live ───────────────────────
             if (validatedStats) {
               setTodayStats(validatedStats);
             }
 
-            // ── Ensure loading never blocks the live values ──────────────
             setLoading(false);
-
-            // ── Record timestamp so the UI can show "live" indicator ─────
             setSseLastUpdated(new Date());
-
             fetchBreakdown();
           }
 
-          // Also handle workflow events that don't include aggregated stats.
-          // Refresh dashboard + recent activity for packing and delivery updates.
           const isPackingEvent = () => {
             try {
               if (!data) return false;
@@ -166,7 +202,6 @@ export default function SuperAdminDashboard() {
           };
 
           if (isPackingEvent()) {
-            // Optimistically adjust packing breakdown locally for snappier UI
             try {
               const payload = data || {};
               const t = (payload.type || '').toString().toLowerCase();
@@ -184,11 +219,9 @@ export default function SuperAdminDashboard() {
                   pk.preparing = Math.max((pk.preparing || 0) + 1, 0);
                   pk.pending = Math.max((pk.pending || 0) - 1, 0);
                 } else if (incCompleted) {
-                  // a packing finished: move one from preparing -> completed
                   pk.completed = Math.max((pk.completed || 0) + 1, 0);
                   pk.preparing = Math.max((pk.preparing || 0) - 1, 0);
                 } else if (isCancelled) {
-                  // cancelled: move from preparing back to pending if possible
                   if ((pk.preparing || 0) > 0) {
                     pk.preparing = Math.max(pk.preparing - 1, 0);
                     pk.pending = Math.max((pk.pending || 0) + 1, 0);
@@ -202,14 +235,11 @@ export default function SuperAdminDashboard() {
               console.error('Failed to optimistically update packing breakdown', e);
             }
 
-            // Refresh counts and recent activity when packing-related events occur
             fetchAllStats();
             fetchTodayStats();
             fetchBreakdown();
-            // Update timestamp to show UI "live" indicator
             setSseLastUpdated(new Date());
-            // Also refresh recent activity list
-            try { fetchRecentActivity(); } catch (e) { /* fetchRecentActivity defined later in effect but will exist when this runs */ }
+            try { fetchRecentActivity(); } catch (e) {}
           }
 
           if (isDeliveryEvent()) {
@@ -224,18 +254,35 @@ export default function SuperAdminDashboard() {
         }
       };
 
-      eventSource.onerror = () => {
+      eventSource.onerror = async () => {
         setSseConnected(false);
         if (eventSource.readyState === EventSource.CLOSED) {
-          setTimeout(() => {
-            if (eventSourceRef.current) eventSourceRef.current.close();
-            setupSSE();
-          }, 3000);
+          eventSource.close();
+          eventSourceRef.current = null;
+          try {
+            const newToken = await refreshAccessToken();
+            if (reconnectTimerRef.current) {
+              clearTimeout(reconnectTimerRef.current);
+            }
+            localStorage.setItem('access_token', newToken);
+            reconnectTimerRef.current = setTimeout(() => {
+              connectSse();
+            }, 3000);
+          } catch (refreshError) {
+            console.error('❌ SSE token refresh failed:', refreshError);
+          }
         }
       };
-    };
+    } catch (error) {
+      console.error('❌ Failed to connect SSE:', error);
+    }
+  };
 
-    const sseTimeout = setTimeout(setupSSE, 1000);
+  useEffect(() => {
+    // Run all three in parallel instead of sequentially
+    Promise.allSettled([fetchAllStats(), fetchTodayStats(), fetchBreakdown()]);
+
+    const sseTimeout = setTimeout(connectSse, 1000);
 
     const fetchRecentActivity = async () => {
       try {
@@ -322,6 +369,9 @@ export default function SuperAdminDashboard() {
 
     return () => {
       clearTimeout(sseTimeout);
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
       clearInterval(activityInterval);
       if (eventSourceRef.current) eventSourceRef.current.close();
       window.removeEventListener('session:cancelled', cancelHandler);

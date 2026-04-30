@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import { getBillingUserSummary } from "../../../services/sales";
 import toast from "react-hot-toast";
 import { formatNumber } from '../../../utils/formatters';
@@ -93,6 +94,7 @@ export default function BillingUserSummaryPage() {
                 <RefreshCw size={16} />
                 Refresh
               </button>
+              <ClearFiltersButton onClear={() => { setStartDate(new Date().toISOString().split('T')[0]); setRowsPerPage(20); }} />
             </div>
           </div>
         </div>

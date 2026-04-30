@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { getItemsBilledToday} from "../../../services/sales";
 import toast from "react-hot-toast";
 import { Download, ArrowUpDown, Search, X } from 'lucide-react';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import { formatAmount } from '../../../utils/formatters';
 import * as XLSX from 'xlsx';
 import Pagination from '../../../components/Pagination';
@@ -242,6 +243,7 @@ export default function ItemsBilledTodayPage() {
               >
                 Refresh
               </button>
+              <ClearFiltersButton onClear={() => { setDateFilter(new Date().toISOString().split('T')[0]); setSearchQuery(''); setSortBy('invoice_date'); setSortOrder('desc'); setCurrentPage(1); }} />
               <button
                 onClick={handleExportExcel}
                 className="px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg font-semibold text-sm shadow hover:from-emerald-600 hover:to-green-700 transition-all whitespace-nowrap flex items-center gap-1.5"

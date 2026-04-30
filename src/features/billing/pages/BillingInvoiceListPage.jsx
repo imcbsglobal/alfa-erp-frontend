@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
 import { X } from "lucide-react";
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import { getBillingInvoices } from "../../../services/sales";
 import { useAuth } from "../../auth/AuthContext";
 import toast from "react-hot-toast";
@@ -284,13 +285,7 @@ export default function BillingInvoiceListPage() {
               </div>
 
               {hasActiveFilters && (
-                <button
-                  onClick={handleClearFilters}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all flex items-center gap-2 font-medium"
-                >
-                  <X className="w-4 h-4" />
-                  Clear Filters
-                </button>
+                <ClearFiltersButton onClear={handleClearFilters} />
               )}
 
               <button

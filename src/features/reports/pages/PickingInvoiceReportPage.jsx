@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X, Search } from 'lucide-react';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import { useAuth } from "../../auth/AuthContext";
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 
@@ -227,6 +228,7 @@ export default function PickingInvoiceReportPage() {
             >
               Generate
             </button>
+            <ClearFiltersButton onClear={() => { setInvoiceDateFilter(new Date().toISOString().split('T')[0]); setPickingDateFilter(new Date().toISOString().split('T')[0]); setSearchQuery(''); setTimeFilter(''); setCurrentPage(1); }} />
           </div>
         </div>
 

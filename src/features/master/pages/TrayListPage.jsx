@@ -6,6 +6,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { getTrays, updateTray, deleteTray } from "../../../services/master";
 import Pagination from "../../../components/Pagination";
 import { formatDate } from '../../../utils/formatters';
+import ClearFiltersButton from '../../../components/ClearFiltersButton';
 
 export default function TrayListPage() {
   const navigate = useNavigate();
@@ -199,12 +200,7 @@ export default function TrayListPage() {
                   <button onClick={() => { setFilterStatus("ALL"); setCurrentPage(1); }} className="hover:text-cyan-900">×</button>
                 </span>
               )}
-              <button
-                onClick={() => { setSearchTerm(""); setFilterStatus("ALL"); setCurrentPage(1); }}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 font-medium"
-              >
-                Clear All
-              </button>
+              <ClearFiltersButton onClear={() => { setSearchTerm(""); setFilterStatus("ALL"); setCurrentPage(1); }} />
             </div>
           )}
         </div>
