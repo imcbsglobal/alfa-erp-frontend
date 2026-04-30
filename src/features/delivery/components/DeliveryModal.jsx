@@ -203,7 +203,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
     if (!isOpen || !repInvoice || deliveryType !== 'COUNTER_PICKUP' || step !== 3) return;
     
     // Auto-fill name: customer name or temp name
-    const autoName = repInvoice.customer?.name || repInvoice.temp_name || '';
+    const autoName = repInvoice.temp_name || repInvoice.customer?.name || '';
     if (autoName && !pickupPersonName) {
       setPickupPersonName(autoName);
     }
@@ -404,7 +404,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
                          border border-teal-100 shadow-sm">
               <span className="font-semibold text-gray-800">{b.invoice_no}</span>
               <span className="text-teal-600 truncate ml-2 max-w-[160px]">
-                {b.customer?.name || b.temp_name || '—'}
+                {b.temp_name || b.customer?.name || '—'}
               </span>
             </div>
           ))}
@@ -424,7 +424,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-gray-900">{repInvoice?.invoice_no}</p>
-            <p className="text-sm text-gray-500 mt-0.5 truncate">{repInvoice?.customer?.name}</p>
+            <p className="text-sm text-gray-500 mt-0.5 truncate">{repInvoice?.temp_name || repInvoice?.customer?.name}</p>
           </div>
           <div className="text-right flex-shrink-0 ml-3 space-y-1">
             <p className="font-semibold text-gray-900">{formatAmount(repInvoice?.Total)}</p>
@@ -851,7 +851,7 @@ const DeliveryModal = ({ isOpen, onClose, onConfirm, invoice, submitting, initia
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900">{repInvoice?.invoice_no}</p>
-                      <p className="text-sm text-gray-500 mt-0.5 truncate">{repInvoice?.customer?.name}</p>
+                      <p className="text-sm text-gray-500 mt-0.5 truncate">{repInvoice?.temp_name || repInvoice?.customer?.name}</p>
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-xs text-gray-400">{formatItemCount(repInvoice?.items?.length)}</p>
                         <p className="font-semibold text-gray-900 text-sm">{formatAmount(repInvoice?.Total)}</p>

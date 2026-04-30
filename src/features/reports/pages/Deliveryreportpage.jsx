@@ -348,7 +348,7 @@ export default function DeliveryReportPage() {
   };
 
   const getPickupDisplayName = (session) => (
-    session?.customer_display_name || session?.customer_name || session?.temp_name || '—'
+    session?.temp_name || session?.customer_display_name || session?.customer_name || '—'
   );
 
   const renderAttachmentLink = (session) => {
