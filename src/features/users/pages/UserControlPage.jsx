@@ -12,7 +12,6 @@ import toast from "react-hot-toast";
 import { MENU_CONFIG } from "../../../layout/Sidebar/menuConfig";
 import Pagination from "../../../components/Pagination";
 import useUrlPage from '../../../utils/useUrlPage';
-import ClearFiltersButton from '../../../components/ClearFiltersButton';
 
 // Function to get icon component from menu config
 const getIconFromConfig = (menu) => {
@@ -622,7 +621,12 @@ export default function UserControlPage() {
                     >
                       Select All
                     </button>
-                    <ClearFiltersButton onClear={() => setUserPermissions({})} />
+                    <button
+                      onClick={() => setUserPermissions({})}
+                      className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                    >
+                      Clear All
+                    </button>
                   </div>
                 </div>
               </div>

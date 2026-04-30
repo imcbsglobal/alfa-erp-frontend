@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
 import { getDeliveryHistory, getCourierAuditLogs, getCouriers, getEligibleDeliveryStaff } from "../../../services/sales";
-import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
@@ -557,16 +556,6 @@ export default function DeliveryReportPage() {
                   <option value="DELIVERED">Delivered</option>
                 </select>
               </div>
-
-              <ClearFiltersButton onClear={() => {
-                setDateFilter(new Date().toISOString().split('T')[0]);
-                setSearchQuery('');
-                setDeliveryTypeFilter('ALL');
-                setStatusFilter('ALL');
-                setCourierFilter('ALL');
-                setCompanyDeliveryUserFilter('ALL');
-                setCurrentPage(1);
-              }} />
 
               {/* Search */}
               <div className="flex items-center gap-1.5">

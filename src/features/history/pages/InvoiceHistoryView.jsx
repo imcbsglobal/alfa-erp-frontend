@@ -6,7 +6,6 @@ import ConsolidateDetailModal from "../../../components/ConsolidateDetailModal";
 import { formatDateTime } from '../../../utils/formatters';
 import { getInvoiceStatusLabel } from '../../../utils/invoiceStatus';
 import { X } from 'lucide-react';
-import ClearFiltersButton from '../../../components/ClearFiltersButton';
 
 export default function InvoiceHistoryView() {
   const [history, setHistory] = useState([]);
@@ -325,7 +324,13 @@ export default function InvoiceHistoryView() {
             />
 
             {hasActiveFilters && (
-              <ClearFiltersButton onClear={handleClearFilters} />
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all flex items-center gap-2 font-medium"
+              >
+                <X className="w-4 h-4" />
+                Clear Filters
+              </button>
             )}
           </div>
         </div>

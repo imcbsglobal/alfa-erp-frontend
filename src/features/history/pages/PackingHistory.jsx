@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useUrlPage from '../../../utils/useUrlPage';
 import { X } from "lucide-react";
-import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import Pagination from "../../../components/Pagination";
 import { getPackingHistory } from "../../../services/sales";
 import PackingDetailModal from "../../../components/PackingDetailModal";
@@ -237,8 +236,15 @@ export default function PackingHistory() {
               }}
             />
 
+            {/* Clear Filters Button */}
             {hasActiveFilters && (
-              <ClearFiltersButton onClear={handleClearFilters} />
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all flex items-center gap-2 font-medium"
+              >
+                <X className="w-4 h-4" />
+                Clear Filters
+              </button>
             )}
           </div>
         </div>

@@ -6,7 +6,6 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../auth/AuthContext";
 import Pagination from "../../../components/Pagination";
 import { formatDate } from '../../../utils/formatters';
-import ClearFiltersButton from '../../../components/ClearFiltersButton';
 import {
   getDepartments,
   updateDepartment,
@@ -358,7 +357,16 @@ export default function DepartmentListPage() {
                   <button onClick={() => { setFilterName("ALL"); setCurrentPage(1); }} className="hover:text-cyan-900">×</button>
                 </span>
               )}
-<ClearFiltersButton onClear={() => { setSearchTerm(""); setFilterName("ALL"); setCurrentPage(1); }} />
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setFilterName("ALL");
+                  setCurrentPage(1);
+                }}
+                className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 font-medium"
+              >
+                Clear All
+              </button>
             </div>
           )}
         </div>
