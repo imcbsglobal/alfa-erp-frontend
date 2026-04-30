@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getFollowUpReport, getFollowUpLogs } from "../../../services/followup";
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
