@@ -186,7 +186,28 @@ export const getDeveloperSettings = () => api.get("/common/developer-settings/")
 
 // Express Billing - Get invoices by status
 export const getInvoicesByStatus = (params = {}) => {
-  return api.get("/sales/invoices/", { params });
+  const { status, ...rest } = params;
+  const query = new URLSearchParams();
+
+  Object.entries(rest).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item !== undefined && item !== null && item !== "") {
+          query.append(key, item);
+        }
+      });
+      return;
+    }
+    query.append(key, value);
+  });
+
+  const statuses = Array.isArray(status) ? status : status ? [status] : [];
+  statuses.forEach((item) => {
+    query.append("status", item);
+  });
+
+  return api.get(`/sales/invoices/?${query.toString()}`);
 };
 
 // Express Billing - Update invoice status

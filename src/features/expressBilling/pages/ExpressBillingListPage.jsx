@@ -29,6 +29,8 @@ const STEPS = [
   { key: "DELIVERY", label: "DELIVERY", icon: Truck     },
 ];
 
+const EXPRESS_BILLING_STATUSES = ["INVOICED", "PICKED", "PACKED"];
+
 function stepIndex(status) {
   if (status === "INVOICED") return 0;
   if (status === "PICKED")   return 1;
@@ -405,7 +407,11 @@ export default function ExpressBillingListPage() {
 
   const loadAllInvoices = async () => {
     try {
-      const res = await getInvoicesByStatus({ page: 1, page_size: 500, status: "INVOICED" });
+      const res = await getInvoicesByStatus({
+        page: 1,
+        page_size: 500,
+        status: EXPRESS_BILLING_STATUSES,
+      });
       setAllInvoices(res.data.results || []);
     } catch (err) {
       console.error("Failed to pre-load invoices:", err);
@@ -437,7 +443,7 @@ export default function ExpressBillingListPage() {
       const res = await getInvoicesByStatus({
         page: 1,
         page_size: 10,
-        status: "INVOICED",
+        status: EXPRESS_BILLING_STATUSES,
         search: query,
       });
 
@@ -544,7 +550,7 @@ export default function ExpressBillingListPage() {
         {notFound && (
           <div className="mt-3 flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
             <AlertCircle size={13} />
-            No INVOICED bill found for "{searchQuery}". Check the number and try again.
+            No bill found for "{searchQuery}". Check the number and try again.
           </div>
         )}
 
