@@ -35,6 +35,7 @@ import {
     CreditCard,
     TrendingUp,
     Bell,
+    MapPin,
   } from "lucide-react";
 
 export const MENU_CONFIG = [
@@ -184,6 +185,11 @@ export const MENU_CONFIG = [
         path: "/followup/tracker",
       },
       {
+        label: "Master",
+        icon: Database,
+        path: "/followup/master",
+      },
+      {
         label: "Reports",
         icon: FileText,
         path: "/followup/report",
@@ -192,6 +198,11 @@ export const MENU_CONFIG = [
         label: "Alerts",
         icon: AlertCircle,
         path: "/followup/alerts",
+      },
+      {
+        label: "My Visits",
+        icon: MapPin,
+        path: "/followup/my-visits",
       },
     ],
     isActive: (pathname) => pathname.startsWith("/followup"),
@@ -390,7 +401,10 @@ export const PAGE_TITLES = {
   "/history/packing-user-summary": "Packing User Summary",
   "/history/delivery-report": "Delivery Report",
   "/history/delivery-user-summary": "Delivery User Summary",  "/followup/tracker": "Follow-Up Tracker",
+  "/followup/master": "Follow-Up Master",
   "/followup/report": "Follow-Up Report",
-  "/followup/alerts": "Payment Alerts",  "/developer/settings": "Developer Options",
+  "/followup/alerts": "Payment Alerts",
+  "/followup/my-visits": "My Assigned Visits",
+  "/developer/settings": "Developer Options",
   "/admin/privilege": "Advanced Control",
 };

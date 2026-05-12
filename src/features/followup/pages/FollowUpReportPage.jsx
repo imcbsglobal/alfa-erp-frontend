@@ -15,13 +15,14 @@ function useDebounce(value, delay) {
 }
 
 const OUTCOME_OPTIONS = [
-  { value: "",            label: "All Outcomes"     },
-  { value: "PROMISED",    label: "Payment Promised" },
-  { value: "PARTIAL",     label: "Partial Payment"  },
-  { value: "NO_RESPONSE", label: "No Response"      },
-  { value: "DISPUTE",     label: "Dispute Raised"   },
-  { value: "ESCALATED",   label: "Escalated"        },
-  { value: "PAID",        label: "Payment Received" },
+  { value: "",            label: "All Outcomes"       },
+  { value: "PROMISED",    label: "Payment Promised"   },
+  { value: "PARTIAL",     label: "Partial Collection" },
+  { value: "PAID",        label: "Fully Collected"    },
+  { value: "NO_RESPONSE", label: "No Response"        },
+  { value: "DISPUTE",     label: "Dispute Raised"     },
+  { value: "ESCALATED",   label: "Escalated"          },
+  { value: "VISIT",       label: "Visit Logged"       },
 ];
 
 const OUTCOME_BADGE = {
@@ -31,6 +32,7 @@ const OUTCOME_BADGE = {
   DISPUTE:     "bg-red-100 text-red-700 border-red-200",
   ESCALATED:   "bg-orange-100 text-orange-700 border-orange-200",
   PAID:        "bg-green-100 text-green-700 border-green-200",
+  VISIT:       "bg-teal-100 text-teal-700 border-teal-200",
 };
 
 const OUTCOME_LABELS = {
@@ -39,7 +41,8 @@ const OUTCOME_LABELS = {
   NO_RESPONSE: "No Response",
   DISPUTE:     "Dispute",
   ESCALATED:   "Escalated",
-  PAID:        "Paid",
+  PAID:        "Collected",
+  VISIT:       "Visit",
 };
 
 const CHANNEL_LABELS = {
@@ -68,27 +71,187 @@ function fmtRupee(val) {
 function NoteModal({ note, clientName, onClose }) {
   if (!note) return null;
 
+  // ── Parse bill split-up if present (VISIT or COLLECTION log) ────
+  const isVisitLog       = note.text && note.text.includes("VISIT - BILL SPLIT-UP:");
+  const isCollectionLog  = note.text && note.text.includes("COLLECTION - BILL SPLIT-UP:");
+  const isBillLog        = isVisitLog || isCollectionLog;
+  const billSplitHeader  = isCollectionLog ? "COLLECTION - BILL SPLIT-UP:" : "VISIT - BILL SPLIT-UP:";
+
+  let billDetails = [];
+  let regularNotes = note.text || "";
+  let promisedAmountFromText = null;
+  let totalCollected = null;
+  let totalRemaining = null;
+
+  if (isBillLog) {
+    const lines = note.text.split("\n");
+    const billStartIdx = lines.findIndex(l => l.includes(billSplitHeader));
+
+    if (billStartIdx !== -1) {
+      const billLines = [];
+      for (let i = billStartIdx + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        if (line.startsWith("Promised Amount:")) {
+          const match = line.match(/₹([\d,]+(?:\.\d{2})?)/);
+          if (match) promisedAmountFromText = match[1];
+          continue;
+        }
+        if (line.startsWith("Total Collected:")) {
+          const match = line.match(/₹([\d,]+(?:\.\d{2})?)/);
+          if (match) totalCollected = match[1];
+          continue;
+        }
+        if (line.startsWith("Total Amount:") || line.startsWith("Remaining:")) {
+          const match = line.match(/₹([\d,]+(?:\.\d{2})?)/);
+          if (match && line.startsWith("Remaining:")) totalRemaining = match[1];
+          continue;
+        }
+        if (line.startsWith("Invoice:")) billLines.push(line);
+      }
+
+      // Parse visit bill lines (VISIT format)
+      if (isVisitLog) {
+        billDetails = billLines.map(line => {
+          const invoice     = (line.match(/Invoice:\s*(\S+)/) || [])[1] || "";
+          const date        = (line.match(/Date:\s*(\d{2}-\d{2}-\d{4})/) || [])[1] || "";
+          const amount      = (line.match(/Amount:\s*₹([\d,]+(?:\.\d{2})?)/) || [])[1] || "";
+          const paymentDate = (line.match(/Payment Date:\s*(\d{2}-\d{2}-\d{4})/) || [])[1] || "";
+          const remarks     = (line.match(/Remarks:\s*([^|]+)/) || [])[1]?.trim() || "";
+          return { invoice, date, amount, paymentDate, remarks, collected: null, nextDate: null };
+        });
+      }
+
+      // Parse collection bill lines (COLLECTION format — includes Collected / Remaining / Next Collection)
+      if (isCollectionLog) {
+        billDetails = billLines.map(line => {
+          const invoice   = (line.match(/Invoice:\s*(\S+)/) || [])[1] || "";
+          const date      = (line.match(/Date:\s*(\d{2}-\d{2}-\d{4})/) || [])[1] || "";
+          const amount    = (line.match(/Amount:\s*₹([\d,]+(?:\.\d{2})?)/) || [])[1] || "";
+          const collected = (line.match(/Collected:\s*₹([\d,]+(?:\.\d{2})?)/) || [])[1] || null;
+          const remaining = (line.match(/Remaining:\s*₹([\d,]+(?:\.\d{2})?)/) || [])[1] || null;
+          const nextDate  = (line.match(/Next Collection:\s*([\d-]+)/) || [])[1] || null;
+          const remarks   = (line.match(/Remarks:\s*([^|]+)/) || [])[1]?.trim() || "";
+          return { invoice, date, amount, collected, remaining, nextDate, remarks };
+        });
+      }
+
+      regularNotes = "";
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
         <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4 flex items-center justify-between">
           <div>
             <p className="text-white font-bold text-base">Follow-Up Notes</p>
             <p className="text-teal-100 text-xs">{clientName}</p>
+            {note && note.createdByName && (
+              <p className="text-teal-200 text-[10px] mt-1">Assigned to: <span className="font-semibold">{note.createdByName}</span></p>
+            )}
           </div>
           <button onClick={onClose} className="text-white/80 hover:text-white">
             <X size={20} />
           </button>
         </div>
-        <div className="p-6 space-y-4">
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 whitespace-pre-wrap break-words max-h-[40vh] overflow-y-auto">
-            {note.text || "No notes provided"}
-          </div>
+        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* Bill Split-Up Table */}
+          {isBillLog && billDetails.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                  {isCollectionLog ? "Collection Details" : "Bill Split-Up Details"}
+                </h3>
+                {isCollectionLog && totalCollected && (
+                  <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                    Collected: ₹{totalCollected}
+                  </span>
+                )}
+              </div>
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-teal-50">
+                    <tr>
+                      <th className="px-3 py-2.5 text-left font-semibold text-gray-700 border-b border-gray-200">Invoice</th>
+                      <th className="px-3 py-2.5 text-left font-semibold text-gray-700 border-b border-gray-200">Date</th>
+                      <th className="px-3 py-2.5 text-right font-semibold text-gray-700 border-b border-gray-200">Amount</th>
+                      {isCollectionLog ? (
+                        <>
+                          <th className="px-3 py-2.5 text-right font-semibold text-green-700 border-b border-gray-200">Collected</th>
+                          <th className="px-3 py-2.5 text-right font-semibold text-orange-700 border-b border-gray-200">Remaining</th>
+                          <th className="px-3 py-2.5 text-left font-semibold text-gray-700 border-b border-gray-200">Next Date</th>
+                        </>
+                      ) : (
+                        <th className="px-3 py-2.5 text-left font-semibold text-gray-700 border-b border-gray-200">Payment Date</th>
+                      )}
+                      {billDetails.some(b => b.remarks) && (
+                        <th className="px-3 py-2.5 text-left font-semibold text-gray-700 border-b border-gray-200">Remarks</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {billDetails.map((bill, idx) => (
+                      <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <td className="px-3 py-2.5 font-mono text-gray-700">{bill.invoice}</td>
+                        <td className="px-3 py-2.5 text-gray-600">{bill.date || "—"}</td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-gray-700 tabular-nums">₹{bill.amount}</td>
+                        {isCollectionLog ? (
+                          <>
+                            <td className="px-3 py-2.5 text-right font-bold text-green-600 tabular-nums">
+                              {bill.collected ? `₹${bill.collected}` : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-3 py-2.5 text-right font-bold text-orange-600 tabular-nums">
+                              {bill.remaining ? `₹${bill.remaining}` : <span className="text-green-500 text-[10px] font-bold">Fully Paid</span>}
+                            </td>
+                            <td className="px-3 py-2.5 text-gray-600 text-[10px]">{bill.nextDate || "—"}</td>
+                          </>
+                        ) : (
+                          <td className="px-3 py-2.5 text-gray-600">{bill.paymentDate || "—"}</td>
+                        )}
+                        {billDetails.some(b => b.remarks) && (
+                          <td className="px-3 py-2.5 text-gray-600 text-[10px]">{bill.remarks || "—"}</td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Collection summary footer */}
+              {isCollectionLog && (totalCollected || totalRemaining) && (
+                <div className="flex gap-3 mt-1">
+                  {totalCollected && (
+                    <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
+                      <p className="text-[10px] text-gray-500">Total Collected</p>
+                      <p className="text-sm font-bold text-green-600">₹{totalCollected}</p>
+                    </div>
+                  )}
+                  {totalRemaining && (
+                    <div className="flex-1 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-center">
+                      <p className="text-[10px] text-gray-500">Remaining</p>
+                      <p className="text-sm font-bold text-orange-600">₹{totalRemaining}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Regular Notes */}
+          {regularNotes && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 whitespace-pre-wrap break-words">
+              {regularNotes}
+            </div>
+          )}
+
+          {/* Promised Amount & Next Follow-Up */}
           <div className="grid grid-cols-2 gap-3 text-xs">
-            {note.promisedAmount != null && note.promisedAmount !== "" && (
+            {(promisedAmountFromText || note.promisedAmount != null) && (
               <div className="rounded-xl border border-teal-100 bg-teal-50 p-3">
                 <p className="text-gray-400 font-mono">Promised Amount</p>
-                <p className="text-teal-600 font-semibold mt-0.5">{fmtRupee(note.promisedAmount)}</p>
+                <p className="text-teal-600 font-semibold mt-0.5">
+                  ₹{promisedAmountFromText || (note.promisedAmount ? parseFloat(note.promisedAmount).toLocaleString("en-IN", { maximumFractionDigits: 0 }) : "0")}
+                </p>
               </div>
             )}
             {note.nextFollowUp && (
@@ -99,10 +262,10 @@ function NoteModal({ note, clientName, onClose }) {
             )}
           </div>
         </div>
-        <div className="px-6 pb-5 flex justify-end">
+        <div className="px-6 pb-5 flex justify-end border-t border-gray-200">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-all"
+            className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-all mt-4"
           >
             Close
           </button>
@@ -185,17 +348,19 @@ export default function FollowUpReportPage() {
         "Agent":            log.agent  || "",
         "Area":             log.area_display || log.area || "",
         "Follow-Up Type":   CHANNEL_LABELS[log.channel] || log.channel || "",
-        "Outstanding (₹)":  log.outstanding_amount,
+        "Outstanding (₹)":  log.outstanding_amount || "",
+        "Collected (₹)":    log.collected_amount || "",
         "Outcome":          OUTCOME_LABELS[log.outcome] || log.outcome,
         "Notes":            log.notes  || "",
         "Next Follow-Up":   log.next_followup_date || "",
         "Logged By":        log.created_by_name    || "",
+        "Assigned To":      log.assigned_to_name   || "",
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
       ws["!cols"] = [
         { wch: 20 }, { wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 12 },
-        { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 40 }, { wch: 14 }, { wch: 18 },
+        { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 40 }, { wch: 14 }, { wch: 18 }, { wch: 18 },
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Follow-Up Report");
@@ -241,7 +406,7 @@ export default function FollowUpReportPage() {
 
         {/* ── Summary Cards ── */}
         {!loading && summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
             {[
               {
                 label: "Total Follow-Ups",
@@ -256,7 +421,13 @@ export default function FollowUpReportPage() {
                 color: "bg-blue-50 border-blue-200 text-blue-800",
               },
               {
-                label: "Payments Confirmed",
+                label: "Partial Collections",
+                value: byOutcome.PARTIAL     || 0,
+                sub:   "balance pending",
+                color: "bg-yellow-50 border-yellow-200 text-yellow-800",
+              },
+              {
+                label: "Fully Collected",
                 value: byOutcome.PAID        || 0,
                 sub:   "fully settled",
                 color: "bg-green-50 border-green-200 text-green-800",
@@ -371,22 +542,22 @@ export default function FollowUpReportPage() {
                   style={{ tableLayout: "fixed", width: "100%" }}
                 >
                   <colgroup>
-                    <col style={{ width: "130px" }} />
+                    <col style={{ width: "80px" }} />
                     <col style={{ width: "250px" }} />
                     <col style={{ width: "80px"  }} />
                     <col style={{ width: "80px"  }} />
                     <col style={{ width: "90px"  }} />
-                    <col style={{ width: "110px" }} />
-                    <col style={{ width: "80px"  }} />
+                    <col style={{ width: "80px" }} />
                     <col style={{ width: "80px" }} />
                     <col style={{ width: "80px"  }} />
-                    <col style={{ width: "100px" }} />
+                    <col style={{ width: "80px" }} />
+                    <col style={{ width: "100px"  }} />
                   </colgroup>
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
                       {[
-                        "Date & Time", "Client", "Agent", "Area", "F/U Type",
-                        "Outstanding", "Outcome", "Notes", "Next F/U", "Logged By",
+                        "Date & Time", "Client", "Agent", "Area", "F/U Type","Outcome",
+                         "Collected",  "Notes", "Next F/U", "Logged By",
                       ].map(h => (
                         <th
                           key={h}
@@ -437,14 +608,14 @@ export default function FollowUpReportPage() {
 
                         {/* Follow-Up Type */}
                         <td className="px-3 py-2 overflow-hidden">
-                          <TruncCell text={CHANNEL_LABELS[log.channel] || log.channel || "—"} className="text-xs text-gray-700" />
-                        </td>
-
-                        {/* Outstanding */}
-                        <td className="px-3 py-2 text-right">
-                          <span className="text-xs font-semibold text-red-500 tabular-nums">
-                            {fmtRupee(log.outstanding_amount)}
-                          </span>
+                          <div className="space-y-0.5">
+                            <TruncCell text={CHANNEL_LABELS[log.channel] || log.channel || "—"} className="text-xs text-gray-700" />
+                            {log.assigned_to_name && (
+                              <p className="text-[10px] font-semibold text-teal-600 truncate">
+                                {log.assigned_to_name}
+                              </p>
+                            )}
+                          </div>
                         </td>
 
                         {/* Outcome */}
@@ -453,6 +624,15 @@ export default function FollowUpReportPage() {
                             OUTCOME_BADGE[log.outcome] || "bg-gray-100 text-gray-600 border-gray-200"
                           }`}>
                             {OUTCOME_LABELS[log.outcome] || log.outcome || "—"}
+                          </span>
+                        </td>
+
+                        {/* Collected */}
+                        <td className="px-3 py-2 text-right">
+                          <span className={`text-xs font-semibold tabular-nums ${
+                            log.collected_amount ? "text-green-600" : "text-gray-400"
+                          }`}>
+                            {log.collected_amount ? fmtRupee(log.collected_amount) : "—"}
                           </span>
                         </td>
 
@@ -470,6 +650,7 @@ export default function FollowUpReportPage() {
                                     })
                                   : null,
                                 clientName: log.client_name,
+                                createdByName: log.assigned_to_name,
                               })}
                               title="View notes"
                               className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-teal-200 bg-teal-50 text-teal-600 hover:bg-teal-100 hover:text-teal-700 transition-all"

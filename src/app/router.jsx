@@ -70,8 +70,10 @@ const ItemsBilledTodayPage = lazy(() => import("../features/reports/pages/ItemsB
 
 // Import Payment Follow-Up Pages
 const FollowUpTrackerPage = lazy(() => import("../features/followup/pages/FollowUpTrackerPage"));
+const FollowUpMasterPage = lazy(() => import("../features/followup/pages/FollowUpMasterPage"));
 const FollowUpReportPage = lazy(() => import("../features/followup/pages/FollowUpReportPage"));
 const AlertsPage = lazy(() => import("../features/followup/pages/AlertsPage"));
+const MyAssignedVisitsPage = lazy(() => import("../features/followup/pages/MyAssignedVisitsPage"));
 
 function RouteFallback() {
   return (
@@ -184,8 +186,10 @@ export default function AppRouter() {
 
           {/* Payment Follow-Up Routes */}
           <Route path="/followup/tracker" element={<FollowUpTrackerPage />} />
+          <Route path="/followup/master" element={<FollowUpMasterPage />} />
           <Route path="/followup/report" element={<FollowUpReportPage />} />
           <Route path="/followup/alerts" element={<AlertsPage />} />
+          <Route path="/followup/my-visits" element={<MyAssignedVisitsPage />} />
 
           {/* Developer Options - SUPERADMIN ONLY */}
           <Route 

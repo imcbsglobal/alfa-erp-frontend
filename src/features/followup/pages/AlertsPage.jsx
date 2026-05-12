@@ -3,7 +3,7 @@ import { getAlerts, resolveAlert, createAlert } from "../../../services/followup
 import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatNumber } from "../../../utils/formatters";
-import { X, Search, CheckCircle, Bell, AlertTriangle, Clock, Megaphone, Plus } from "lucide-react";
+import { X, Search, CheckCircle, Bell, AlertTriangle, Clock, Megaphone, Plus, CalendarClock } from "lucide-react";
 import LogFollowUpModal from "../components/LogFollowUpModal";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -23,15 +23,17 @@ const SEVERITY = {
 };
 
 const ALERT_TYPE_LABELS = {
-  OVERDUE:     "Overdue",
-  DUE_SOON:    "Due This Week",
-  ESCALATED:   "Escalated",
+  OVERDUE:         "Overdue",
+  DUE_SOON:        "Due This Week",
+  ESCALATED:       "Escalated",
+  UPCOMING_VISIT:  "Upcoming Visit",
 };
 
 const ALERT_TYPE_ICONS = {
-  OVERDUE:     <AlertTriangle size={11} />,
-  DUE_SOON:    <Clock size={11} />,
-  ESCALATED:   <Megaphone size={11} />,
+  OVERDUE:         <AlertTriangle size={11} />,
+  DUE_SOON:        <Clock size={11} />,
+  ESCALATED:       <Megaphone size={11} />,
+  UPCOMING_VISIT:  <CalendarClock size={11} />,
 };
 
 const ALERT_STATUS_STYLES = {
@@ -459,8 +461,13 @@ export default function AlertsPage() {
                               className="text-xs font-medium text-gray-800"
                             />
                             {alert.alert_type === 'ESCALATED' && (
-                              <div className=" rounded-lg text-xs text-orange-700 font-medium">
+                              <div className="rounded-lg text-xs text-orange-700 font-medium">
                                 ⚠️ Escalated to {canActOnAlert ? "you" : (alert.assigned_to_name || "assigned user")}
+                              </div>
+                            )}
+                            {alert.alert_type === 'UPCOMING_VISIT' && (
+                              <div className="text-[10px] text-teal-600 font-medium mt-0.5">
+                                📋 Visit scheduled — balance to collect
                               </div>
                             )}
                           </td>
@@ -529,7 +536,11 @@ export default function AlertsPage() {
 
                           {/* Follow-up Date */}
                           <td className="px-3 py-2 text-center">
-                            {alert.oldest_due_days != null ? (
+                            {alert.next_collection_date ? (
+                              <span className="text-xs font-semibold text-teal-700">
+                                {new Date(alert.next_collection_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                              </span>
+                            ) : alert.oldest_due_days != null ? (
                               <span className="text-xs text-gray-700">
                                 {formatFollowUpDate(alert.oldest_due_days)}
                               </span>

@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import Pagination from "../../../components/Pagination";
 import { formatDateDDMMYYYY, formatTime } from '../../../utils/formatters';
 import { X, Search, ChevronDown, Filter } from 'lucide-react';
+import api from '../../../services/api';
 import { useAuth } from "../../auth/AuthContext";
 import { usePersistedFilters } from '../../../utils/usePersistedFilters';
 import ClearFiltersButton from '../../../components/ClearFiltersButton';
@@ -112,7 +113,32 @@ export default function DeliveryReportPage() {
   const [expandedAuditLogs, setExpandedAuditLogs] = useState({});
   const [auditLogCache, setAuditLogCache] = useState({});
 
+  const [showBulkHistory, setShowBulkHistory] = useState(false);
+  const [bulkHistory, setBulkHistory] = useState([]);
+  const [bulkHistoryLoading, setBulkHistoryLoading] = useState(false);
+  const [bulkHistorySearch, setBulkHistorySearch] = useState('');
+  const [bulkHistoryDateFilter, setBulkHistoryDateFilter] = useState('');
+  const [bulkHistoryPage, setBulkHistoryPage] = useState(1);
+  const BULK_HISTORY_PAGE_SIZE = 5;
+
   const debouncedSearch = useDebounce(searchQuery, 400);
+
+  const loadBulkDeliveryHistory = async () => {
+    setBulkHistoryLoading(true);
+    try {
+      const res = await api.get('/sales/admin/bulk-status-history/');
+      if (res.data.success) {
+        const filtered = res.data.results.filter(
+          (r) => r.from_status === 'PACKED' && r.to_status === 'DELIVERED'
+        );
+        setBulkHistory(filtered);
+      }
+    } catch (err) {
+      toast.error('Failed to load bulk delivery history');
+    } finally {
+      setBulkHistoryLoading(false);
+    }
+  };
 
   useEffect(() => { searchRef.current?.focus(); }, []);
 
@@ -448,6 +474,47 @@ export default function DeliveryReportPage() {
     return <p>—</p>;
   };
 
+  const getFilteredInvoices = (entry) => {
+    const searchLower = bulkHistorySearch.trim().toLowerCase();
+
+    if (!searchLower) return entry.invoices || [];
+
+    return (entry.invoices || []).filter(
+      (inv) =>
+        inv.invoice_no?.toLowerCase().includes(searchLower) ||
+        inv.customer_name?.toLowerCase().includes(searchLower)
+    );
+  };
+
+  const filteredBulkHistory = bulkHistory.filter((entry) => {
+    // Match executed_at date against selected date
+    const matchesDate = bulkHistoryDateFilter
+      ? new Date(entry.executed_at || entry.updated_at).toISOString().slice(0, 10) === bulkHistoryDateFilter
+      : true;
+
+    // Search across run fields AND invoice rows
+    const searchLower = bulkHistorySearch.trim().toLowerCase();
+    const matchesSearch = !searchLower
+      ? true
+      : entry.performed_by?.toLowerCase().includes(searchLower) ||
+        entry.from_date?.toLowerCase().includes(searchLower) ||
+        entry.to_date?.toLowerCase().includes(searchLower) ||
+        String(entry.count || '').includes(searchLower) ||
+        (entry.invoices || []).some(
+          (inv) =>
+            inv.invoice_no?.toLowerCase().includes(searchLower) ||
+            inv.customer_name?.toLowerCase().includes(searchLower)
+        );
+
+    return matchesDate && matchesSearch;
+  });
+
+  const bulkHistoryTotalPages = Math.ceil(filteredBulkHistory.length / BULK_HISTORY_PAGE_SIZE);
+  const paginatedBulkHistory = filteredBulkHistory.slice(
+    (bulkHistoryPage - 1) * BULK_HISTORY_PAGE_SIZE,
+    bulkHistoryPage * BULK_HISTORY_PAGE_SIZE
+  );
+
   // Count active filters for badge
   const activeFilterCount = [
     deliveryTypeFilter !== 'ALL',
@@ -478,13 +545,32 @@ export default function DeliveryReportPage() {
               <h1 className="text-2xl font-bold text-gray-800">Delivery Report</h1>
               <p className="text-xs text-gray-400 mt-0.5">Track and review all delivery activity</p>
             </div>
-            <button
-              onClick={() => { loadSessions(); toast.success("Report refreshed"); }}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg
-                         font-semibold text-sm shadow hover:from-teal-600 hover:to-cyan-700 transition-all"
-            >
-              Generate
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setShowBulkHistory(true);
+                  setBulkHistorySearch('');
+                  setBulkHistoryDateFilter('');
+                  setBulkHistoryPage(1);
+                  loadBulkDeliveryHistory();
+                }}
+                className="px-4 py-2 bg-white border border-teal-400 text-teal-700 rounded-lg
+                          font-semibold text-sm shadow-sm hover:bg-teal-50 transition-all flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Bulk Delivery History
+              </button>
+              <button
+                onClick={() => { loadSessions(); toast.success("Report refreshed"); }}
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg
+                          font-semibold text-sm shadow hover:from-teal-600 hover:to-cyan-700 transition-all"
+              >
+                Generate
+              </button>
+            </div>
           </div>
 
           {/* ── Filter Bar ── */}
@@ -857,6 +943,258 @@ export default function DeliveryReportPage() {
               <img src={attachmentModal.url} alt="Delivery attachment"
                 className="max-w-full max-h-[70vh] object-contain rounded" />
             </div>
+          </div>
+        </div>
+      )}
+      {/* BULK DELIVERY HISTORY MODAL */}
+      {showBulkHistory && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
+          onClick={() => setShowBulkHistory(false)}
+        >
+          <div
+            className="relative bg-white rounded-xl shadow-2xl w-full max-w-5xl mx-4 flex flex-col"
+            style={{ maxHeight: '90vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-white font-bold text-lg leading-tight">Bulk Delivery History</h2>
+                  <p className="text-white/75 text-xs">PACKED → DELIVERED bulk progression runs</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBulkHistory(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Filters Bar */}
+            <div className="px-5 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+              <div className="flex flex-wrap items-center gap-3">
+
+                {/* Executed Date filter */}
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 whitespace-nowrap">Executed Date:</label>
+                  <input
+                    type="date"
+                    value={bulkHistoryDateFilter}
+                    onChange={(e) => { setBulkHistoryDateFilter(e.target.value); setBulkHistoryPage(1); }}
+                    className="px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                  />
+                  {bulkHistoryDateFilter && (
+                    <button
+                      onClick={() => { setBulkHistoryDateFilter(''); setBulkHistoryPage(1); }}
+                      className="text-gray-400 hover:text-red-500 transition"
+                      title="Clear date"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-6 bg-gray-300" />
+
+                {/* Search */}
+                <div className="flex items-center gap-1.5 flex-1">
+                  <label className="text-xs font-semibold text-gray-600 whitespace-nowrap">Search:</label>
+                  <div className="relative flex-1 max-w-sm">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Invoice no, customer, performed by..."
+                      value={bulkHistorySearch}
+                      onChange={(e) => { setBulkHistorySearch(e.target.value); setBulkHistoryPage(1); }}
+                      className="w-full pl-7 pr-7 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    />
+                    {bulkHistorySearch && (
+                      <button
+                        onClick={() => { setBulkHistorySearch(''); setBulkHistoryPage(1); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Summary + Refresh */}
+                <div className="flex items-center gap-3 ml-auto">
+                  <span className="text-xs text-gray-500 font-medium">
+                    {filteredBulkHistory.length} run{filteredBulkHistory.length !== 1 ? 's' : ''} found
+                  </span>
+                  <button
+                    onClick={loadBulkDeliveryHistory}
+                    disabled={bulkHistoryLoading}
+                    className="px-3 py-1.5 text-xs font-semibold text-teal-600 hover:text-teal-800 border border-teal-300 rounded-lg hover:bg-teal-50 transition flex items-center gap-1.5"
+                  >
+                    <svg className={`w-3.5 h-3.5 ${bulkHistoryLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 p-5">
+              {bulkHistoryLoading ? (
+                <div className="flex items-center justify-center py-16 text-teal-600 gap-3">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-teal-500 border-t-transparent" />
+                  <span className="text-sm font-medium">Loading history...</span>
+                </div>
+              ) : paginatedBulkHistory.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                  <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="font-semibold text-gray-500 text-sm">
+                    {bulkHistorySearch || bulkHistoryDateFilter ? 'No runs match your filters' : 'No bulk delivery runs found'}
+                  </p>
+                  {(bulkHistorySearch || bulkHistoryDateFilter) && (
+                    <button
+                      onClick={() => { setBulkHistorySearch(''); setBulkHistoryDateFilter(''); setBulkHistoryPage(1); }}
+                      className="mt-3 text-xs text-teal-600 hover:text-teal-800 underline"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {paginatedBulkHistory.map((entry, entryIdx) => {
+                    const runNo = filteredBulkHistory.length - ((bulkHistoryPage - 1) * BULK_HISTORY_PAGE_SIZE) - entryIdx;
+                    return (
+                      <div key={entry.id} className="rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
+                        <div className="px-4 py-3 flex items-center justify-between flex-wrap gap-2 border-b border-emerald-200 bg-emerald-100/60">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                              {runNo}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 font-bold text-emerald-900 text-sm">
+                                <span className="px-2 py-0.5 bg-emerald-200 text-emerald-800 rounded text-xs font-bold">PACKED</span>
+                                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                <span className="px-2 py-0.5 bg-teal-200 text-teal-800 rounded text-xs font-bold">DELIVERED</span>
+                                <span className="text-emerald-700 font-semibold text-xs">
+                                  · {entry.count} invoice{entry.count !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <p className="text-xs text-emerald-700 mt-0.5">
+                                Invoice dates: <strong>{entry.from_date}</strong> → <strong>{entry.to_date}</strong>
+                                {entry.performed_by && (
+                                  <span className="ml-2 text-emerald-600">· by <strong>{entry.performed_by}</strong></span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-emerald-700 bg-white border border-emerald-200 rounded-lg px-3 py-1.5 font-mono flex-shrink-0">
+                            🕐 {new Date(entry.executed_at || entry.updated_at).toLocaleString('en-IN', {
+                              day: '2-digit', month: 'short', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+                            })}
+                          </div>
+                        </div>
+
+                        {entry.invoices && entry.invoices.length > 0 ? (
+                          <div className="overflow-x-auto max-h-52">
+                            <table className="min-w-full text-xs divide-y divide-emerald-100">
+                              <thead className="bg-emerald-50 sticky top-0">
+                                <tr>
+                                  {['#', 'Invoice No', 'Invoice Date', 'Customer', 'Total', 'Status', 'Executed At'].map((h) => (
+                                    <th key={h} className="px-3 py-2 text-left font-semibold text-emerald-700 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-emerald-50">
+                                {getFilteredInvoices(entry).map((inv, idx) => (
+                                  <tr key={inv.invoice_no} className="hover:bg-emerald-50 transition-colors">
+                                    <td className="px-3 py-2 text-gray-400">{idx + 1}</td>
+                                    <td className="px-3 py-2 font-semibold text-gray-900">{inv.invoice_no}</td>
+                                    <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{inv.invoice_date}</td>
+                                    <td className="px-3 py-2 text-gray-700">{inv.customer_name}</td>
+                                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap font-medium">₹{Number(inv.total ?? 0).toFixed(2)}</td>
+                                    <td className="px-3 py-2">
+                                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-bold text-[10px]">
+                                        {inv.new_status || 'DELIVERED'}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-gray-500 font-mono whitespace-nowrap">
+                                      {new Date(entry.executed_at || entry.updated_at).toLocaleString('en-IN', {
+                                        day: '2-digit', month: 'short',
+                                        hour: '2-digit', minute: '2-digit', hour12: true,
+                                      })}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="px-4 py-3 text-xs text-gray-400 italic">No invoice details available for this run.</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Pagination Footer */}
+            {!bulkHistoryLoading && filteredBulkHistory.length > BULK_HISTORY_PAGE_SIZE && (
+              <div className="border-t border-gray-200 px-5 py-3 flex items-center justify-between bg-gray-50 flex-shrink-0 rounded-b-xl">
+                <p className="text-xs text-gray-500">
+                  Showing{' '}
+                  <span className="font-semibold text-gray-700">
+                    {(bulkHistoryPage - 1) * BULK_HISTORY_PAGE_SIZE + 1}–{Math.min(bulkHistoryPage * BULK_HISTORY_PAGE_SIZE, filteredBulkHistory.length)}
+                  </span>{' '}
+                  of <span className="font-semibold text-gray-700">{filteredBulkHistory.length}</span> runs
+                </p>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setBulkHistoryPage(1)} disabled={bulkHistoryPage === 1}
+                    className="px-2 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition">«</button>
+                  <button onClick={() => setBulkHistoryPage((p) => Math.max(1, p - 1))} disabled={bulkHistoryPage === 1}
+                    className="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition">Prev</button>
+                  {Array.from({ length: bulkHistoryTotalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === bulkHistoryTotalPages || Math.abs(p - bulkHistoryPage) <= 1)
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) =>
+                      item === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 text-xs">…</span>
+                      ) : (
+                        <button key={item} onClick={() => setBulkHistoryPage(item)}
+                          className={`px-3 py-1.5 text-xs rounded-lg border font-semibold transition ${
+                            bulkHistoryPage === item ? 'bg-teal-600 text-white border-teal-600 shadow' : 'border-gray-300 text-gray-600 hover:bg-gray-100'
+                          }`}>{item}</button>
+                      )
+                    )}
+                  <button onClick={() => setBulkHistoryPage((p) => Math.min(bulkHistoryTotalPages, p + 1))} disabled={bulkHistoryPage === bulkHistoryTotalPages}
+                    className="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition">Next</button>
+                  <button onClick={() => setBulkHistoryPage(bulkHistoryTotalPages)} disabled={bulkHistoryPage === bulkHistoryTotalPages}
+                    className="px-2 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition">»</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
