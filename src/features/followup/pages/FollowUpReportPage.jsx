@@ -52,6 +52,17 @@ const CHANNEL_LABELS = {
   VISIT: "Visit",
 };
 
+function getFollowUpTypeLabel(log) {
+  if (log.channel === "VISIT") {
+    if (log.created_by_name && log.assigned_to_name && log.created_by_name !== log.assigned_to_name) {
+      return "Visit Assigned";
+    }
+    return "Visited";
+  }
+
+  return CHANNEL_LABELS[log.channel] || log.channel || "—";
+}
+
 // ── Truncated cell ───────────────────────────────────────────
 function TruncCell({ text, maxW = "max-w-full", className = "" }) {
   if (!text || text === "—") return <span className="text-gray-300">—</span>;
@@ -78,10 +89,12 @@ function NoteModal({ note, clientName, onClose }) {
   const billSplitHeader  = isCollectionLog ? "COLLECTION - BILL SPLIT-UP:" : "VISIT - BILL SPLIT-UP:";
 
   let billDetails = [];
+  let extraDetails = [];
   let regularNotes = note.text || "";
   let promisedAmountFromText = null;
   let totalCollected = null;
   let totalRemaining = null;
+  let extraCollectedTotal = null;
 
   if (isBillLog) {
     const lines = note.text.split("\n");
@@ -93,21 +106,43 @@ function NoteModal({ note, clientName, onClose }) {
         const line = lines[i].trim();
         if (!line) continue;
         if (line.startsWith("Promised Amount:")) {
-          const match = line.match(/₹([\d,]+(?:\.\d{2})?)/);
+          const match = line.match(/₹?\s*([\d,]+(?:\.\d{1,2})?)/);
           if (match) promisedAmountFromText = match[1];
           continue;
         }
+        if (line.startsWith("Extra Amount Received:")) {
+          continue;
+        }
+        if (line.startsWith("Extra Amount Received #")) {
+          const amountSegment = line.split(":").slice(1).join(":").trim();
+          const amountMatch = amountSegment.match(/₹?\s*([\d,]+(?:\.\d{1,2})?)/);
+          const remarksMatch = line.match(/Remarks:\s*([^|]+)/i);
+          if (amountMatch) {
+            const amountValue = amountMatch[1];
+            extraCollectedTotal = extraCollectedTotal
+              ? (parseFloat(extraCollectedTotal.replace(/,/g, "")) + parseFloat(amountValue.replace(/,/g, ""))).toLocaleString("en-IN", { maximumFractionDigits: 2 })
+              : amountValue;
+            extraDetails.push({
+              amount: amountValue,
+              remarks: remarksMatch ? remarksMatch[1].trim() : "",
+            });
+          }
+          continue;
+        }
         if (line.startsWith("Total Collected:")) {
-          const match = line.match(/₹([\d,]+(?:\.\d{2})?)/);
+          const match = line.match(/₹?\s*([\d,]+(?:\.\d{1,2})?)/);
           if (match) totalCollected = match[1];
           continue;
         }
         if (line.startsWith("Total Amount:") || line.startsWith("Remaining:")) {
-          const match = line.match(/₹([\d,]+(?:\.\d{2})?)/);
+          const match = line.match(/₹?\s*([\d,]+(?:\.\d{1,2})?)/);
           if (match && line.startsWith("Remaining:")) totalRemaining = match[1];
           continue;
         }
-        if (line.startsWith("Invoice:")) billLines.push(line);
+        // Collect invoice lines. Accept lines that start with 'Invoice' or start with an invoice number (e.g. '001 ...')
+        if (/^(?:Invoice\b[:\s]*)|^\d+/i.test(line) || /Invoice/i.test(line)) {
+          billLines.push(line);
+        }
       }
 
       // Parse visit bill lines (VISIT format)
@@ -125,13 +160,42 @@ function NoteModal({ note, clientName, onClose }) {
       // Parse collection bill lines (COLLECTION format — includes Collected / Remaining / Next Collection)
       if (isCollectionLog) {
         billDetails = billLines.map(line => {
-          const invoice   = (line.match(/Invoice:\s*(\S+)/) || [])[1] || "";
-          const date      = (line.match(/Date:\s*(\d{2}-\d{2}-\d{4})/) || [])[1] || "";
-          const amount    = (line.match(/Amount:\s*₹([\d,]+(?:\.\d{2})?)/) || [])[1] || "";
-          const collected = (line.match(/Collected:\s*₹([\d,]+(?:\.\d{2})?)/) || [])[1] || null;
-          const remaining = (line.match(/Remaining:\s*₹([\d,]+(?:\.\d{2})?)/) || [])[1] || null;
-          const nextDate  = (line.match(/Next Collection:\s*([\d-]+)/) || [])[1] || null;
-          const remarks   = (line.match(/Remarks:\s*([^|]+)/) || [])[1]?.trim() || "";
+          // invoice may be like 'Invoice: 001' or '001 | ...' or start with the number
+          let invoice = (line.match(/Invoice:\s*(\S+)/i) || [])[1] || "";
+          if (!invoice) {
+            const m = line.match(/^([0-9A-Za-z-_.]+)/);
+            invoice = m ? m[1] : "";
+          }
+          const dateMatch = line.match(/Date:\s*(\d{2}-\d{2}-\d{4})/i);
+          const date = dateMatch ? dateMatch[1] : "";
+
+          // helper to extract labeled amount, else fallback to first number
+          const extractAmount = (lbl) => {
+            const reLabel = new RegExp(lbl + "[:\\s]*₹?\\s*([0-9,]+(?:\\.[0-9]{1,2})?)", "i");
+            const m = line.match(reLabel);
+            if (m) return m[1];
+            const m2 = line.match(/₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/);
+            return m2 ? m2[1] : "";
+          };
+
+          const amount = extractAmount("Amount");
+          const collected = (line.match(/Collected[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i) || [])[1] || null;
+          let remaining = (line.match(/Remaining[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i) || [])[1] || null;
+          const nextDate = (line.match(/Next Collection[:\s]*([0-9-]+)/i) || [])[1] || null;
+          const remarks = (line.match(/Remarks[:\s]*([^|]+)/i) || [])[1]?.trim() || "";
+
+          // Compute remaining if not present
+          if (!remaining && amount && collected) {
+            try {
+              const a = parseFloat(amount.replace(/,/g, ""));
+              const c = parseFloat(collected.replace(/,/g, ""));
+              if (!isNaN(a) && !isNaN(c)) {
+                const rem = a - c;
+                remaining = rem.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+              }
+            } catch (_) {}
+          }
+
           return { invoice, date, amount, collected, remaining, nextDate, remarks };
         });
       }
@@ -218,22 +282,55 @@ function NoteModal({ note, clientName, onClose }) {
                 </table>
               </div>
               {/* Collection summary footer */}
-              {isCollectionLog && (totalCollected || totalRemaining) && (
-                <div className="flex gap-3 mt-1">
+              {isCollectionLog && (totalCollected || totalRemaining || extraCollectedTotal) && (
+                <div className="flex gap-3 mt-1 flex-wrap">
                   {totalCollected && (
-                    <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
+                    <div className="flex-1 min-w-[140px] bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
                       <p className="text-[10px] text-gray-500">Total Collected</p>
                       <p className="text-sm font-bold text-green-600">₹{totalCollected}</p>
                     </div>
                   )}
+                  {extraCollectedTotal && (
+                    <div className="flex-1 min-w-[140px] bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-center">
+                      <p className="text-[10px] text-gray-500">Extra Received</p>
+                      <p className="text-sm font-bold text-orange-600">₹{extraCollectedTotal}</p>
+                    </div>
+                  )}
                   {totalRemaining && (
-                    <div className="flex-1 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-center">
+                    <div className="flex-1 min-w-[140px] bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-center">
                       <p className="text-[10px] text-gray-500">Remaining</p>
                       <p className="text-sm font-bold text-orange-600">₹{totalRemaining}</p>
                     </div>
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Extra Amount Details */}
+          {isCollectionLog && extraDetails.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">Extra Amount Received</h3>
+              <div className="rounded-xl border border-orange-200 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-orange-50">
+                    <tr>
+                      <th className="px-3 py-2.5 text-left font-semibold text-gray-700 border-b border-orange-200">Entry</th>
+                      <th className="px-3 py-2.5 text-right font-semibold text-gray-700 border-b border-orange-200">Amount</th>
+                      <th className="px-3 py-2.5 text-left font-semibold text-gray-700 border-b border-orange-200">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-orange-100">
+                    {extraDetails.map((item, idx) => (
+                      <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-orange-50/40"}>
+                        <td className="px-3 py-2.5 text-gray-700">Extra {idx + 1}</td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-orange-600 tabular-nums">₹{item.amount}</td>
+                        <td className="px-3 py-2.5 text-gray-600 text-[10px]">{item.remarks || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -349,7 +446,6 @@ export default function FollowUpReportPage() {
         "Area":             log.area_display || log.area || "",
         "Follow-Up Type":   CHANNEL_LABELS[log.channel] || log.channel || "",
         "Outstanding (₹)":  log.outstanding_amount || "",
-        "Collected (₹)":    log.collected_amount || "",
         "Outcome":          OUTCOME_LABELS[log.outcome] || log.outcome,
         "Notes":            log.notes  || "",
         "Next Follow-Up":   log.next_followup_date || "",
@@ -360,7 +456,7 @@ export default function FollowUpReportPage() {
       const ws = XLSX.utils.json_to_sheet(rows);
       ws["!cols"] = [
         { wch: 20 }, { wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 12 },
-        { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 40 }, { wch: 14 }, { wch: 18 }, { wch: 18 },
+        { wch: 14 }, { wch: 16 }, { wch: 40 }, { wch: 14 }, { wch: 18 }, { wch: 18 },
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Follow-Up Report");
@@ -548,7 +644,6 @@ export default function FollowUpReportPage() {
                     <col style={{ width: "80px"  }} />
                     <col style={{ width: "90px"  }} />
                     <col style={{ width: "80px" }} />
-                    <col style={{ width: "80px" }} />
                     <col style={{ width: "80px"  }} />
                     <col style={{ width: "80px" }} />
                     <col style={{ width: "100px"  }} />
@@ -556,16 +651,16 @@ export default function FollowUpReportPage() {
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
                       {[
-                        "Date & Time", "Client", "Agent", "Area", "F/U Type","Outcome",
-                         "Collected",  "Notes", "Next F/U", "Logged By",
-                      ].map(h => (
-                        <th
-                          key={h}
-                          className="px-3 py-2.5 text-left text-xs font-bold text-white uppercase tracking-wider whitespace-nowrap"
-                        >
-                          {h}
-                        </th>
-                      ))}
+                          "Date & Time", "Client", "Agent", "Area", "F/U Type","Outcome",
+                           "Notes", "Next F/U", "Logged By",
+                        ].map(h => (
+                          <th
+                            key={h}
+                            className="px-3 py-2.5 text-left text-xs font-bold text-white uppercase tracking-wider whitespace-nowrap"
+                          >
+                            {h}
+                          </th>
+                        ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
@@ -609,8 +704,11 @@ export default function FollowUpReportPage() {
                         {/* Follow-Up Type */}
                         <td className="px-3 py-2 overflow-hidden">
                           <div className="space-y-0.5">
-                            <TruncCell text={CHANNEL_LABELS[log.channel] || log.channel || "—"} className="text-xs text-gray-700" />
-                            {log.assigned_to_name && (
+                            <TruncCell
+                              text={getFollowUpTypeLabel(log)}
+                              className="text-xs text-gray-700"
+                            />
+                            {log.channel === "VISIT" && log.assigned_to_name && (
                               <p className="text-[10px] font-semibold text-teal-600 truncate">
                                 {log.assigned_to_name}
                               </p>
@@ -627,14 +725,7 @@ export default function FollowUpReportPage() {
                           </span>
                         </td>
 
-                        {/* Collected */}
-                        <td className="px-3 py-2 text-right">
-                          <span className={`text-xs font-semibold tabular-nums ${
-                            log.collected_amount ? "text-green-600" : "text-gray-400"
-                          }`}>
-                            {log.collected_amount ? fmtRupee(log.collected_amount) : "—"}
-                          </span>
-                        </td>
+                        {/* Collected column removed */}
 
                         {/* Notes */}
                         <td className="px-3 py-2 overflow-hidden text-center">

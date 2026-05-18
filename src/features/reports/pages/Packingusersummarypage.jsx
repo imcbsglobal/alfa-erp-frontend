@@ -8,6 +8,7 @@ export default function PackingUserSummaryPage() {
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalPacks, setTotalPacks] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [rowsPerPage, setRowsPerPage] = useState(20);
 
@@ -43,15 +44,20 @@ export default function PackingUserSummaryPage() {
       for (const session of allSessions) {
         const packerName = session.packer_name || session.packer?.name || session.packer?.email || "Unknown";
         const packerId = session.packer?.id || packerName;
+        const sessionItemCount = Array.isArray(session.items)
+          ? session.items.reduce((count, item) => count + (Number(item.quantity) || 0), 0)
+          : 0;
 
         if (!packerMap[packerId]) {
           packerMap[packerId] = {
             packer_id: packerId,
             packer_name: packerName,
             pack_count: 0,
+            item_count: 0,
           };
         }
         packerMap[packerId].pack_count += 1;
+        packerMap[packerId].item_count += sessionItemCount;
       }
 
       // Sort by pack count descending
@@ -59,6 +65,7 @@ export default function PackingUserSummaryPage() {
 
       setSummary(aggregated);
       setTotalPacks(allSessions.length);
+      setTotalItems(aggregated.reduce((sum, item) => sum + item.item_count, 0));
     } catch (err) {
       console.error("❌ Failed to load packing summary:", err);
       toast.error("Failed to load packing summary");
@@ -73,7 +80,8 @@ export default function PackingUserSummaryPage() {
   };
 
   const visibleRows = summary.slice(0, rowsPerPage);
-  const visibleTotal = visibleRows.reduce((sum, item) => sum + item.pack_count, 0);
+  const visiblePackTotal = visibleRows.reduce((sum, item) => sum + item.pack_count, 0);
+  const visibleItemTotal = visibleRows.reduce((sum, item) => sum + item.item_count, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -137,6 +145,7 @@ export default function PackingUserSummaryPage() {
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">#</th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Packer Name</th>
                       <th className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Bills Packed</th>
+                      <th className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Items Packed</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -154,16 +163,22 @@ export default function PackingUserSummaryPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
                           {formatNumber(item.pack_count, 0, '0')}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
+                          {formatNumber(item.item_count, 0, '0')}
+                        </td>
                       </tr>
                     ))}
 
                     {/* Total Row */}
                     <tr className="bg-teal-100 font-bold">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900" colSpan={2}>
-                        Total Bills Packed
+                        Total
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900">
-                        {formatNumber(visibleTotal, 0, '0')}
+                        {formatNumber(visiblePackTotal, 0, '0')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900">
+                        {formatNumber(visibleItemTotal, 0, '0')}
                       </td>
                     </tr>
                   </tbody>
@@ -175,7 +190,8 @@ export default function PackingUserSummaryPage() {
                 <p className="text-sm text-gray-700">
                   Showing <span className="font-medium">{visibleRows.length}</span> of{' '}
                   <span className="font-medium">{summary.length}</span> packer{summary.length !== 1 ? 's' : ''} with a total of{' '}
-                  <span className="font-medium">{formatNumber(totalPacks, 0, '0')}</span> bills packed
+                  <span className="font-medium">{formatNumber(totalPacks, 0, '0')}</span> bills packed and{' '}
+                  <span className="font-medium">{formatNumber(totalItems, 0, '0')}</span> items packed
                 </p>
               </div>
             </>

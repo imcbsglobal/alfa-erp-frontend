@@ -185,11 +185,6 @@ export const MENU_CONFIG = [
         path: "/followup/tracker",
       },
       {
-        label: "Master",
-        icon: Database,
-        path: "/followup/master",
-      },
-      {
         label: "Reports",
         icon: FileText,
         path: "/followup/report",
@@ -250,6 +245,11 @@ export const MENU_CONFIG = [
         path: "/history/items-sold-today",
         hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
       },
+       {
+         label: "Customer List",
+         icon: Database,
+         path: "/followup/master",
+       },
       // ── NEW: User Summary nested dropdown ──────────────
       {
         label: "User Summary",

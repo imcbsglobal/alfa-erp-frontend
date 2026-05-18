@@ -8,6 +8,7 @@ export default function PickingUserSummaryPage() {
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalPicks, setTotalPicks] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [rowsPerPage, setRowsPerPage] = useState(20);
 
@@ -43,15 +44,20 @@ export default function PickingUserSummaryPage() {
       for (const session of allSessions) {
         const pickerName = session.picker_name || session.picker?.name || session.picker?.email || "Unknown";
         const pickerId = session.picker?.id || pickerName;
+        const sessionItemCount = Array.isArray(session.items)
+          ? session.items.reduce((count, item) => count + (Number(item.quantity) || 0), 0)
+          : 0;
 
         if (!pickerMap[pickerId]) {
           pickerMap[pickerId] = {
             picker_id: pickerId,
             picker_name: pickerName,
             pick_count: 0,
+            item_count: 0,
           };
         }
         pickerMap[pickerId].pick_count += 1;
+        pickerMap[pickerId].item_count += sessionItemCount;
       }
 
       // Sort by pick count descending
@@ -59,6 +65,7 @@ export default function PickingUserSummaryPage() {
 
       setSummary(aggregated);
       setTotalPicks(allSessions.length);
+      setTotalItems(aggregated.reduce((sum, item) => sum + item.item_count, 0));
     } catch (err) {
       console.error("❌ Failed to load picking summary:", err);
       toast.error("Failed to load picking summary");
@@ -73,7 +80,8 @@ export default function PickingUserSummaryPage() {
   };
 
   const visibleRows = summary.slice(0, rowsPerPage);
-  const visibleTotal = visibleRows.reduce((sum, item) => sum + item.pick_count, 0);
+  const visibleBillTotal = visibleRows.reduce((sum, item) => sum + item.pick_count, 0);
+  const visibleItemTotal = visibleRows.reduce((sum, item) => sum + item.item_count, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -137,6 +145,7 @@ export default function PickingUserSummaryPage() {
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">#</th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Picker Name</th>
                       <th className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Bills Picked</th>
+                      <th className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Items Picked</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -154,16 +163,22 @@ export default function PickingUserSummaryPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
                           {formatNumber(item.pick_count, 0, '0')}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
+                          {formatNumber(item.item_count, 0, '0')}
+                        </td>
                       </tr>
                     ))}
 
                     {/* Total Row */}
                     <tr className="bg-teal-100 font-bold">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900" colSpan={2}>
-                        Total Bills Picked
+                        Total
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900">
-                        {formatNumber(visibleTotal, 0, '0')}
+                        {formatNumber(visibleBillTotal, 0, '0')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900">
+                        {formatNumber(visibleItemTotal, 0, '0')}
                       </td>
                     </tr>
                   </tbody>
@@ -175,7 +190,8 @@ export default function PickingUserSummaryPage() {
                 <p className="text-sm text-gray-700">
                   Showing <span className="font-medium">{visibleRows.length}</span> of{' '}
                   <span className="font-medium">{summary.length}</span> picker{summary.length !== 1 ? 's' : ''} with a total of{' '}
-                  <span className="font-medium">{formatNumber(totalPicks, 0, '0')}</span> bills picked
+                  <span className="font-medium">{formatNumber(totalPicks, 0, '0')}</span> bills picked and{' '}
+                  <span className="font-medium">{formatNumber(totalItems, 0, '0')}</span> items picked
                 </p>
               </div>
             </>

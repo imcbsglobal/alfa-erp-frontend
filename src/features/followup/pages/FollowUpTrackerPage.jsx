@@ -6,6 +6,9 @@ import Pagination from "../../../components/Pagination";
 import { X, Search, Download, Eye, Trash2, Plus } from "lucide-react";
 import ClientDetailPanel from "../components/ClientDetailPanel";
 import LogFollowUpModal from "../components/LogFollowUpModal";
+import { utils, writeFile } from "xlsx";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
 
 // ── helpers ──────────────────────────────────────────────────
 function useDebounce(value, delay) {
@@ -41,8 +44,7 @@ const TAB_OPTIONS = [
 
 function fmtRupee(val) {
   const n = parseFloat(val || 0);
-  if (n === 0) return "₹0";
-  return "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function getDueDays(nextFollowupDate, fallbackDays) {
@@ -95,6 +97,7 @@ function VisitLogModal({ client, onClose }) {
     for (let i = 0; i < rows.length; i++) {
       if (!rows[i].invoice_no.trim())               { setError(`Row ${i + 1}: Invoice No. is required.`); return; }
       if (!rows[i].amount || parseFloat(rows[i].amount) <= 0) { setError(`Row ${i + 1}: Amount must be > 0.`); return; }
+      if (!rows[i].payment_date)                    { setError(`Row ${i + 1}: Payment Collection Date is required.`); return; }
     }
     setSaving(true);
     try {
@@ -178,7 +181,7 @@ function VisitLogModal({ client, onClose }) {
                   <th className="px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[130px]">Invoice Date</th>
                   <th className="px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[180px]">Remarks</th>
                   <th className="px-3 py-2.5 text-right font-semibold text-gray-600 min-w-[120px]">Amount (₹) <span className="text-red-500">*</span></th>
-                  <th className="px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[150px]">Payment Collection Date</th>
+                  <th className="px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[150px]">Payment Collection Date <span className="text-red-500">*</span></th>
                   <th className="px-2 py-2.5 w-8" />
                 </tr>
               </thead>
@@ -275,6 +278,8 @@ export default function FollowUpTrackerPage() {
   const [searchQuery,       setSearchQuery]       = useState("");
   const [selectedAgent,     setSelectedAgent]     = useState("all");
   const [selectedArea,      setSelectedArea]      = useState("all");
+  const [minOutstanding,    setMinOutstanding]    = useState("");
+  const [maxOutstanding,    setMaxOutstanding]    = useState("");
   const [agentOptions,      setAgentOptions]      = useState([]);
   const [areaOptions,       setAreaOptions]       = useState([]);
   const [currentPage,       setCurrentPage]       = useState(1);
@@ -284,13 +289,12 @@ export default function FollowUpTrackerPage() {
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [showPaymentModal,  setShowPaymentModal]  = useState(false);
   const [exporting,         setExporting]         = useState(false);
-
   const searchRef      = useRef(null);
   const ITEMS_PER_PAGE = 100;
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => { searchRef.current?.focus(); }, []);
-  useEffect(() => { loadClients(); }, [tab, debouncedSearch, currentPage, sortBy, sortOrder, selectedAgent, selectedArea]);
+  useEffect(() => { loadClients(); }, [tab, debouncedSearch, currentPage, sortBy, sortOrder, selectedAgent, selectedArea, minOutstanding, maxOutstanding]);
   useEffect(() => { loadTabCounts(); }, [selectedAgent, selectedArea]);
   useEffect(() => { loadFilterOptions(); }, []);
 
@@ -330,6 +334,8 @@ export default function FollowUpTrackerPage() {
       if (selectedAgent !== "all") params.agent  = selectedAgent;
       if (selectedArea  !== "all") params.area   = selectedArea;
       if (debouncedSearch.trim())  params.search = debouncedSearch.trim();
+      if (minOutstanding) params.outstanding_min = parseFloat(minOutstanding);
+      if (maxOutstanding) params.outstanding_max = parseFloat(maxOutstanding);
       const res = await getFollowUpTracker(params);
       setClients(res.data.results || []);
       setTotalCount(res.data.count || 0);
@@ -346,42 +352,92 @@ export default function FollowUpTrackerPage() {
     setCurrentPage(1);
   };
 
-  const exportCSV = async () => {
+  const exportToExcel = async () => {
     setExporting(true);
-    const toastId = toast.loading("Preparing export...");
+    const toastId = toast.loading("Preparing Excel export...");
     try {
-      const params = { filter: tab, page_size: 999999 };
-      if (selectedAgent !== "all") params.agent  = selectedAgent;
-      if (selectedArea  !== "all") params.area   = selectedArea;
-      if (debouncedSearch.trim())  params.search = debouncedSearch.trim();
+      const params = { filter: tab, page_size: 999999, sort_by: sortBy, sort_order: sortOrder };
+      if (selectedAgent !== "all") params.agent = selectedAgent;
+      if (selectedArea  !== "all") params.area = selectedArea;
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       const res = await getFollowUpTracker(params);
       const all = res.data.results || [];
       if (!all.length) { toast.error("No data to export", { id: toastId }); return; }
-      toast.loading(`Building CSV for ${all.length} clients…`, { id: toastId });
-      const headers = ["Code", "Name", "Agent", "Area", "Invoices", "Credit", "Debit", "Outstanding", "Oldest Due (days)", "Risk", "Next F/U"];
-      const rows = all.map(c => [
-        c.code, c.name, c.agent || "—", c.area || "—",
-        c.invoice_count || 0, c.debit, c.credit, c.outstanding,
-        getDueDays(c.next_followup_date, c.oldest_due_days), c.risk,
-        OUTCOME_LABELS[c.last_outcome] || "—", c.next_followup_date || "—",
+      toast.loading(`Building Excel for ${all.length} clients…`, { id: toastId });
+      const data = all.map(c => ({
+        Code: c.code,
+        Client: c.name,
+        Agent: c.agent || "—",
+        Area: c.area || "—",
+        Invoices: c.invoice_count,
+        Credit: c.credit,
+        Debit: c.debit,
+        Outstanding: c.outstanding,
+        "Oldest Due Days": c.oldest_due_days,
+        Risk: c.risk,
+      }));
+      const ws = utils.json_to_sheet(data);
+      ws["!cols"] = [
+        { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 10 },
+      ];
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, "Payment Tracker");
+      writeFile(wb, `followup_tracker_${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success(`Exported ${all.length} clients to Excel`, { id: toastId });
+    } catch (err) {
+      toast.error("Excel export failed", { id: toastId });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportToPDF = async () => {
+    setExporting(true);
+    const toastId = toast.loading("Preparing PDF export...");
+    try {
+      const params = { filter: tab, page_size: 999999, sort_by: sortBy, sort_order: sortOrder };
+      if (selectedAgent !== "all") params.agent = selectedAgent;
+      if (selectedArea  !== "all") params.area = selectedArea;
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      const res = await getFollowUpTracker(params);
+      const all = res.data.results || [];
+      if (!all.length) { toast.error("No data to export", { id: toastId }); return; }
+      toast.loading(`Building PDF for ${all.length} clients…`, { id: toastId });
+      const doc = new jsPDF({ orientation: "landscape" });
+      const tableData = all.map(c => [
+        c.code,
+        c.name,
+        c.agent || "—",
+        c.area || "—",
+        c.invoice_count,
+        fmtRupee(c.credit),
+        fmtRupee(c.debit),
+        fmtRupee(c.outstanding),
+        c.oldest_due_days,
+        c.risk,
       ]);
-      const csv  = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href = url; a.download = `followup_tracker_${tab}_${new Date().toISOString().split("T")[0]}.csv`;
-      a.click(); URL.revokeObjectURL(url);
-      toast.success(`Exported ${all.length} clients`, { id: toastId });
-    } catch (_) {
-      toast.error("Export failed", { id: toastId });
+      doc.autoTable({
+        head: [["Code", "Client", "Agent", "Area", "Inv", "Credit", "Debit", "Outstanding", "Oldest Due", "Risk"]],
+        body: tableData,
+        startY: 20,
+        margin: 10,
+        headStyles: { fillColor: [20, 184, 166], textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [240, 253, 250] },
+        columnStyles: { 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right" }, 8: { halign: "center" } },
+      });
+      doc.text(`Payment Follow-Up Tracker - ${new Date().toLocaleDateString("en-IN")}`, 10, 10);
+      doc.save(`followup_tracker_${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success(`Exported ${all.length} clients to PDF`, { id: toastId });
+    } catch (err) {
+      toast.error("PDF export failed", { id: toastId });
     } finally {
       setExporting(false);
     }
   };
 
   const isCleared = (c) => !c.outstanding || parseFloat(c.outstanding) === 0;
-  const hasActiveFilters = tab !== "all" || selectedAgent !== "all" || selectedArea !== "all" || searchQuery.trim().length > 0;
-  const clearFilters = () => { setTab("all"); setSearchQuery(""); setSelectedAgent("all"); setSelectedArea("all"); setCurrentPage(1); };
+  const hasActiveFilters = tab !== "all" || selectedAgent !== "all" || selectedArea !== "all" || searchQuery.trim().length > 0 || minOutstanding || maxOutstanding;
+  const clearFilters = () => { setTab("all"); setSearchQuery(""); setSelectedAgent("all"); setSelectedArea("all"); setMinOutstanding(""); setMaxOutstanding(""); setCurrentPage(1); };
 
   const SortTh = ({ field, children, className = "" }) => (
     <th onClick={() => handleSort(field)}
@@ -397,62 +453,76 @@ export default function FollowUpTrackerPage() {
     <div className="min-h-screen bg-gray-50 p-3">
       <div className="max-w-[1400px] mx-auto">
 
-        <div className="mb-3">
-          <h1 className="text-xl font-bold text-gray-800">Payment Follow-Up</h1>
+        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800">Payment Follow-Up</h1>
+          </div>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <button onClick={() => { loadClients(); loadTabCounts(); toast.success("Refreshed"); }}
+              className="px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-semibold text-xs shadow hover:from-teal-600 hover:to-cyan-700 transition-all">
+              Refresh
+            </button>
+            <button onClick={exportToExcel} disabled={loading || exporting}
+              className="px-3 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl font-semibold text-xs shadow hover:from-emerald-600 hover:to-green-700 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+              <Download size={12} />
+              {exporting ? "Exporting..." : "Excel"}
+            </button>
+            <button onClick={exportToPDF} disabled={loading || exporting}
+              className="px-3 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-semibold text-xs shadow hover:from-orange-600 hover:to-red-700 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+              <Download size={12} />
+              {exporting ? "Exporting..." : "PDF"}
+            </button>
+          </div>
         </div>
 
         {/* Filter Bar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-3">
-          <div className="flex flex-col gap-3 lg:gap-4">
-            <div className="flex flex-col xl:flex-row xl:items-center gap-3 xl:gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 flex-1 min-w-0">
-                <div className="relative min-w-0 md:col-span-2 xl:col-span-1">
-                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input ref={searchRef} type="text" placeholder="Search client, code or agent..."
-                    value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                    className="w-full pl-8 pr-8 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs" />
-                  {searchQuery && (
-                    <button onClick={() => { setSearchQuery(""); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <select value={tab} onChange={e => { setTab(e.target.value); setCurrentPage(1); }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs bg-white">
-                    {TAB_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <select value={selectedAgent} onChange={e => { setSelectedAgent(e.target.value); setCurrentPage(1); }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs bg-white">
-                    <option value="all">All Agents</option>
-                    {agentOptions.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <select value={selectedArea} onChange={e => { setSelectedArea(e.target.value); setCurrentPage(1); }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs bg-white">
-                    <option value="all">All Areas</option>
-                    {areaOptions.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
+          <div className="flex flex-col gap-3">
+            {/* Filter Header with Toggle */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-700">Filters</h2>
+              <button onClick={clearFilters} disabled={!hasActiveFilters}
+                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg font-semibold text-xs hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                Reset
+              </button>
+            </div>
+            {/* Compact single-line filter row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-8 gap-3 items-center">
+              <div className="relative min-w-0 sm:col-span-2 xl:col-span-2">
+                <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input ref={searchRef} type="text" placeholder="Search client, code or agent..."
+                  value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                  className="w-full pl-8 pr-8 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs" />
+                {searchQuery && (
+                  <button onClick={() => { setSearchQuery(""); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X size={12} />
+                  </button>
+                )}
               </div>
-              <div className="flex flex-wrap items-center gap-2 xl:justify-end xl:ml-auto">
-                <button onClick={() => { loadClients(); loadTabCounts(); toast.success("Refreshed"); }}
-                  className="px-3.5 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-semibold text-xs shadow hover:from-teal-600 hover:to-cyan-700 transition-all">
-                  Refresh
-                </button>
-                <button onClick={exportCSV} disabled={loading || exporting}
-                  className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl font-semibold text-xs shadow hover:from-emerald-600 hover:to-green-700 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <Download size={12} />
-                  {exporting ? "Exporting..." : `CSV (${totalCount})`}
-                </button>
-                <button onClick={clearFilters} disabled={!hasActiveFilters}
-                  className="px-3.5 py-2 bg-white border border-gray-300 text-gray-600 rounded-xl font-semibold text-xs hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                  Reset Filters
-                </button>
-              </div>
+              <select value={tab} onChange={e => { setTab(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs bg-white">
+                {TAB_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <select value={selectedAgent} onChange={e => { setSelectedAgent(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs bg-white">
+                <option value="all">All Agents</option>
+                {agentOptions.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <select value={selectedArea} onChange={e => { setSelectedArea(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs bg-white">
+                <option value="all">All Areas</option>
+                {areaOptions.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <input type="number" min="0" placeholder="Outstanding Min" value={minOutstanding}
+                onChange={e => { setMinOutstanding(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs bg-white" />
+              <input type="number" min="0" placeholder="Outstanding Max" value={maxOutstanding}
+                onChange={e => { setMaxOutstanding(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs bg-white" />
+              <button onClick={() => { setCurrentPage(1); loadClients(); }} disabled={loading}
+                className="px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg font-semibold text-[11px] shadow hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+                Go
+              </button>
             </div>
           </div>
         </div>
@@ -470,8 +540,8 @@ export default function FollowUpTrackerPage() {
                   <colgroup><col style={{ width: "72px" }} /><col style={{ width: "200px" }} /><col style={{ width: "100px" }} /><col style={{ width: "110px" }} /><col style={{ width: "52px" }} /><col style={{ width: "110px" }} /><col style={{ width: "110px" }} /><col style={{ width: "120px" }} /><col style={{ width: "84px" }} /><col style={{ width: "60px" }} /><col style={{ width: "72px" }} /><col style={{ width: "68px" }} /></colgroup>
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
-                      <th className="px-3 py-2.5 text-left text-xs font-bold text-white uppercase tracking-wider">Code</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-bold text-white uppercase tracking-wider">Client</th>
+                      <SortTh field="code">Code</SortTh>
+                      <SortTh field="name">Client</SortTh>
                       <th className="px-3 py-2.5 text-left text-xs font-bold text-white uppercase tracking-wider">Agent</th>
                       <th className="px-3 py-2.5 text-left text-xs font-bold text-white uppercase tracking-wider">Area</th>
                       <SortTh field="invoice_count" className="text-center">Inv</SortTh>
