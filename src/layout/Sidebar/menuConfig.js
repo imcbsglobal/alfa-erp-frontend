@@ -245,11 +245,12 @@ export const MENU_CONFIG = [
         path: "/history/items-sold-today",
         hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
       },
-       {
-         label: "Customer List",
-         icon: Database,
-         path: "/followup/master",
-       },
+      {
+        label: "Customer List",
+        icon: Database,
+        path: "/followup/master",
+        hasAccess: (user) => ["SUPERADMIN", "ADMIN", "STORE", "USER"].includes(user?.role),
+      },
       // ── NEW: User Summary nested dropdown ──────────────
       {
         label: "User Summary",
