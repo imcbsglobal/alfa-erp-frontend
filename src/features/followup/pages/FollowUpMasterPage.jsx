@@ -165,38 +165,201 @@ export default function FollowUpMasterPage() {
       const all = res.data.results || [];
       if (!all.length) { toast.error("No data to export", { id: toastId }); return; }
       toast.loading(`Building PDF for ${all.length} clients…`, { id: toastId });
-      const doc = new jsPDF({ orientation: "landscape" });
-      const tableData = all.map(c => [
-        c.code,
-        c.name,
-        c.agent || "—",
-        c.area || "—",
-        c.address || "—",
-        c.place || "—",
-        c.city || "—",
-        c.state || "—",
-        c.phone || "—",
-        c.phone2 || "—",
-        c.fax || "—",
-        c.openingdepartment || "—",
-        fmtRupee(c.credit),
-        fmtRupee(c.debit),
-        fmtRupee(c.outstanding),
-      ]);
-      doc.autoTable({
-        head: [["Code", "Name", "Agent", "Area", "Address", "Place", "City", "State", "Phone", "Phone 2", "Pincode", "Department", "Credit", "Debit", "Outstanding"]],
-        body: tableData,
-        startY: 20,
-        margin: 10,
-        headStyles: { fillColor: [20, 184, 166], textColor: [255, 255, 255], fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [240, 253, 250] },
-        columnStyles: { 12: { halign: "right" }, 13: { halign: "right" }, 14: { halign: "right" } },
+
+      const doc = new jsPDF({ orientation: "landscape", format: "a4" });
+      const pageWidth  = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // ── simple rupee formatter — NO locale spaces ──────────────
+      const rupee = (val) => {
+        const n = parseFloat(val || 0);
+        const fixed = n.toFixed(2);
+        const [intPart, dec] = fixed.split(".");
+        // Indian grouping: last 3 then pairs
+        const lastThree = intPart.slice(-3);
+        const rest = intPart.slice(0, -3);
+        const grouped = rest
+          ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree
+          : lastThree;
+        return "Rs." + grouped + "." + dec;   // plain ASCII, no ₹ unicode
+      };
+
+      const margin       = 8;
+      const topMargin    = 16;
+      const bottomMargin = 8;
+      const startY       = 16;
+      const rowHeight    = 9;
+      const availableW   = pageWidth - margin * 2;
+
+      const headers  = ["Code", "Name", "Complete Address", "Phone", "Credit", "Debit", "Outstanding"];
+      const weights  = [7, 17, 27, 16, 11, 11, 11];
+      const totalW   = weights.reduce((s, w) => s + w, 0);
+      const colWidths = weights.map(w => (w / totalW) * availableW);
+      const numericCols = new Set([4, 5, 6]);
+
+      // ── fitText: truncate to fit width, no wrapping ────────────
+      const fitText = (value, maxW) => {
+        const text = String(value ?? "—");
+        if (doc.getTextWidth(text) <= maxW) return text;
+        const ell = "...";
+        let out = text;
+        while (out.length > 0 && doc.getTextWidth(out + ell) > maxW) out = out.slice(0, -1);
+        return out ? out + ell : ell;
+      };
+
+      // ── wrap address into max 2 lines ──────────────────────────
+      const wrapLines = (text, maxW, maxLines = 2) => {
+        const words = String(text || "—").split(" ");
+        const lines = [];
+        let cur = "";
+        for (const word of words) {
+          const test = cur ? `${cur} ${word}` : word;
+          if (doc.getTextWidth(test) <= maxW) {
+            cur = test;
+          } else {
+            if (cur) lines.push(cur);
+            cur = word;
+            if (lines.length >= maxLines - 1) { lines.push(cur); return lines; }
+          }
+        }
+        if (cur) lines.push(cur);
+        return lines;
+      };
+
+      // ── draw header row ────────────────────────────────────────
+      const drawHeader = (y) => {
+        let x = margin;
+        
+        // Step 1: Draw all filled rectangles first
+        doc.setFillColor(20, 184, 166);
+        doc.setDrawColor(100, 100, 100);
+        doc.setLineWidth(0.3);
+        colWidths.forEach((w) => {
+          doc.rect(x, y, w, rowHeight, "FD");
+          x += w;
+        });
+
+        // Step 2: Draw all text AFTER rectangles — force white color here
+        doc.setFont(undefined, "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(255, 255, 255);  // white — set AFTER rect drawing
+        
+        x = margin;
+        headers.forEach((h, i) => {
+          const align = numericCols.has(i) ? "right" : i === 0 ? "center" : "left";
+          const tx = numericCols.has(i)
+            ? x + colWidths[i] - 1
+            : i === 0
+            ? x + colWidths[i] / 2
+            : x + 1.5;
+          doc.text(h, tx, y + rowHeight / 2 + 0.3, { align, baseline: "middle" });
+          x += colWidths[i];
+        });
+        
+        // Step 3: Reset text color to black for subsequent rows
+        doc.setTextColor(0, 0, 0);
+      };
+
+      // Title
+      doc.setFontSize(11);
+      doc.setFont(undefined, "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Customer List - ${new Date().toLocaleDateString("en-IN")}`, margin, 11);
+
+      let curY = startY;
+      drawHeader(curY);
+      curY += rowHeight;
+
+      all.forEach((client, rowIdx) => {
+        if (curY + rowHeight > pageHeight - bottomMargin) {
+          doc.addPage();
+          curY = topMargin;
+          drawHeader(curY);
+          curY += rowHeight;
+        }
+
+        // zebra
+        if (rowIdx % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          let x = margin;
+          colWidths.forEach(w => { doc.rect(x, curY, w, rowHeight, "F"); x += w; });
+        }
+
+        // cell borders
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.2);
+        let x = margin;
+        colWidths.forEach(w => { doc.rect(x, curY, w, rowHeight, "S"); x += w; });
+
+        const addr = [client.address, client.place, client.city, client.state, client.fax]
+          .filter(Boolean).join(", ") || "—";
+        const phone = [client.phone, client.phone2].filter(Boolean).join(", ") || "—";
+
+        const rowData = [
+          client.code  || "—",
+          client.name  || "—",
+          addr,
+          phone,
+          rupee(client.credit),
+          rupee(client.debit),
+          rupee(client.outstanding),
+        ];
+
+        doc.setFont(undefined, "normal");
+        doc.setTextColor(0, 0, 0);
+        x = margin;
+
+        rowData.forEach((cell, ci) => {
+          const w = colWidths[ci];
+          const pad = 1.2;
+
+          if (ci === 2) {
+            // address — wrap 2 lines
+            doc.setFontSize(5.0);
+            const lines = wrapLines(cell, w - pad * 2, 2);
+            const lh = 3.0;
+            const startLY = curY + rowHeight / 2 - (lines.length * lh) / 2 + 0.5;
+            lines.forEach((ln, li) => {
+              doc.text(ln, x + pad, startLY + li * lh, { baseline: "middle" });
+            });
+          } else if (numericCols.has(ci)) {
+            // numeric — fitText only, NO maxWidth, right-aligned
+            doc.setFontSize(5.5);
+            const txt = fitText(cell, w - pad);
+            doc.text(txt, x + w - pad, curY + rowHeight / 2 + 0.3, {
+              align: "right",
+              baseline: "middle",
+            });
+          } else {
+            doc.setFontSize(5.5);
+            const txt = fitText(cell, w - pad * 2);
+            const align = ci === 0 ? "center" : "left";
+            const tx    = ci === 0 ? x + w / 2 : x + pad;
+            doc.text(txt, tx, curY + rowHeight / 2 + 0.3, {
+              align,
+              baseline: "middle",
+            });
+          }
+          x += w;
+        });
+
+        curY += rowHeight;
       });
-      doc.text(`Customer List - ${new Date().toLocaleDateString("en-IN")}`, 10, 10);
+
+      // page numbers
+      const pages = doc.internal.getNumberOfPages();
+      doc.setFontSize(6);
+      doc.setTextColor(140, 140, 140);
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.text(`Page ${i} of ${pages}`, pageWidth - margin, pageHeight - 4, { align: "right" });
+      }
+
       doc.save(`followup_customer_list_${new Date().toISOString().split("T")[0]}.pdf`);
       toast.success(`Exported ${all.length} clients to PDF`, { id: toastId });
     } catch (err) {
-      toast.error("PDF export failed", { id: toastId });
+      console.error("PDF export error:", err);
+      toast.error(`PDF export failed: ${err.message || "Unknown error"}`, { id: toastId });
     } finally {
       setExporting(false);
     }
@@ -310,14 +473,14 @@ export default function FollowUpMasterPage() {
                 <table className="min-w-[1000px] md:min-w-full divide-y divide-gray-100" style={{ tableLayout: "fixed", width: "100%" }}>
                   <colgroup>
                     <col style={{ width: "60px" }} />
-                    <col style={{ width: "180px" }} />
-                    <col style={{ width: "90px" }} />
-                    <col style={{ width: "90px" }} />
-                    <col style={{ width: "220px" }} />
-                    <col style={{ width: "120px" }} />
-                    <col style={{ width: "110px" }} />
-                    <col style={{ width: "110px" }} />
-                    <col style={{ width: "120px" }} />
+                    <col style={{ width: "170px" }} />
+                    <col style={{ width: "85px" }} />
+                    <col style={{ width: "85px" }} />
+                    <col style={{ width: "160px" }} />   {/* was 220px */}
+                    <col style={{ width: "100px" }} />
+                    <col style={{ width: "130px" }} />   {/* was 110px */}
+                    <col style={{ width: "130px" }} />   {/* was 110px */}
+                    <col style={{ width: "140px" }} />   {/* was 120px */}
                   </colgroup>
                   <thead className="bg-gradient-to-r from-teal-500 to-cyan-600">
                     <tr>
@@ -354,9 +517,17 @@ export default function FollowUpMasterPage() {
                             </div>
                           </td>
                           <td className="px-3 py-2 overflow-hidden"><TruncCell text={c.city || "—"} maxW="max-w-full" className="text-xs text-gray-600" /></td>
-                          <td className="px-3 py-2 text-right"><span className="text-xs text-gray-700 tabular-nums">{fmtRupee(billed)}</span></td>
-                          <td className="px-3 py-2 text-right"><span className="text-xs font-medium text-teal-600 tabular-nums">{fmtRupee(paid)}</span></td>
-                          <td className="px-3 py-2 text-right"><span className={`text-xs font-semibold tabular-nums ${cleared ? "text-gray-400" : "text-red-500"}`}>{fmtRupee(outstanding)}</span></td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="text-xs text-gray-700 tabular-nums whitespace-nowrap">{fmtRupee(billed)}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="text-xs font-medium text-teal-600 tabular-nums whitespace-nowrap">{fmtRupee(paid)}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className={`text-xs font-semibold tabular-nums whitespace-nowrap ${cleared ? "text-gray-400" : "text-red-500"}`}>
+                              {fmtRupee(outstanding)}
+                            </span>
+                          </td>
                         </tr>
                       );
                     })}
