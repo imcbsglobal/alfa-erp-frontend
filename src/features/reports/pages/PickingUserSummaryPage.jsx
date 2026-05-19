@@ -44,9 +44,8 @@ export default function PickingUserSummaryPage() {
       for (const session of allSessions) {
         const pickerName = session.picker_name || session.picker?.name || session.picker?.email || "Unknown";
         const pickerId = session.picker?.id || pickerName;
-        const sessionItemCount = Array.isArray(session.items)
-          ? session.items.reduce((count, item) => count + (Number(item.quantity) || 0), 0)
-          : 0;
+        const sessionItems = Array.isArray(session.items) ? session.items : [];
+        const sessionItemCount = sessionItems.length;
 
         if (!pickerMap[pickerId]) {
           pickerMap[pickerId] = {
@@ -60,7 +59,7 @@ export default function PickingUserSummaryPage() {
         pickerMap[pickerId].item_count += sessionItemCount;
       }
 
-      // Sort by pick count descending
+      // Sort by picker name
       const aggregated = Object.values(pickerMap).sort((a, b) => a.picker_name.localeCompare(b.picker_name));
 
       setSummary(aggregated);

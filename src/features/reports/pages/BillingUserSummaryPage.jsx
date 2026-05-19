@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getBillingUserSummary } from "../../../services/sales";
+import { getBillingUserSummary, getBillingInvoices } from "../../../services/sales";
 import toast from "react-hot-toast";
 import { formatNumber } from '../../../utils/formatters';
 import { RefreshCw } from 'lucide-react';
@@ -8,6 +8,7 @@ export default function BillingUserSummaryPage() {
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalBills, setTotalBills] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [billingStatus] = useState('BILLED');
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -29,9 +30,42 @@ export default function BillingUserSummaryPage() {
       if (res.data.success) {
         const data = res.data.data || [];
         const sorted = [...data].sort((a, b) => a.salesman_name.localeCompare(b.salesman_name));
-        setSummary(sorted);
+        // Set initial summary (will merge item counts below)
+        const summaryData = sorted.map((s) => ({ ...s, item_count: 0 }));
+        setSummary(summaryData);
         const bills = data.reduce((sum, item) => sum + item.bill_count, 0);
         setTotalBills(bills);
+
+        // Fetch all billing invoices for the same date range to compute item counts per salesman
+        try {
+          let page = 1;
+          let allInvoices = [];
+          while (true) {
+            const invRes = await getBillingInvoices({ billing_status: billingStatus, start_date: startDate, end_date: startDate, page_size: 100, page });
+            const invResults = invRes.data.results || [];
+            allInvoices = allInvoices.concat(invResults);
+            if (!invRes.data.next || invResults.length === 0) break;
+            page++;
+          }
+
+          // Aggregate item counts by salesman id
+          const itemsMap = {};
+          for (const inv of allInvoices) {
+            const sid = inv.salesman_id || inv.salesman?.id || inv.created_user?.id || inv.created_by || inv.salesman_name;
+            const invItems = Array.isArray(inv.items) ? inv.items : [];
+            itemsMap[sid] = (itemsMap[sid] || 0) + invItems.length;
+          }
+
+          // Merge item counts into summary
+          const merged = summaryData.map((s) => {
+            const sid = s.salesman_id || s.salesman_name;
+            return { ...s, item_count: itemsMap[sid] || 0 };
+          });
+          setSummary(merged);
+          setTotalItems(merged.reduce((sum, it) => sum + it.item_count, 0));
+        } catch (invErr) {
+          console.error('Failed to fetch billing invoices for item counts', invErr);
+        }
       } else {
         toast.error("Failed to load billing summary");
       }
@@ -50,6 +84,7 @@ export default function BillingUserSummaryPage() {
 
   const visibleRows = summary.slice(0, rowsPerPage);
   const visibleTotal = visibleRows.reduce((sum, item) => sum + item.bill_count, 0);
+  const visibleItemsTotal = visibleRows.reduce((sum, item) => sum + (item.item_count || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -112,6 +147,7 @@ export default function BillingUserSummaryPage() {
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">#</th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">User Name</th>
                       <th className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Bill Count</th>
+                      <th className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Items Billed</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -131,6 +167,11 @@ export default function BillingUserSummaryPage() {
                             {formatNumber(item.bill_count, 0, '0')}
                           </span>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="text-sm font-bold text-gray-900">
+                            {formatNumber(item.item_count || 0, 0, '0')}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                     {/* Total Row */}
@@ -140,6 +181,9 @@ export default function BillingUserSummaryPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900">
                         {formatNumber(visibleTotal, 0, '0')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900">
+                        {formatNumber(visibleItemsTotal, 0, '0')}
                       </td>
                     </tr>
                   </tbody>
@@ -151,7 +195,8 @@ export default function BillingUserSummaryPage() {
                 <p className="text-sm text-gray-700">
                   Showing <span className="font-medium">{visibleRows.length}</span> of{' '}
                   <span className="font-medium">{summary.length}</span> user{summary.length !== 1 ? 's' : ''} with a total of{' '}
-                  <span className="font-medium">{formatNumber(totalBills, 0, '0')}</span> bills
+                  <span className="font-medium">{formatNumber(totalBills, 0, '0')}</span> bills and{' '}
+                  <span className="font-medium">{formatNumber(totalItems, 0, '0')}</span> items
                 </p>
               </div>
             </>

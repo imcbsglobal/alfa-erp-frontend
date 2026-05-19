@@ -45,7 +45,7 @@ export default function PackingUserSummaryPage() {
         const packerName = session.packer_name || session.packer?.name || session.packer?.email || "Unknown";
         const packerId = session.packer?.id || packerName;
         const sessionItemCount = Array.isArray(session.items)
-          ? session.items.reduce((count, item) => count + (Number(item.quantity) || 0), 0)
+          ? session.items.length
           : 0;
 
         if (!packerMap[packerId]) {
