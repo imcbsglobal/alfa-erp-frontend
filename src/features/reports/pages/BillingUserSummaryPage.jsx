@@ -27,51 +27,26 @@ export default function BillingUserSummaryPage() {
 
       const res = await getBillingUserSummary(params);
 
-      if (res.data.success) {
-        const data = res.data.data || [];
-        const sorted = [...data].sort((a, b) => a.salesman_name.localeCompare(b.salesman_name));
-        // Set initial summary (will merge item counts below)
-        const summaryData = sorted.map((s) => ({ ...s, item_count: 0 }));
-        setSummary(summaryData);
-        const bills = data.reduce((sum, item) => sum + item.bill_count, 0);
-        setTotalBills(bills);
-
-        // Fetch all billing invoices for the same date range to compute item counts per salesman
-        try {
-          let page = 1;
-          let allInvoices = [];
-          while (true) {
-            const invRes = await getBillingInvoices({ billing_status: billingStatus, start_date: startDate, end_date: startDate, page_size: 100, page });
-            const invResults = invRes.data.results || [];
-            allInvoices = allInvoices.concat(invResults);
-            if (!invRes.data.next || invResults.length === 0) break;
-            page++;
-          }
-
-          // Aggregate item counts by salesman id
-          const itemsMap = {};
-          for (const inv of allInvoices) {
-            const sid = inv.salesman_id || inv.salesman?.id || inv.created_user?.id || inv.created_by || inv.salesman_name;
-            const invItems = Array.isArray(inv.items) ? inv.items : [];
-            itemsMap[sid] = (itemsMap[sid] || 0) + invItems.length;
-          }
-
-          // Merge item counts into summary
-          const merged = summaryData.map((s) => {
-            const sid = s.salesman_id || s.salesman_name;
-            return { ...s, item_count: itemsMap[sid] || 0 };
-          });
-          setSummary(merged);
-          setTotalItems(merged.reduce((sum, it) => sum + it.item_count, 0));
-        } catch (invErr) {
-          console.error('Failed to fetch billing invoices for item counts', invErr);
+      if (res?.data?.success || res?.data?.data) {
+        const data = res.data.data || res.data || [];
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response data format');
         }
+        
+        const sorted = [...data].sort((a, b) => a.salesman_name.localeCompare(b.salesman_name));
+        setSummary(sorted);
+        
+        const bills = data.reduce((sum, item) => sum + item.bill_count, 0);
+        const items = data.reduce((sum, item) => sum + (item.item_count || 0), 0);
+        
+        setTotalBills(bills);
+        setTotalItems(items);
       } else {
-        toast.error("Failed to load billing summary");
+        toast.error("Failed to load billing summary - Invalid response format");
       }
     } catch (err) {
       console.error("❌ Failed to load billing summary:", err);
-      toast.error("Failed to load billing summary");
+      toast.error(err.response?.data?.message || "Failed to load billing summary");
     } finally {
       setLoading(false);
     }
